@@ -24,7 +24,10 @@ async def delete_data(
         "password": password,
         "database": database,
     }
-    print(f"Deleteing tables in {d}")
+    print(
+        f"Deleteing tables in "
+        f"{{'host': d['host'], 'port': d['port'], 'user': d['user'], 'database': d['database']}}"
+    )
     pool = await asyncpg.create_pool(init=register_vector, **d)
     table_records = await pool.fetch(
         """
