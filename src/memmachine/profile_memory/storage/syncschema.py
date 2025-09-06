@@ -49,7 +49,7 @@ async def sync_to(
         "password": password,
         "database": database,
     }
-    print(f"syncing to: {d}")
+    print(f"syncing to: {{'host': '{host}', 'port': '{port}', 'user': '{user}', 'database': '{database}', 'password': '****'}}")
     connection = await asyncpg.connect(**d)
     await connection.execute(get_base())
     print("Re-initializing ...")
