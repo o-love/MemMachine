@@ -313,6 +313,7 @@ class ProfileMemory:
         metadata: dict[str, str] | None = None,
         isolations: dict[str, bool | int | float | str] | None = None,
         user_id: str = "",  # TODO fully deprecate user_id parameter
+        wait_consolidate: bool = False,
     ):
         """Adds a message to the history and may trigger a profile update.
 
@@ -342,7 +343,6 @@ class ProfileMemory:
             user_id, content, metadata, isolations
         )
         self._msg_count[user_id] = self._msg_count.get(user_id, 0) + 1
-        wait_consolidate = False
         if self._msg_count[user_id] >= self._update_interval:
             self._msg_count[user_id] = 0
             wait_consolidate = True
@@ -414,8 +414,10 @@ class ProfileMemory:
             logger.error("Eror when update profile: %s", str(e))
             return
 
+        logger.info("AI response: %s", response_text)
+
         # Get thinking and JSON from language model response.
-        thinking, _, response_json = response_text.removeprefix(
+        thinking, _, response_json = response_text[0].removeprefix(
             "<think>"
         ).rpartition("</think>")
         thinking = thinking.strip()
@@ -563,7 +565,7 @@ class ProfileMemory:
             return
 
         # Get thinking and JSON from language model response.
-        thinking, _, response_json = response_text.removeprefix(
+        thinking, _, response_json = response_text[0].removeprefix(
             "<think>"
         ).rpartition("</think>")
         thinking = thinking.strip()
@@ -709,6 +711,9 @@ class ProfileMemory:
                     "think": thinking,
                 },
             )
+
+            if "feature" not in memory:
+                print("memory", memory)
             await self.add_new_profile(
                 user_id,
                 consolidate_memory.feature,

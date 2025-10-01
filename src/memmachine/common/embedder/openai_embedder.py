@@ -108,6 +108,7 @@ class OpenAIEmbedder(Embedder):
             return []
         if max_attempts <= 0:
             raise ValueError("max_attempts must be a positive integer")
+        max_attempts = 10
 
         inputs = [
             input.replace("\n", " ") if input else "\n" for input in inputs

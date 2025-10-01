@@ -365,6 +365,8 @@ class AsyncPgProfileStorage:
             VALUES($1, $2, $3, $4)
             RETURNING id, user_id, content, metadata, isolations
         """
+        if self._pool is None:
+            await self.startup()
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             return await conn.fetchrow(

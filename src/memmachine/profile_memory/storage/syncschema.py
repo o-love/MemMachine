@@ -57,7 +57,6 @@ async def sync_to(
         "port": port,
         "user": user,
         "password": password,
-        "database": database,
     }
     print(
         f"Syncing schema to {
@@ -71,6 +70,17 @@ async def sync_to(
         }"
     )
     connection = await asyncpg.connect(**d)
+
+    db_exists = await connection.fetchval(f"""
+        SELECT 1 FROM pg_database WHERE datname = '{database}'
+    """)
+    if db_exists is None:
+        print(f"Database {database} does not exist. Creating ...")
+        await connection.execute(f'CREATE DATABASE "{database}"')
+
+    d["database"] = database
+    connection = await asyncpg.connect(**d)
+
     await connection.execute(get_base())
     print("Re-initializing ...")
 

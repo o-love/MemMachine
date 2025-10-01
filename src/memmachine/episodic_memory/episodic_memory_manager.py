@@ -82,7 +82,7 @@ class EpisodicMemoryManager:
         cls._instance = None
 
     @classmethod
-    def create_episodic_memory_manager(cls, config_path: str):
+    def create_episodic_memory_manager(cls, config_path: str = "", config: dict = None):
         """
         Factory class method to create a MemoryManager instance from
         environment variables.
@@ -101,21 +101,22 @@ class EpisodicMemoryManager:
         if cls._instance is not None:
             return cls._instance
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        if config is None:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
 
-        def config_to_lowercase(data: Any) -> Any:
-            """Recursively converts all dictionary keys in a nested structure
-            to lowercase."""
-            if isinstance(data, dict):
-                return {
-                    k.lower(): config_to_lowercase(v) for k, v in data.items()
-                }
-            if isinstance(data, list):
-                return [config_to_lowercase(i) for i in data]
-            return data
+            def config_to_lowercase(data: Any) -> Any:
+                """Recursively converts all dictionary keys in a nested structure
+                to lowercase."""
+                if isinstance(data, dict):
+                    return {
+                        k.lower(): config_to_lowercase(v) for k, v in data.items()
+                    }
+                if isinstance(data, list):
+                    return [config_to_lowercase(i) for i in data]
+                return data
 
-        config = config_to_lowercase(config)
+            config = config_to_lowercase(config)
 
         # Configure logging based on the loaded configuration.
         log_path = config.get("logging", {}).get("path", "/tmp/MemMachine.log")

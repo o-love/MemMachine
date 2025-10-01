@@ -19,6 +19,8 @@ class OpenAILanguageModel(LanguageModel):
     Language model that uses OpenAI's models
     to generate responses based on prompts and tools.
     """
+    def model_name(self) -> str:
+        return self._model
 
     def __init__(self, config: dict[str, Any]):
         """

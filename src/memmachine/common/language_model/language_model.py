@@ -12,6 +12,10 @@ class LanguageModel(ABC):
     """
 
     @abstractmethod
+    def model_name(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
     async def generate_response(
         self,
         system_prompt: str | None = None,
