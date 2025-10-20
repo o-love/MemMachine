@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import boto3
 import botocore
+import instructor
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from memmachine.common.data_types import ExternalServiceAPIError
@@ -233,9 +234,9 @@ class AmazonBedrockLanguageModel(LanguageModel):
 
         metrics_factory = config.metrics_factory
 
-        self._collect_metrics = False
+        self._should_collect_metrics = False
         if metrics_factory is not None:
-            self._collect_metrics = True
+            self._should_collect_metrics = True
             self._user_metrics_labels = config.user_metrics_labels or {}
             if not isinstance(self._user_metrics_labels, dict):
                 raise TypeError("user_metrics_labels must be a dictionary")
@@ -272,6 +273,44 @@ class AmazonBedrockLanguageModel(LanguageModel):
                 "Latency in seconds for Amazon Bedrock language model requests",
                 label_names=label_names,
             )
+
+    async def generate_parsed_response(
+        self,
+        output_format: Any,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        max_attempts: int = 1,
+    ):
+        client = instructor.from_bedrock(self._client, async_client=True)
+
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be a positive integer")
+
+        converse_kwargs: dict[str, Any] = {
+            "modelId": self._model_id,
+            "system": [{"text": system_prompt or "."}],
+            "messages": [{"role": "user", "content": [{"text": user_prompt or "."}]}],
+            "response_model": output_format,
+            "max_retries": max_attempts,
+        }
+
+        if self._inference_config is not None:
+            converse_kwargs["inferenceConfig"] = self._inference_config
+
+        if self._additional_model_request_fields is not None:
+            converse_kwargs["additionalModelRequestFields"] = (
+                self._additional_model_request_fields
+            )
+
+        start_time = time.monotonic()
+
+        response = await client.chat.completions.create(**converse_kwargs)
+
+        end_time = time.monotonic()
+
+        self._collect_metrics(response, start_time, end_time)
+
+        return response
 
     async def generate_response(
         self,
@@ -358,33 +397,7 @@ class AmazonBedrockLanguageModel(LanguageModel):
 
         end_time = time.monotonic()
 
-        if self._collect_metrics:
-            if (response_usage := response.get("usage")) is not None:
-                self._input_tokens_usage_counter.increment(
-                    value=response_usage.get("inputTokens", 0),
-                    labels=self._user_metrics_labels,
-                )
-                self._output_tokens_usage_counter.increment(
-                    value=response_usage.get("outputTokens", 0),
-                    labels=self._user_metrics_labels,
-                )
-                self._total_tokens_usage_counter.increment(
-                    value=response_usage.get("totalTokens", 0),
-                    labels=self._user_metrics_labels,
-                )
-                self._cache_read_input_tokens_usage_counter.increment(
-                    response_usage.get("cacheReadInputTokens", 0),
-                    labels=self._user_metrics_labels,
-                )
-                self._cache_read_input_tokens_usage_counter.increment(
-                    response_usage.get("cacheWriteInputTokens", 0),
-                    labels=self._user_metrics_labels,
-                )
-
-            self._latency_summary.observe(
-                value=end_time - start_time,
-                labels=self._user_metrics_labels,
-            )
+        self._collect_metrics(response, start_time, end_time)
 
         text_block_strings = []
         function_calls_arguments = []
@@ -422,6 +435,35 @@ class AmazonBedrockLanguageModel(LanguageModel):
             output_text,
             function_calls_arguments,
         )
+
+    def _collect_metrics(self, response, start_time, end_time):
+        if self._should_collect_metrics:
+            if (response_usage := response.get("usage")) is not None:
+                self._input_tokens_usage_counter.increment(
+                    value=response_usage.get("inputTokens", 0),
+                    labels=self._user_metrics_labels,
+                )
+                self._output_tokens_usage_counter.increment(
+                    value=response_usage.get("outputTokens", 0),
+                    labels=self._user_metrics_labels,
+                )
+                self._total_tokens_usage_counter.increment(
+                    value=response_usage.get("totalTokens", 0),
+                    labels=self._user_metrics_labels,
+                )
+                self._cache_read_input_tokens_usage_counter.increment(
+                    response_usage.get("cacheReadInputTokens", 0),
+                    labels=self._user_metrics_labels,
+                )
+                self._cache_read_input_tokens_usage_counter.increment(
+                    response_usage.get("cacheWriteInputTokens", 0),
+                    labels=self._user_metrics_labels,
+                )
+
+            self._latency_summary.observe(
+                value=end_time - start_time,
+                labels=self._user_metrics_labels,
+            )
 
     @staticmethod
     def _format_tools(tools: list[dict[str, Any]]) -> list[dict[str, dict[str, Any]]]:

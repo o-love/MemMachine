@@ -79,9 +79,9 @@ class OpenAILanguageModel(LanguageModel):
         ):
             raise TypeError("Metrics factory must be an instance of MetricsFactory")
 
-        self._collect_metrics = False
+        self._should_collect_metrics = False
         if metrics_factory is not None:
-            self._collect_metrics = True
+            self._should_collect_metrics = True
             self._user_metrics_labels = config.get("user_metrics_labels", {})
             if not isinstance(self._user_metrics_labels, dict):
                 raise TypeError("user_metrics_labels must be a dictionary")
@@ -120,6 +120,52 @@ class OpenAILanguageModel(LanguageModel):
                 "Latency in seconds for OpenAI language model requests",
                 label_names=label_names,
             )
+
+    async def generate_parsed_response(
+        self,
+        output_format: Any,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        max_attempts: int = 1,
+    ) -> Any:
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be a positive integer")
+
+        input_prompts = [
+            {"role": "system", "content": system_prompt or ""},
+            {"role": "user", "content": user_prompt or ""},
+        ]
+
+        generate_response_call_uuid = uuid4()
+
+        start_time = time.monotonic()
+
+        try:
+            response = await self._client.with_options(
+                max_retries=max_attempts
+            ).responses.parse(
+                model=self._model,  # type: ignore[arg-type]
+                input=input_prompts,  # type: ignore[arg-type]
+                text_format=output_format,
+            )
+        except openai.OpenAIError as e:
+            error_message = (
+                f"[call uuid: {generate_response_call_uuid}] "
+                "Giving up generating response "
+                f"due to non-retryable {type(e).__name__}"
+            )
+            logger.error(error_message)
+            raise ExternalServiceAPIError(error_message)
+
+        end_time = time.monotonic()
+
+        self._collect_metrics(
+            response,
+            start_time,
+            end_time,
+        )
+
+        return response.output_parsed
 
     async def generate_response(
         self,
@@ -207,7 +253,37 @@ class OpenAILanguageModel(LanguageModel):
             end_time - start_time,
         )
 
-        if self._collect_metrics:
+        self._collect_metrics(
+            response,
+            start_time,
+            end_time,
+        )
+
+        if response.output is None:
+            return (response.output_text or "", [])
+
+        try:
+            function_calls_arguments = [
+                {
+                    "call_id": output.call_id,
+                    "function": {
+                        "name": output.name,
+                        "arguments": json.loads(output.arguments),
+                    },
+                }
+                for output in response.output
+                if output.type == "function_call"
+            ]
+        except json.JSONDecodeError as e:
+            raise ValueError("JSON decode error") from e
+
+        return (
+            response.output_text,
+            function_calls_arguments,
+        )
+
+    def _collect_metrics(self, response, start_time, end_time):
+        if self._should_collect_metrics:
             if response.usage is not None:
                 self._input_tokens_usage_counter.increment(
                     value=response.usage.input_tokens,
@@ -234,26 +310,3 @@ class OpenAILanguageModel(LanguageModel):
                 value=end_time - start_time,
                 labels=self._user_metrics_labels,
             )
-
-        if response.output is None:
-            return (response.output_text or "", [])
-
-        try:
-            function_calls_arguments = [
-                {
-                    "call_id": output.call_id,
-                    "function": {
-                        "name": output.name,
-                        "arguments": json.loads(output.arguments),
-                    },
-                }
-                for output in response.output
-                if output.type == "function_call"
-            ]
-        except json.JSONDecodeError as e:
-            raise ValueError("JSON decode error") from e
-
-        return (
-            response.output_text,
-            function_calls_arguments,
-        )

@@ -90,9 +90,9 @@ class OpenAICompatibleLanguageModel(LanguageModel):
         ):
             raise TypeError("Metrics factory must be an instance of MetricsFactory")
 
-        self._collect_metrics = False
+        self._should_collect_metrics = False
         if metrics_factory is not None:
-            self._collect_metrics = True
+            self._should_collect_metrics = True
             self._user_metrics_labels = config.get("user_metrics_labels", {})
             if not isinstance(self._user_metrics_labels, dict):
                 raise TypeError("user_metrics_labels must be a dictionary")
@@ -118,6 +118,52 @@ class OpenAICompatibleLanguageModel(LanguageModel):
                 "Latency in seconds for OpenAI language model requests",
                 label_names=label_names,
             )
+
+    async def generate_parsed_response(
+        self,
+        output_format: Any,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        max_attempts: int = 1,
+    ) -> Any:
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be a positive integer")
+
+        input_prompts = [
+            {"role": "system", "content": system_prompt or ""},
+            {"role": "user", "content": user_prompt or ""},
+        ]
+
+        generate_response_call_uuid = uuid4()
+
+        start_time = time.monotonic()
+
+        try:
+            response = await self._client.with_options(
+                max_retries=max_attempts
+            ).chat.completions.parse(
+                model=self._model,  # type: ignore[arg-type]
+                messages=input_prompts,  # type: ignore[arg-type]
+                response_format=output_format,
+            )
+        except openai.OpenAIError as e:
+            error_message = (
+                f"[call uuid: {generate_response_call_uuid}] "
+                "Giving up generating response "
+                f"due to non-retryable {type(e).__name__}"
+            )
+            logger.error(error_message)
+            raise ExternalServiceAPIError(error_message)
+
+        end_time = time.monotonic()
+
+        self._collect_metrics(
+            response,
+            start_time,
+            end_time,
+        )
+
+        return response.choices[0].message.parsed
 
     async def generate_response(
         self,
@@ -193,25 +239,11 @@ class OpenAICompatibleLanguageModel(LanguageModel):
 
         end_time = time.monotonic()
 
-        if self._collect_metrics:
-            if response.usage is not None:
-                self._input_tokens_usage_counter.increment(
-                    value=response.usage.prompt_tokens,
-                    labels=self._user_metrics_labels,
-                )
-                self._output_tokens_usage_counter.increment(
-                    value=response.usage.completion_tokens,
-                    labels=self._user_metrics_labels,
-                )
-                self._total_tokens_usage_counter.increment(
-                    value=response.usage.total_tokens,
-                    labels=self._user_metrics_labels,
-                )
-
-            self._latency_summary.observe(
-                value=end_time - start_time,
-                labels=self._user_metrics_labels,
-            )
+        self._collect_metrics(
+            response,
+            start_time,
+            end_time,
+        )
 
         function_calls_arguments = []
         try:
@@ -243,3 +275,25 @@ class OpenAICompatibleLanguageModel(LanguageModel):
             response.choices[0].message.content or "",
             function_calls_arguments,
         )
+
+    def _collect_metrics(self, response, start_time, end_time):
+        if self._should_collect_metrics:
+            if self._collect_metrics:
+                if response.usage is not None:
+                    self._input_tokens_usage_counter.increment(
+                        value=response.usage.prompt_tokens,
+                        labels=self._user_metrics_labels,
+                    )
+                    self._output_tokens_usage_counter.increment(
+                        value=response.usage.completion_tokens,
+                        labels=self._user_metrics_labels,
+                    )
+                    self._total_tokens_usage_counter.increment(
+                        value=response.usage.total_tokens,
+                        labels=self._user_metrics_labels,
+                    )
+
+                self._latency_summary.observe(
+                    value=end_time - start_time,
+                    labels=self._user_metrics_labels,
+                )

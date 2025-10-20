@@ -31,6 +31,8 @@ from fastmcp import FastMCP
 from fastmcp.server.http import StarletteWithLifespan
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field, model_validator
+from sqlalchemy.engine import URL
+from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
@@ -45,9 +47,19 @@ from memmachine.episodic_memory.episodic_memory import (
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-from memmachine.profile_memory.profile_memory import ProfileMemory
-from memmachine.profile_memory.prompt_provider import ProfilePrompt
-from memmachine.profile_memory.storage.asyncpg_profile import AsyncPgProfileStorage
+from memmachine.semantic_memory.semantic_memory import SemanticService
+from memmachine.semantic_memory.semantic_model import (
+    Resources,
+)
+from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
+from memmachine.semantic_memory.semantic_session_resource import (
+    IsolationType,
+    SessionIdManager,
+    SessionResourceRetriever,
+)
+from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
+    SqlAlchemyPgVectorSemanticStorage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -480,7 +492,8 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-profile_memory: ProfileMemory | None = None
+semantic_session_manager: SemanticSessionManager | None = None
+session_id_manager: SessionIdManager | None = None
 episodic_memory: EpisodicMemoryManager | None = None
 
 
@@ -489,17 +502,18 @@ episodic_memory: EpisodicMemoryManager | None = None
 
 async def initialize_resource(
     config_file: str,
-) -> tuple[EpisodicMemoryManager, ProfileMemory]:
+) -> tuple[EpisodicMemoryManager, SemanticSessionManager, SessionIdManager]:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
-    Initializes the ProfileMemory and EpisodicMemoryManager instances,
+    Initializes the SemanticSessionManager and EpisodicMemoryManager instances,
     and establishes necessary connections (e.g., to the database).
     These resources are cleaned up on shutdown.
     Args:
         config_file: The path to the configuration file.
     Returns:
-        A tuple containing the EpisodicMemoryManager and ProfileMemory instances.
+        A tuple containing the EpisodicMemoryManager, SemanticSessionManager,
+        and SessionIdManager instances.
     """
 
     try:
@@ -578,42 +592,88 @@ async def initialize_resource(
 
     prompt_file = profile_config.get("prompt", "profile_prompt")
     prompt_module = import_module(f".prompt.{prompt_file}", __package__)
-    profile_prompt = ProfilePrompt.load_from_module(prompt_module)
 
-    profile_storage = AsyncPgProfileStorage.build_config(
-        {
-            "host": db_config.get("host", "localhost"),
-            "port": db_config.get("port", 0),
-            "user": db_config.get("user", ""),
-            "password": db_config.get("password", ""),
-            "database": db_config.get("database", ""),
-        }
+    # Load semantic types from the prompt module
+    semantic_types = []
+    if hasattr(prompt_module, "SEMANTIC_TYPE"):
+        semantic_types.append(prompt_module.SEMANTIC_TYPE)
+    else:
+        raise ValueError(f"Can not find semantic type in prompt module {prompt_file}")
+
+    pg_server = {
+        "host": db_config.get("host", "localhost"),
+        "port": db_config.get("port", 0),
+        "user": db_config.get("user", ""),
+        "password": db_config.get("password", ""),
+        "database": db_config.get("database", ""),
+    }
+    sqlalchemy_engine = create_async_engine(
+        URL.create(
+            "postgresql+asyncpg",
+            username=pg_server["user"],
+            password=pg_server["password"],
+            host=pg_server["host"],
+            port=pg_server["port"],
+            database=pg_server["database"],
+        )
+    )
+    semantic_storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
+
+    # Create session ID manager for semantic memory
+    session_id_mgr = SessionIdManager()
+
+    # Create resource retriever for semantic service
+    default_resources = {
+        IsolationType.USER: Resources(
+            embedder=embeddings,
+            language_model=llm_model,
+            semantic_categories=semantic_types,
+        ),
+        IsolationType.ROLE: Resources(
+            embedder=embeddings,
+            language_model=llm_model,
+            semantic_categories=[],
+        ),
+        IsolationType.SESSION: Resources(
+            embedder=embeddings,
+            language_model=llm_model,
+            semantic_categories=[],
+        ),
+    }
+    resource_retriever = SessionResourceRetriever(session_id_mgr, default_resources)
+
+    # Create semantic service
+    semantic_service = SemanticService(
+        SemanticService.Params(
+            semantic_storage=semantic_storage,
+            resource_retriever=resource_retriever,
+        )
     )
 
-    profile_memory = ProfileMemory(
-        model=llm_model,
-        embeddings=embeddings,
-        profile_storage=profile_storage,
-        prompt=profile_prompt,
+    # Create semantic session manager
+    semantic_session_mgr = SemanticSessionManager(
+        semantic_service=semantic_service,
+        history_storage=semantic_storage,
     )
+
     episodic_memory = EpisodicMemoryManager.create_episodic_memory_manager(config_file)
-    return episodic_memory, profile_memory
+    return episodic_memory, semantic_session_mgr, session_id_mgr
 
 
 async def init_global_memory():
     config_file = os.getenv("MEMORY_CONFIG", "cfg.yml")
 
     global episodic_memory
-    global profile_memory
-    episodic_memory, profile_memory = await initialize_resource(config_file)
-    await profile_memory.startup()
+    global semantic_memory
+    episodic_memory, semantic_memory = await initialize_resource(config_file)
+    await semantic_memory.startup()
 
 
 async def shutdown_global_memory():
     global episodic_memory
-    global profile_memory
-    if profile_memory is not None:
-        await profile_memory.cleanup()
+    global semantic_session_manager
+    if semantic_session_manager is not None:
+        await semantic_session_manager._semantic_service.stop()
     if episodic_memory is not None:
         await episodic_memory.shut_down()
 
@@ -913,12 +973,12 @@ async def add_memory(
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
 ):
-    """Adds a memory episode to both episodic and profile memory.
+    """Adds a memory episode to both episodic and semantic memory.
 
     This endpoint first retrieves the appropriate episodic memory instance
     based on the session context (group, agent, user, session IDs). It then
     adds the episode to the episodic memory. If successful, it also passes
-    the message to the profile memory for ingestion.
+    the message to the semantic memory for ingestion.
 
     Args:
         episode: The NewEpisode object containing the memory details.
@@ -936,7 +996,7 @@ async def add_memory(
 
 
 async def _add_memory(episode: NewEpisode):
-    """Adds a memory episode to both episodic and profile memory.
+    """Adds a memory episode to both episodic and semantic memory.
     Internal function.  Shared by both REST API and MCP API
 
     See the docstring for add_memory() for details."""
@@ -969,18 +1029,8 @@ async def _add_memory(episode: NewEpisode):
                         or {session.agent_id}""",
             )
 
-        ctx = inst.get_memory_context()
-        await cast(ProfileMemory, profile_memory).add_persona_message(
-            str(episode.episode_content),
-            episode.metadata if episode.metadata is not None else {},
-            {
-                "group_id": ctx.group_id,
-                "session_id": ctx.session_id,
-                "producer": episode.producer,
-                "produced_for": episode.produced_for,
-            },
-            user_id=episode.producer,
-        )
+        # Add to semantic memory using session manager
+    await _add_semantic_memory(episode)
 
 
 @app.post("/v1/memories/episodic")
@@ -994,7 +1044,7 @@ async def add_episodic_memory(
     This endpoint first retrieves the appropriate episodic memory instance
     based on the session context (group, agent, user, session IDs). It then
     adds the episode to the episodic memory. If successful, it also passes
-    the message to the profile memory for ingestion.
+    the message to the semantic memory for ingestion.
 
     Args:
         episode: The NewEpisode object containing the memory details.
@@ -1012,7 +1062,7 @@ async def add_episodic_memory(
 
 
 async def _add_episodic_memory(episode: NewEpisode):
-    """Adds a memory episode to both episodic and profile memory.
+    """Adds a memory episode to both episodic and semantic memory.
     Internal function.  Shared by both REST API and MCP API
 
     See the docstring for add_episodic_memory() for details.
@@ -1072,28 +1122,27 @@ async def add_profile_memory(
     """
     episode.merge_and_validate_session(session)
     episode.update_response_session_header(response)
-    await _add_profile_memory(episode)
+    await _add_semantic_memory(episode)
 
 
-async def _add_profile_memory(episode: NewEpisode):
+async def _add_semantic_memory(episode: NewEpisode):
     """Adds a memory episode to profile memory.
     Internal function.  Shared by both REST API and MCP API
 
     See the docstring for add_profile_memory() for details.
     """
     session = episode.get_session()
-    group_id = session.group_id
 
-    await cast(ProfileMemory, profile_memory).add_persona_message(
-        str(episode.episode_content),
-        episode.metadata if episode.metadata is not None else {},
-        {
-            "group_id": group_id if group_id is not None else "",
-            "session_id": session.session_id,
-            "producer": episode.producer,
-            "produced_for": episode.produced_for,
-        },
+    semantic_session_data = cast(
+        SessionIdManager, session_id_manager
+    ).generate_session_data(
         user_id=episode.producer,
+        session_id=session.session_id,
+    )
+
+    await cast(SemanticSessionManager, semantic_session_manager).add_message(
+        message=str(episode.episode_content),
+        session_data=semantic_session_data,
     )
 
 
@@ -1141,23 +1190,10 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
     if inst is None:
         raise q.new_404_not_found_error("unable to find episodic memory")
     async with AsyncEpisodicMemory(inst) as inst:
-        ctx = inst.get_memory_context()
-        user_id = (
-            session.user_id[0]
-            if session.user_id is not None and len(session.user_id) > 0
-            else ""
-        )
+        # Search semantic memory using session manager
+
         res = await asyncio.gather(
-            inst.query_memory(q.query, q.limit, q.filter),
-            cast(ProfileMemory, profile_memory).semantic_search(
-                q.query,
-                q.limit if q.limit is not None else 5,
-                isolations={
-                    "group_id": ctx.group_id,
-                    "session_id": ctx.session_id,
-                },
-                user_id=user_id,
-            ),
+            inst.query_memory(q.query, q.limit, q.filter), _search_semantic_memory(q)
         )
         return SearchResult(
             content={"episodic_memory": res[0], "profile_memory": res[1]}
@@ -1231,26 +1267,27 @@ async def search_profile_memory(
     """
     q.merge_and_validate_session(session)
     q.update_response_session_header(response)
-    return await _search_profile_memory(q)
+    return await _search_semantic_memory(q)
 
 
-async def _search_profile_memory(q: SearchQuery) -> SearchResult:
+async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     """Searches for memories across profile memory.
     Internal function.  Shared by both REST API and MCP API
     See the docstring for search_profile_memory() for details.
     """
     session = q.get_session()
-    user_id = session.user_id[0] if session.user_id is not None else ""
-    group_id = session.group_id if session.group_id is not None else ""
 
-    res = await cast(ProfileMemory, profile_memory).semantic_search(
-        q.query,
-        q.limit if q.limit is not None else 5,
-        isolations={
-            "group_id": group_id,
-            "session_id": session.session_id,
-        },
-        user_id=user_id,
+    # Search semantic memory using session manager
+    semantic_session_data = cast(
+        SessionIdManager, session_id_manager
+    ).generate_session_data(
+        user_id=session.first_user_id(),
+        session_id=session.session_id,
+    )
+    res = await cast(SemanticSessionManager, semantic_session_manager).search(
+        message=q.query,
+        session_data=semantic_session_data,
+        limit=q.limit if q.limit is not None else 5,
     )
     return SearchResult(content={"profile_memory": res})
 
@@ -1380,7 +1417,7 @@ async def health_check():
     """Health check endpoint for container orchestration."""
     try:
         # Check if memory managers are initialized
-        if profile_memory is None or episodic_memory is None:
+        if semantic_session_manager is None or episodic_memory is None:
             raise HTTPException(
                 status_code=503, detail="Memory managers not initialized"
             )
@@ -1391,7 +1428,7 @@ async def health_check():
             "service": "memmachine",
             "version": "1.0.0",
             "memory_managers": {
-                "profile_memory": profile_memory is not None,
+                "semantic_memory": semantic_session_manager is not None,
                 "episodic_memory": episodic_memory is not None,
             },
         }
@@ -1435,15 +1472,19 @@ def main():
 
         async def run_mcp_server():
             """Initialize resources and run MCP server in the same event loop."""
-            global episodic_memory, profile_memory
+            global episodic_memory, semantic_session_manager, session_id_manager
             try:
-                episodic_memory, profile_memory = await initialize_resource(config_file)
-                await profile_memory.startup()
+                (
+                    episodic_memory,
+                    semantic_session_manager,
+                    session_id_manager,
+                ) = await initialize_resource(config_file)
+                await semantic_session_manager._semantic_service.start()
                 await mcp.run_stdio_async()
             finally:
                 # Clean up resources when server stops
-                if profile_memory:
-                    await profile_memory.cleanup()
+                if semantic_session_manager:
+                    await semantic_session_manager._semantic_service.stop()
 
         asyncio.run(run_mcp_server())
     else:
