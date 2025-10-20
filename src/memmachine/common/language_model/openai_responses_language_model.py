@@ -10,7 +10,6 @@ from typing import Any
 from uuid import uuid4
 
 import openai
-from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.metrics_factory.metrics_factory import MetricsFactory
@@ -20,80 +19,72 @@ from .language_model import LanguageModel
 logger = logging.getLogger(__name__)
 
 
-class OpenAIResponsesLanguageModelParams(BaseModel):
-    """
-    Parameters for OpenAIResponsesLanguageModel.
-
-    Attributes:
-        client (openai.AsyncOpenAI):
-            AsyncOpenAI client to use for making API calls.
-        model (str):
-            Name of the OpenAI model to use
-            (e.g. 'gpt-5-nano').
-        max_retry_interval_seconds (int):
-            Maximal retry interval in seconds when retrying API calls
-            (default: 120).
-        metrics_factory (MetricsFactory | None):
-            An instance of MetricsFactory
-            for collecting usage metrics
-            (default: None).
-        user_metrics_labels (dict[str, str]):
-            Labels to attach to the collected metrics
-            (default: {}).
-    """
-
-    client: InstanceOf[openai.AsyncOpenAI] = Field(
-        ...,
-        description="AsyncOpenAI client to use for making API calls",
-    )
-    model: str = Field(
-        ...,
-        description="Name of the OpenAI model to use (e.g. 'gpt-5-nano')",
-    )
-    max_retry_interval_seconds: int = Field(
-        120,
-        description="Maximal retry interval in seconds when retrying API calls",
-        gt=0,
-    )
-    metrics_factory: InstanceOf[MetricsFactory] | None = Field(
-        None,
-        description="An instance of MetricsFactory for collecting usage metrics",
-    )
-    user_metrics_labels: dict[str, str] = Field(
-        default_factory=dict,
-        description="Labels to attach to the collected metrics",
-    )
-
-
-class OpenAIResponsesLanguageModel(LanguageModel):
+class OpenAILanguageModel(LanguageModel):
     """
     Language model that uses OpenAI's models
     to generate responses based on prompts and tools.
     """
 
-    def __init__(self, params: OpenAIResponsesLanguageModelParams):
+    def __init__(self, config: dict[str, Any]):
         """
-        Initialize an OpenAIResponsesLanguageModel
-        with the provided parameters.
+        Initialize an OpenAILanguageModel
+        with the provided configuration.
 
         Args:
-            params (OpenAIResponsesLanguageModelParams):
-                Parameters for the OpenAIResponsesLanguageModel.
+            config (dict[str, Any]):
+                Configuration dictionary containing:
+                - api_key (str):
+                  API key for accessing the OpenAI service.
+                - model (str, optional):
+                  Name of the OpenAI model to use
+                - metrics_factory (MetricsFactory, optional):
+                  An instance of MetricsFactory
+                  for collecting usage metrics.
+                - user_metrics_labels (dict[str, str], optional):
+                  Labels to attach to the collected metrics.
+                - max_retry_interval_seconds(int, optional):
+                  Maximal retry interval in seconds when retrying API calls.
+                  The default value is 120 seconds.
+
+        Raises:
+            ValueError:
+                If configuration argument values are missing or invalid.
+            TypeError:
+                If configuration argument values are of incorrect type.
         """
         super().__init__()
 
-        self._client = params.client
+        self._model = config.get("model")
+        if self._model is None:
+            raise ValueError("The model name must be configured")
+        if not isinstance(self._model, str):
+            raise TypeError("The model name must be a string")
 
-        self._model = params.model
+        api_key = config.get("api_key")
+        if api_key is None:
+            raise ValueError("Language API key must be provided")
 
-        self._max_retry_interval_seconds = params.max_retry_interval_seconds
+        self._client = openai.AsyncOpenAI(api_key=api_key)
 
-        metrics_factory = params.metrics_factory
+        self._max_retry_interval_seconds = config.get("max_retry_interval_seconds", 120)
+        if not isinstance(self._max_retry_interval_seconds, int):
+            raise TypeError("max_retry_interval_seconds must be an integer")
 
-        self._collect_metrics = False
+        if self._max_retry_interval_seconds <= 0:
+            raise ValueError("max_retry_interval_seconds must be a positive integer")
+
+        metrics_factory = config.get("metrics_factory")
+        if metrics_factory is not None and not isinstance(
+            metrics_factory, MetricsFactory
+        ):
+            raise TypeError("Metrics factory must be an instance of MetricsFactory")
+
+        self._should_collect_metrics = False
         if metrics_factory is not None:
-            self._collect_metrics = True
-            self._user_metrics_labels = params.user_metrics_labels
+            self._should_collect_metrics = True
+            self._user_metrics_labels = config.get("user_metrics_labels", {})
+            if not isinstance(self._user_metrics_labels, dict):
+                raise TypeError("user_metrics_labels must be a dictionary")
             label_names = self._user_metrics_labels.keys()
 
             self._input_tokens_usage_counter = metrics_factory.get_counter(
@@ -129,6 +120,52 @@ class OpenAIResponsesLanguageModel(LanguageModel):
                 "Latency in seconds for OpenAI language model requests",
                 label_names=label_names,
             )
+
+    async def generate_parsed_response(
+        self,
+        output_format: Any,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        max_attempts: int = 1,
+    ) -> Any:
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be a positive integer")
+
+        input_prompts = [
+            {"role": "system", "content": system_prompt or ""},
+            {"role": "user", "content": user_prompt or ""},
+        ]
+
+        generate_response_call_uuid = uuid4()
+
+        start_time = time.monotonic()
+
+        try:
+            response = await self._client.with_options(
+                max_retries=max_attempts
+            ).responses.parse(
+                model=self._model,  # type: ignore[arg-type]
+                input=input_prompts,  # type: ignore[arg-type]
+                text_format=output_format,
+            )
+        except openai.OpenAIError as e:
+            error_message = (
+                f"[call uuid: {generate_response_call_uuid}] "
+                "Giving up generating response "
+                f"due to non-retryable {type(e).__name__}"
+            )
+            logger.error(error_message)
+            raise ExternalServiceAPIError(error_message)
+
+        end_time = time.monotonic()
+
+        self._collect_metrics(
+            response,
+            start_time,
+            end_time,
+        )
+
+        return response.output_parsed
 
     async def generate_response(
         self,
@@ -216,7 +253,37 @@ class OpenAIResponsesLanguageModel(LanguageModel):
             end_time - start_time,
         )
 
-        if self._collect_metrics:
+        self._collect_metrics(
+            response,
+            start_time,
+            end_time,
+        )
+
+        if response.output is None:
+            return (response.output_text or "", [])
+
+        try:
+            function_calls_arguments = [
+                {
+                    "call_id": output.call_id,
+                    "function": {
+                        "name": output.name,
+                        "arguments": json.loads(output.arguments),
+                    },
+                }
+                for output in response.output
+                if output.type == "function_call"
+            ]
+        except json.JSONDecodeError as e:
+            raise ValueError("JSON decode error") from e
+
+        return (
+            response.output_text,
+            function_calls_arguments,
+        )
+
+    def _collect_metrics(self, response, start_time, end_time):
+        if self._should_collect_metrics:
             if response.usage is not None:
                 self._input_tokens_usage_counter.increment(
                     value=response.usage.input_tokens,
@@ -243,26 +310,3 @@ class OpenAIResponsesLanguageModel(LanguageModel):
                 value=end_time - start_time,
                 labels=self._user_metrics_labels,
             )
-
-        if response.output is None:
-            return (response.output_text or "", [])
-
-        try:
-            function_calls_arguments = [
-                {
-                    "call_id": output.call_id,
-                    "function": {
-                        "name": output.name,
-                        "arguments": json.loads(output.arguments),
-                    },
-                }
-                for output in response.output
-                if output.type == "function_call"
-            ]
-        except json.JSONDecodeError as e:
-            raise ValueError("JSON decode error") from e
-
-        return (
-            response.output_text,
-            function_calls_arguments,
-        )

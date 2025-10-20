@@ -1,7 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS metadata;
 
---TODO: find a better way to model metadata and isolations than jsonb
 CREATE TABLE IF NOT EXISTS prof (
     id SERIAL PRIMARY KEY,
     user_id TEXT NOT NULL,
