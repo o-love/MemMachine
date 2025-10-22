@@ -43,43 +43,6 @@ def llm_model(config):
     )
 
 
-@pytest.fixture(scope="session")
-def pg_container():
-    with PostgresContainer("pgvector/pgvector:pg16") as container:
-        yield container
-
-
-@pytest_asyncio.fixture(scope="session")
-async def pg_server(pg_container):
-    host = pg_container.get_container_host_ip()
-    port = int(pg_container.get_exposed_port(5432))
-    database = pg_container.dbname
-    user = pg_container.username
-    password = pg_container.password
-
-    await setup_pg_schema(
-        database=database,
-        host=host,
-        port=f"{port}",
-        user=user,
-        password=password,
-    )
-
-    yield {
-        "host": host,
-        "port": port,
-        "user": user,
-        "password": password,
-        "database": database,
-    }
-
-
-@pytest.fixture
-def asyncpg_profile_storage(pg_server):
-    storage = AsyncPgSemanticStorage(pg_server)
-    yield storage
-
-
 @pytest.fixture
 def storage(asyncpg_profile_storage):
     return asyncpg_profile_storage

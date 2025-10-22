@@ -104,10 +104,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def get_set_features(
-        self,
-        set_id: str,
-        semantic_type_id: Optional[str] = None,
-        tag: Optional[str] = None,
+            self,
+            set_id: str,
+            semantic_type_id: Optional[str] = None,
+            tag: Optional[str] = None,
     ) -> dict[str, dict[str, Any | list[Any]]]:
         result: dict[str, dict[str, list[Any]]] = {}
         assert self._pool is not None
@@ -137,11 +137,11 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def get_citation_list(
-        self,
-        set_id: str,
-        feature: str,
-        value: str,
-        tag: str,
+            self,
+            set_id: str,
+            feature: str,
+            value: str,
+            tag: str,
     ) -> list[int]:
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -162,10 +162,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def delete_feature_set(
-        self,
-        set_id: str,
-        semantic_type_id: Optional[str] = None,
-        tag: Optional[str] = None,
+            self,
+            set_id: str,
+            semantic_type_id: Optional[str] = None,
+            tag: Optional[str] = None,
     ):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -179,15 +179,15 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def add_feature(
-        self,
-        set_id: str,
-        semantic_type_id: str,
-        feature: str,
-        value: str,
-        tag: str,
-        embedding: InstanceOf[np.ndarray],
-        metadata: dict[str, Any] | None = None,
-        citations: list[int] | None = None,
+            self,
+            set_id: str,
+            semantic_type_id: str,
+            feature: str,
+            value: str,
+            tag: str,
+            embedding: InstanceOf[np.ndarray],
+            metadata: dict[str, Any] | None = None,
+            citations: list[int] | None = None,
     ):
         if metadata is None:
             metadata = {}
@@ -228,10 +228,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 )
 
     async def delete_feature_with_filter(
-        self,
-        set_id: str,
-        feature: str,
-        tag: str,
+            self,
+            *,
+            set_id: str,
+            semantic_type_id: str,
+            feature: str,
+            tag: str,
     ):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -257,8 +259,8 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             )
 
     async def get_all_citations_for_ids(
-        self, feature_ids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
+            self, feature_ids: list[int]
+    ) -> list[int]:
         if len(feature_ids) == 0:
             return []
         assert self._pool is not None
@@ -270,12 +272,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 WHERE j.semantic_id = ANY($1)
             """
             res = await conn.fetch(stm, feature_ids)
-            return [(i[0], json.loads(i[1])) for i in res]
+            return [i[0] for i in res]
 
     async def get_large_feature_sections(
-        self,
-        set_id: str,
-        thresh: int = 20,
+            self,
+            set_id: str,
+            thresh: int = 20,
     ) -> list[list[dict[str, Any]]]:
         """
         Retrieve every section of the user's feature set which has more then 20 entries, formatted as json.
@@ -321,12 +323,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         return str(value)
 
     async def semantic_search(
-        self,
-        set_id: str,
-        qemb: np.ndarray,
-        k: int,
-        min_cos: float,
-        include_citations: bool = False,
+            self,
+            set_id: str,
+            qemb: np.ndarray,
+            k: int,
+            min_cos: float,
+            include_citations: bool = False,
     ) -> list[dict[str, Any]]:
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -374,10 +376,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             return res
 
     async def add_history(
-        self,
-        set_id: str,
-        content: str,
-        metadata: dict[str, str] | None = None,
+            self,
+            set_id: str,
+            content: str,
+            metadata: dict[str, str] | None = None,
     ) -> Mapping[str, Any]:
         if metadata is None:
             metadata = {}
@@ -398,10 +400,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         return RecordMapping(row)
 
     async def delete_history(
-        self,
-        set_id: str,
-        start_time: int = 0,
-        end_time: int = 0,
+            self,
+            set_id: str,
+            start_time: int = 0,
+            end_time: int = 0,
     ):
         stm = f"""
             DELETE FROM {self.history_table}
@@ -413,10 +415,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             await conn.execute(stm, set_id)
 
     async def get_history_messages_by_ingestion_status(
-        self,
-        set_id: str,
-        k: int = 10,
-        is_ingested: bool = False,
+            self,
+            set_id: str,
+            k: int = 10,
+            is_ingested: bool = False,
     ) -> list[Mapping[str, Any]]:
         stm = f"""
             SELECT id, set_id, content, metadata FROM {self.history_table}
@@ -453,10 +455,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             await conn.execute(stm, ids)
 
     async def get_history_message(
-        self,
-        set_id: str,
-        start_time: int = 0,
-        end_time: int = 0,
+            self,
+            set_id: str,
+            start_time: int = 0,
+            end_time: int = 0,
     ) -> list[str]:
         stm = f"""
             SELECT content FROM {self.history_table}
@@ -472,9 +474,9 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             return rows
 
     async def purge_history(
-        self,
-        set_id: str,
-        start_time: int = 0,
+            self,
+            set_id: str,
+            start_time: int = 0,
     ):
 
         query = f"""

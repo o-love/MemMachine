@@ -97,7 +97,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def get_all_citations_for_ids(
         self, feature_ids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
+    ) -> list[int]:
         raise NotImplementedError
 
     @abstractmethod
