@@ -5,16 +5,21 @@ from importlib import import_module
 
 import pytest
 import pytest_asyncio
-from neo4j import AsyncGraphDatabase
 from testcontainers.neo4j import Neo4jContainer
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
+from memmachine.common.vector_graph_store.neo4j_vector_graph_store import (
+    Neo4jVectorGraphStore,
+    Neo4jVectorGraphStoreConfig,
+)
 from memmachine.profile_memory.profile_memory import ProfileMemory
 from memmachine.profile_memory.prompt_provider import ProfilePrompt
 from memmachine.profile_memory.storage.asyncpg_profile import AsyncPgProfileStorage
-from memmachine.profile_memory.storage.neo4j_profile import Neo4jProfileStorage
+from memmachine.profile_memory.storage.neo4j_profile import (
+    VectorGraphProfileStorage,
+)
 from memmachine.profile_memory.storage.syncschema import sync_to as setup_pg_schema
 
 
@@ -97,23 +102,26 @@ def neo4j_connection_info():
 
 
 @pytest_asyncio.fixture
-async def neo4j_driver(neo4j_connection_info):
-    driver = AsyncGraphDatabase.driver(
-        neo4j_connection_info["uri"],
-        auth=(
-            neo4j_connection_info["username"],
-            neo4j_connection_info["password"],
-        ),
+async def neo4j_vector_graph_store(neo4j_connection_info):
+    store = Neo4jVectorGraphStore(
+        Neo4jVectorGraphStoreConfig(
+            uri=neo4j_connection_info["uri"],
+            username=neo4j_connection_info["username"],
+            password=neo4j_connection_info["password"],
+            force_exact_similarity_search=True,
+        )
     )
-    yield driver
-    await driver.close()
+    await store.clear_data()
+    yield store
+    await store.clear_data()
+    await store.close()
 
 
 @pytest.fixture
-def neo4j_profile_storage(neo4j_driver):
-    return Neo4jProfileStorage(
-        Neo4jProfileStorage.Params(
-            driver=neo4j_driver,
+def neo4j_profile_storage(neo4j_vector_graph_store):
+    return VectorGraphProfileStorage(
+        VectorGraphProfileStorage.Params(
+            vector_graph_store=neo4j_vector_graph_store,
         )
     )
 

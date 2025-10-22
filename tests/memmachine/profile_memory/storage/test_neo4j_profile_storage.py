@@ -4,10 +4,15 @@ import time
 import numpy as np
 import pytest
 import pytest_asyncio
-from neo4j import AsyncGraphDatabase
 from testcontainers.neo4j import Neo4jContainer
 
-from memmachine.profile_memory.storage.neo4j_profile import Neo4jProfileStorage
+from memmachine.common.vector_graph_store.neo4j_vector_graph_store import (
+    Neo4jVectorGraphStore,
+    Neo4jVectorGraphStoreConfig,
+)
+from memmachine.profile_memory.storage.neo4j_profile import (
+    VectorGraphProfileStorage,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -30,23 +35,26 @@ def neo4j_connection_info():
 
 
 @pytest_asyncio.fixture
-async def neo4j_driver(neo4j_connection_info):
-    driver = AsyncGraphDatabase.driver(
-        neo4j_connection_info["uri"],
-        auth=(
-            neo4j_connection_info["username"],
-            neo4j_connection_info["password"],
-        ),
+async def vector_graph_store(neo4j_connection_info):
+    store = Neo4jVectorGraphStore(
+        Neo4jVectorGraphStoreConfig(
+            uri=neo4j_connection_info["uri"],
+            username=neo4j_connection_info["username"],
+            password=neo4j_connection_info["password"],
+            force_exact_similarity_search=True,
+        )
     )
-    yield driver
-    await driver.close()
+    await store.clear_data()
+    yield store
+    await store.clear_data()
+    await store.close()
 
 
 @pytest_asyncio.fixture
-async def profile_storage(neo4j_driver):
-    storage = Neo4jProfileStorage(
-        Neo4jProfileStorage.Params(
-            driver=neo4j_driver,
+async def profile_storage(vector_graph_store):
+    storage = VectorGraphProfileStorage(
+        VectorGraphProfileStorage.Params(
+            vector_graph_store=vector_graph_store,
         )
     )
     await storage.startup()
@@ -55,10 +63,10 @@ async def profile_storage(neo4j_driver):
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def cleanup_database(profile_storage, neo4j_driver):
+async def cleanup_database(profile_storage):
     await profile_storage.delete_all()
-    await neo4j_driver.execute_query("MATCH (n) DETACH DELETE n")
     yield
+    await profile_storage.delete_all()
 
 
 @pytest.mark.asyncio
@@ -69,6 +77,7 @@ async def test_add_get_and_delete_profile_entries(profile_storage):
         metadata={"speaker": "tester"},
         isolations={"region": "us"},
     )
+    assert isinstance(history["id"], str)
 
     await profile_storage.add_profile_feature(
         user_id="user-1",
@@ -173,6 +182,8 @@ async def test_history_management(profile_storage):
         metadata={"speaker": "tester"},
         isolations={"tenant": "B"},
     )
+    assert isinstance(first["id"], str)
+    assert isinstance(second["id"], str)
 
     rows = await profile_storage.get_history_messages_by_ingestion_status(
         "user-3", k=0, is_ingested=False

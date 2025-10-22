@@ -186,7 +186,7 @@ class AsyncPgProfileStorage(ProfileStorageBase):
         embedding: np.ndarray,
         metadata: dict[str, Any] | None = None,
         isolations: dict[str, bool | int | float | str] | None = None,
-        citations: list[int] | None = None,
+        citations: list[int | str] | None = None,
     ):
         if metadata is None:
             metadata = {}
@@ -219,13 +219,24 @@ class AsyncPgProfileStorage(ProfileStorageBase):
                     return
                 if len(citations) == 0:
                     return
+                valid_citations: list[int] = []
+                for citation in citations:
+                    try:
+                        valid_citations.append(int(citation))
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Skipping invalid citation id %s for profile feature",
+                            citation,
+                        )
+                if not valid_citations:
+                    return
                 await conn.executemany(
                     f"""
                     INSERT INTO {self.junction_table}
                     (profile_id, content_id)
                     VALUES ($1, $2)
                 """,
-                    [(pid, c) for c in citations],
+                    [(pid, citation_id) for citation_id in valid_citations],
                 )
 
     async def delete_profile_feature(
@@ -267,7 +278,7 @@ class AsyncPgProfileStorage(ProfileStorageBase):
                     json.dumps(isolations),
                 )
 
-    async def delete_profile_feature_by_id(self, pid: int):
+    async def delete_profile_feature_by_id(self, pid: int | str):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             await conn.execute(
@@ -275,12 +286,12 @@ class AsyncPgProfileStorage(ProfileStorageBase):
             DELETE FROM {self.main_table}
             where id = $1
             """,
-                pid,
+                int(pid),
             )
 
     async def get_all_citations_for_ids(
-        self, pids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
+        self, pids: list[int | str]
+    ) -> list[tuple[int | str, dict[str, bool | int | float | str]]]:
         if len(pids) == 0:
             return []
         assert self._pool is not None
@@ -291,7 +302,17 @@ class AsyncPgProfileStorage(ProfileStorageBase):
                 JOIN {self.history_table} h ON j.content_id = h.id
                 WHERE j.profile_id = ANY($1)
             """
-            res = await conn.fetch(stm, pids)
+            valid_pids: list[int] = []
+            for pid in pids:
+                try:
+                    valid_pids.append(int(pid))
+                except (TypeError, ValueError):
+                    logger.warning(
+                        "Skipping invalid profile id %s while fetching citations", pid
+                    )
+            if not valid_pids:
+                return []
+            res = await conn.fetch(stm, valid_pids)
             return [(i[0], json.loads(i[1])) for i in res]
 
     async def get_large_profile_sections(
@@ -480,7 +501,7 @@ class AsyncPgProfileStorage(ProfileStorageBase):
             rows = await conn.fetchval(stm)
             return rows
 
-    async def mark_messages_ingested(self, ids: list[int]) -> None:
+    async def mark_messages_ingested(self, ids: list[int | str]) -> None:
         if not ids:
             return  # nothing to do
 
@@ -491,7 +512,18 @@ class AsyncPgProfileStorage(ProfileStorageBase):
             """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            await conn.execute(stm, ids)
+            valid_ids: list[int] = []
+            for identifier in ids:
+                try:
+                    valid_ids.append(int(identifier))
+                except (TypeError, ValueError):
+                    logger.warning(
+                        "Skipping invalid history id %s while marking ingested",
+                        identifier,
+                    )
+            if not valid_ids:
+                return
+            await conn.execute(stm, valid_ids)
 
     async def get_history_message(
         self,

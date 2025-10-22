@@ -1,92 +1,56 @@
+import asyncio
 import json
-import logging
 import time
-from typing import Any
+from collections import defaultdict
+from typing import Any, Iterable
+from uuid import UUID, uuid4
 
 import numpy as np
-from neo4j import AsyncDriver
 from pydantic import BaseModel, InstanceOf
 
+from memmachine.common.vector_graph_store import Edge, Node, VectorGraphStore
 from memmachine.profile_memory.storage.storage_base import ProfileStorageBase
 
-logger = logging.getLogger(__name__)
 
-
-class Neo4jProfileStorage(ProfileStorageBase):
+class VectorGraphProfileStorage(ProfileStorageBase):
     """
-    Neo4j implementation of ``ProfileStorageBase``.
-
-    Profile entries are stored as ``ProfileEntry`` nodes with properties:
-    ``profile_id`` (int), ``user_id`` (str), ``tag`` (str), ``feature`` (str),
-    ``value`` (str), ``embedding`` (list[float]), ``metadata_json`` (str),
-    prefixed isolation keys (``__iso__<key>``) and ``isolations_json`` (str).
-
-    History entries are represented as ``HistoryEntry`` nodes with analogous
-    properties. Citations are stored as ``(:ProfileEntry)-[:CITED]->(:HistoryEntry)``
-    relationships.
+    ``ProfileStorageBase`` implementation backed by a ``VectorGraphStore``.
     """
 
     class Params(BaseModel):
-        driver: InstanceOf[AsyncDriver]
-        database: str = ""
+        vector_graph_store: InstanceOf[VectorGraphStore]
+        close_store_on_cleanup: bool = False
 
     def __init__(self, params: Params):
-        self._driver = params.driver
-        self._database = params.database
+        self._graph_store: VectorGraphStore = params.vector_graph_store
+        self._close_on_cleanup = params.close_store_on_cleanup
 
         self._isolation_prefix = "__iso__"
-        self._iso_prefix_param = {"iso_prefix": self._isolation_prefix}
-
-    @staticmethod
-    def _normalize_isolations(
-        isolations: dict[str, bool | int | float | str] | None,
-    ) -> dict[str, bool | int | float | str]:
-        if isolations is None:
-            return {}
-        return dict(isolations)
-
-    def _build_isolation_properties(
-        self, isolations: dict[str, bool | int | float | str]
-    ) -> dict[str, bool | int | float | str]:
-        return {
-            f"{self._isolation_prefix}{key}": value for key, value in isolations.items()
-        }
-
-    def _isolation_params(
-        self, isolations: dict[str, bool | int | float | str]
-    ) -> dict[str, Any]:
-        params: dict[str, Any] = {"isolations": isolations}
-        params.update(self._iso_prefix_param)
-        return params
+        self._profile_label = "ProfileEntry"
+        self._history_label = "HistoryEntry"
+        self._ingestion_marker_label = "IngestionMarker"
+        self._embedding_property = "embedding"
+        self._citation_relation = "CITED"
+        self._ingestion_relation = "INGESTED"
 
     async def startup(self):
-        await self._ensure_constraints()
+        return None
 
     async def cleanup(self):
-        if self._driver is None:
-            return
-        await self._driver.close()
-        self._driver = None
+        if self._close_on_cleanup:
+            await self._graph_store.close()
 
     async def delete_all(self):
-        await self._execute_query(
-            """
-            MATCH (p:ProfileEntry)
-            DETACH DELETE p
-            """
+        profile_nodes = await self._find_profile_nodes({})
+        await self._delete_nodes(node.uuid for node in profile_nodes)
+
+        history_nodes = await self._find_history_nodes({})
+        await self._delete_history_nodes(history_nodes)
+
+        marker_nodes = await self._graph_store.search_matching_nodes(
+            required_labels={self._ingestion_marker_label},
         )
-        await self._execute_query(
-            """
-            MATCH (h:HistoryEntry)
-            DETACH DELETE h
-            """
-        )
-        await self._execute_query(
-            """
-            MATCH (s:Sequence)
-            DELETE s
-            """
-        )
+        await self._delete_nodes(node.uuid for node in marker_nodes)
 
     async def get_profile(
         self,
@@ -94,27 +58,25 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ) -> dict[str, dict[str, Any | list[Any]]]:
         isolations_map = self._normalize_isolations(isolations)
-        params = {"user_id": user_id}
-        params.update(self._isolation_params(isolations_map))
-        records = await self._execute_query(
-            """
-            MATCH (p:ProfileEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                p[$iso_prefix + key] IS NOT NULL AND p[$iso_prefix + key] = $isolations[key])
-            RETURN p.tag AS tag, p.feature AS feature, p.value AS value
-            """,
-            **params,
+        profile_nodes = await self._graph_store.search_matching_nodes(
+            required_labels={self._profile_label},
+            required_properties=self._apply_isolations_to_properties(
+                {"user_id": user_id}, isolations_map
+            ),
         )
 
         profile: dict[str, dict[str, Any | list[Any]]] = {}
-        for record in records:
-            tag = record["tag"]
-            feature = record["feature"]
-            value = {"value": record["value"]}
-            tag_bucket = profile.setdefault(tag, {})
-            existing = tag_bucket.setdefault(feature, [])
+        for node in profile_nodes:
+            tag = node.properties.get("tag")
+            feature = node.properties.get("feature")
+            value = node.properties.get("value")
+            if tag is None or feature is None:
+                continue
+            payload = {"value": value}
+            tag_bucket = profile.setdefault(str(tag), {})
+            existing = tag_bucket.setdefault(str(feature), [])
             assert isinstance(existing, list)
-            existing.append(value)
+            existing.append(payload)
 
         for tag, features in profile.items():
             for feature, values in list(features.items()):
@@ -129,26 +91,35 @@ class Neo4jProfileStorage(ProfileStorageBase):
         value: str,
         tag: str,
         isolations: dict[str, bool | int | float | str] | None = None,
-    ) -> list[int]:
+    ) -> list[str]:
         isolations_map = self._normalize_isolations(isolations)
-        params = {
-            "user_id": user_id,
-            "feature": feature,
-            "value": str(value),
-            "tag": tag,
-        }
-        params.update(self._isolation_params(isolations_map))
-        records = await self._execute_query(
-            """
-            MATCH (p:ProfileEntry {user_id: $user_id, feature: $feature, value: $value, tag: $tag})
-            WHERE ALL(key IN keys($isolations) WHERE
-                p[$iso_prefix + key] IS NOT NULL AND p[$iso_prefix + key] = $isolations[key])
-            MATCH (p)-[:CITED]->(h:HistoryEntry)
-            RETURN DISTINCT h.history_id AS citation_id
-            """,
-            **params,
+        profile_nodes = await self._find_profile_nodes(
+            self._apply_isolations_to_properties(
+                {
+                    "user_id": user_id,
+                    "feature": feature,
+                    "tag": tag,
+                    "value": str(value),
+                },
+                isolations_map,
+            )
         )
-        return [record["citation_id"] for record in records]
+        citations: list[str] = []
+        seen: set[str] = set()
+        for node in profile_nodes:
+            related_history_nodes = await self._graph_store.search_related_nodes(
+                node_uuid=node.uuid,
+                allowed_relations={self._citation_relation},
+                find_sources=False,
+                find_targets=True,
+                required_labels={self._history_label},
+            )
+            for history_node in related_history_nodes:
+                history_uuid = str(history_node.uuid)
+                if history_uuid not in seen:
+                    seen.add(history_uuid)
+                    citations.append(history_uuid)
+        return citations
 
     async def delete_profile(
         self,
@@ -156,17 +127,10 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ):
         isolations_map = self._normalize_isolations(isolations)
-        params = {"user_id": user_id}
-        params.update(self._isolation_params(isolations_map))
-        await self._execute_query(
-            """
-            MATCH (p:ProfileEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                p[$iso_prefix + key] IS NOT NULL AND p[$iso_prefix + key] = $isolations[key])
-            DETACH DELETE p
-            """,
-            **params,
+        nodes = await self._find_profile_nodes(
+            self._apply_isolations_to_properties({"user_id": user_id}, isolations_map)
         )
+        await self._delete_nodes(node.uuid for node in nodes)
 
     async def add_profile_feature(
         self,
@@ -177,62 +141,54 @@ class Neo4jProfileStorage(ProfileStorageBase):
         embedding: np.ndarray,
         metadata: dict[str, Any] | None = None,
         isolations: dict[str, bool | int | float | str] | None = None,
-        citations: list[int] | None = None,
+        citations: list[int | str] | None = None,
     ):
         metadata = metadata or {}
         isolations_map = self._normalize_isolations(isolations)
-        isolation_properties = self._build_isolation_properties(isolations_map)
-        citations = citations or []
+        citation_uuids = [
+            uuid
+            for uuid in (
+                self._parse_uuid(identifier) for identifier in (citations or [])
+            )
+            if uuid is not None
+        ]
 
         embedding_list = [float(x) for x in np.asarray(embedding).flatten()]
         metadata_json = json.dumps(metadata)
         isolations_json = json.dumps(isolations_map)
 
-        records = await self._execute_query(
-            """
-            CALL {
-                MERGE (counter:Sequence {name: 'ProfileEntry'})
-                ON CREATE SET counter.value = 1
-                ON MATCH SET counter.value = counter.value + 1
-                RETURN counter.value AS profile_id
-            }
-            CREATE (p:ProfileEntry {
-                profile_id: profile_id,
-                user_id: $user_id,
-                feature: $feature,
-                value: $value,
-                tag: $tag,
-                embedding: $embedding,
-                metadata_json: $metadata_json,
-                isolations_json: $isolations_json,
-                created_at: datetime()
-            })
-            SET p += $isolation_properties
-            RETURN profile_id
-            """,
-            user_id=user_id,
-            feature=feature,
-            value=str(value),
-            tag=tag,
-            embedding=embedding_list,
-            metadata_json=metadata_json,
-            isolations_json=isolations_json,
-            isolation_properties=isolation_properties,
+        properties: dict[str, Any] = {
+            "user_id": user_id,
+            "feature": feature,
+            "value": str(value),
+            "tag": tag,
+            self._embedding_property: embedding_list,
+            "metadata_json": metadata_json,
+            "isolations_json": isolations_json,
+            "created_at": float(time.time()),
+        }
+        properties.update(self._build_isolation_properties(isolations_map))
+
+        profile_node = Node(
+            uuid=uuid4(),
+            labels={self._profile_label},
+            properties=properties,
         )
+        await self._graph_store.add_nodes([profile_node])
 
-        profile_id = records[0]["profile_id"]
-
-        if citations:
-            await self._execute_query(
-                """
-                MATCH (p:ProfileEntry {profile_id: $profile_id})
-                UNWIND $citations AS citation_id
-                MATCH (h:HistoryEntry {history_id: citation_id})
-                MERGE (p)-[:CITED]->(h)
-                """,
-                profile_id=profile_id,
-                citations=[int(c) for c in citations],
-            )
+        if citation_uuids:
+            history_nodes = await self._find_history_nodes_by_uuids(citation_uuids)
+            edges = [
+                Edge(
+                    uuid=uuid4(),
+                    source_uuid=profile_node.uuid,
+                    target_uuid=history_node.uuid,
+                    relation=self._citation_relation,
+                )
+                for history_node in history_nodes
+            ]
+            if edges:
+                await self._graph_store.add_edges(edges)
 
     async def semantic_search(
         self,
@@ -244,96 +200,110 @@ class Neo4jProfileStorage(ProfileStorageBase):
         include_citations: bool = False,
     ) -> list[dict[str, Any]]:
         isolations_map = self._normalize_isolations(isolations)
-        params = {"user_id": user_id}
-        params.update(self._isolation_params(isolations_map))
-        records = await self._execute_query(
-            """
-            MATCH (p:ProfileEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                p[$iso_prefix + key] IS NOT NULL AND p[$iso_prefix + key] = $isolations[key])
-            OPTIONAL MATCH (p)-[:CITED]->(h:HistoryEntry)
-            WITH p, collect(h.content) AS citations
-            RETURN p.profile_id AS profile_id,
-                   p.tag AS tag,
-                   p.feature AS feature,
-                   p.value AS value,
-                   p.embedding AS embedding,
-                   citations
-            """,
-            **params,
-        )
-
-        qemb_array = np.asarray(qemb).flatten().astype(float)
-        qnorm = float(np.linalg.norm(qemb_array))
+        query_vector = np.asarray(qemb).flatten().astype(float)
+        qnorm = float(np.linalg.norm(query_vector))
         if qnorm == 0:
             return []
 
-        scored: list[tuple[float, dict[str, Any]]] = []
-        for record in records:
-            embedding = np.array(record["embedding"], dtype=float)
-            denom = float(np.linalg.norm(embedding)) * qnorm
+        profile_nodes = await self._graph_store.search_similar_nodes(
+            query_embedding=query_vector.tolist(),
+            embedding_property_name=self._embedding_property,
+            limit=k if k > 0 else None,
+            required_labels={self._profile_label},
+            required_properties=self._apply_isolations_to_properties(
+                {"user_id": user_id}, isolations_map
+            ),
+        )
+
+        scored: list[tuple[float, Node]] = []
+        for node in profile_nodes:
+            embedding_values = node.properties.get(self._embedding_property)
+            if embedding_values is None:
+                continue
+            embedding_vector = np.asarray(embedding_values, dtype=float).flatten()
+            denom = float(np.linalg.norm(embedding_vector)) * qnorm
             if denom == 0:
                 continue
-            score = float(np.dot(embedding, qemb_array) / denom)
+            score = float(np.dot(embedding_vector, query_vector) / denom)
             if score <= min_cos:
                 continue
-            citations = [
-                citation
-                for citation in (record["citations"] or [])
-                if citation is not None
-            ]
-            metadata: dict[str, Any] = {
-                "id": record["profile_id"],
-                "similarity_score": score,
-            }
-            if include_citations:
-                metadata["citations"] = citations
-            scored.append(
-                (
-                    score,
-                    {
-                        "tag": record["tag"],
-                        "feature": record["feature"],
-                        "value": record["value"],
-                        "metadata": metadata,
-                    },
-                )
-            )
+            scored.append((score, node))
 
         scored.sort(key=lambda item: item[0], reverse=True)
         if k > 0:
             scored = scored[:k]
-        return [item[1] for item in scored]
-
-    async def delete_profile_feature_by_id(self, pid: int):
-        await self._execute_query(
-            """
-            MATCH (p:ProfileEntry {profile_id: $profile_id})
-            DETACH DELETE p
-            """,
-            profile_id=int(pid),
-        )
-
-    async def get_all_citations_for_ids(
-        self, pids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
-        if not pids:
+        if not scored:
             return []
 
-        records = await self._execute_query(
-            """
-            MATCH (p:ProfileEntry)-[:CITED]->(h:HistoryEntry)
-            WHERE p.profile_id IN $profile_ids
-            RETURN DISTINCT h.history_id AS history_id,
-                            h.isolations_json AS isolations_json
-            """,
-            profile_ids=[int(pid) for pid in pids],
-        )
+        citation_contents: dict[UUID, list[str]] = {}
+        if include_citations:
+            citation_contents = await self._get_citation_contents(
+                [node for _, node in scored]
+            )
 
-        results: list[tuple[int, dict[str, bool | int | float | str]]] = []
-        for record in records:
-            isolations_json = record["isolations_json"] or "{}"
-            results.append((record["history_id"], json.loads(isolations_json)))
+        results: list[dict[str, Any]] = []
+        for score, node in scored:
+            tag = node.properties.get("tag")
+            feature = node.properties.get("feature")
+            value = node.properties.get("value")
+            if tag is None or feature is None or value is None:
+                continue
+            metadata: dict[str, Any] = {
+                "id": str(node.uuid),
+                "similarity_score": score,
+            }
+            if include_citations:
+                metadata["citations"] = citation_contents.get(node.uuid, [])
+            results.append(
+                {
+                    "tag": tag,
+                    "feature": feature,
+                    "value": value,
+                    "metadata": metadata,
+                }
+            )
+        return results
+
+    async def delete_profile_feature_by_id(self, pid: int | str):
+        node_uuid = self._parse_uuid(pid)
+        if node_uuid is None:
+            return
+        node = await self._find_profile_node_by_uuid(node_uuid)
+        if node is None:
+            return
+        await self._delete_nodes([node.uuid])
+
+    async def get_all_citations_for_ids(
+        self, pids: list[int | str]
+    ) -> list[tuple[str, dict[str, bool | int | float | str]]]:
+        results: list[tuple[str, dict[str, bool | int | float | str]]] = []
+        seen: set[str] = set()
+        for pid in pids:
+            node_uuid = self._parse_uuid(pid)
+            if node_uuid is None:
+                continue
+            node = await self._find_profile_node_by_uuid(node_uuid)
+            if node is None:
+                continue
+            related_history_nodes = await self._graph_store.search_related_nodes(
+                node_uuid=node.uuid,
+                allowed_relations={self._citation_relation},
+                find_sources=False,
+                find_targets=True,
+                required_labels={self._history_label},
+            )
+            for history_node in related_history_nodes:
+                history_uuid = str(history_node.uuid)
+                if history_uuid in seen:
+                    continue
+                seen.add(history_uuid)
+                isolations_raw = history_node.properties.get("isolations_json")
+                isolations_dict: dict[str, bool | int | float | str]
+                if isinstance(isolations_raw, str) and isolations_raw:
+                    isolations_dict = json.loads(isolations_raw)
+                else:
+                    isolations_dict = {}
+                results.append((history_uuid, isolations_dict))
         return results
 
     async def delete_profile_feature(
@@ -345,23 +315,17 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ):
         isolations_map = self._normalize_isolations(isolations)
-        query = [
-            "MATCH (p:ProfileEntry {user_id: $user_id, feature: $feature, tag: $tag})",
-            "WHERE ALL(key IN keys($isolations) WHERE",
-            "    p[$iso_prefix + key] IS NOT NULL AND p[$iso_prefix + key] = $isolations[key])",
-        ]
-        parameters: dict[str, Any] = {
+        filters: dict[str, Any] = {
             "user_id": user_id,
             "feature": feature,
             "tag": tag,
         }
-        parameters.update(self._isolation_params(isolations_map))
         if value is not None:
-            query.append("AND p.value = $value")
-            parameters["value"] = str(value)
-        query.append("DETACH DELETE p")
-
-        await self._execute_query("\n".join(query), **parameters)
+            filters["value"] = str(value)
+        nodes = await self._find_profile_nodes(
+            self._apply_isolations_to_properties(filters, isolations_map)
+        )
+        await self._delete_nodes(node.uuid for node in nodes)
 
     async def get_large_profile_sections(
         self,
@@ -370,25 +334,27 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ) -> list[list[dict[str, Any]]]:
         isolations_map = self._normalize_isolations(isolations)
-        params = {"user_id": user_id, "thresh": thresh}
-        params.update(self._isolation_params(isolations_map))
-        records = await self._execute_query(
-            """
-            MATCH (p:ProfileEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                p[$iso_prefix + key] IS NOT NULL AND p[$iso_prefix + key] = $isolations[key])
-            WITH p.tag AS tag, collect(p) AS entries
-            WHERE size(entries) >= $thresh
-            RETURN [entry IN entries | {
-                tag: entry.tag,
-                feature: entry.feature,
-                value: entry.value,
-                metadata: {id: entry.profile_id}
-            }] AS section
-            """,
-            **params,
+        nodes = await self._find_profile_nodes(
+            self._apply_isolations_to_properties({"user_id": user_id}, isolations_map)
         )
-        return [record["section"] for record in records]
+
+        sections: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for node in nodes:
+            tag = node.properties.get("tag")
+            feature = node.properties.get("feature")
+            value = node.properties.get("value")
+            if tag is None or feature is None or value is None:
+                continue
+            sections[str(tag)].append(
+                {
+                    "tag": tag,
+                    "feature": feature,
+                    "value": value,
+                    "metadata": {"id": str(node.uuid)},
+                }
+            )
+
+        return [entries for entries in sections.values() if len(entries) >= thresh]
 
     async def add_history(
         self,
@@ -399,43 +365,29 @@ class Neo4jProfileStorage(ProfileStorageBase):
     ) -> dict[str, Any]:
         metadata_dict = metadata or {}
         isolations_map = self._normalize_isolations(isolations)
-        isolation_properties = self._build_isolation_properties(isolations_map)
 
         metadata_json = json.dumps(metadata_dict)
         isolations_json = json.dumps(isolations_map)
         timestamp = float(time.time())
 
-        records = await self._execute_query(
-            """
-            CALL {
-                MERGE (counter:Sequence {name: 'HistoryEntry'})
-                ON CREATE SET counter.value = 1
-                ON MATCH SET counter.value = counter.value + 1
-                RETURN counter.value AS history_id
-            }
-            CREATE (h:HistoryEntry {
-                history_id: history_id,
-                user_id: $user_id,
-                content: $content,
-                metadata_json: $metadata_json,
-                isolations_json: $isolations_json,
-                timestamp: $timestamp,
-                ingested: false
-            })
-            SET h += $isolation_properties
-            RETURN history_id
-            """,
-            user_id=user_id,
-            content=content,
-            metadata_json=metadata_json,
-            isolations_json=isolations_json,
-            timestamp=timestamp,
-            isolation_properties=isolation_properties,
-        )
+        properties: dict[str, Any] = {
+            "user_id": user_id,
+            "content": content,
+            "metadata_json": metadata_json,
+            "isolations_json": isolations_json,
+            "timestamp": timestamp,
+        }
+        properties.update(self._build_isolation_properties(isolations_map))
 
-        history_id = records[0]["history_id"]
+        history_node = Node(
+            uuid=uuid4(),
+            labels={self._history_label},
+            properties=properties,
+        )
+        await self._graph_store.add_nodes([history_node])
+
         return {
-            "id": history_id,
+            "id": str(history_node.uuid),
             "user_id": user_id,
             "content": content,
             "metadata": metadata_json,
@@ -450,26 +402,19 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ):
         isolations_map = self._normalize_isolations(isolations)
+        nodes = await self._find_history_nodes(
+            self._apply_isolations_to_properties({"user_id": user_id}, isolations_map)
+        )
         lower = float(start_time) if start_time else float("-inf")
         upper = float(end_time) if end_time else float("inf")
-        params = {
-            "user_id": user_id,
-            "lower": lower,
-            "upper": upper,
-        }
-        params.update(self._isolation_params(isolations_map))
-
-        await self._execute_query(
-            """
-            MATCH (h:HistoryEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                h[$iso_prefix + key] IS NOT NULL AND h[$iso_prefix + key] = $isolations[key])
-              AND h.timestamp >= $lower
-              AND h.timestamp <= $upper
-            DETACH DELETE h
-            """,
-            **params,
-        )
+        nodes_to_delete = [
+            node
+            for node in nodes
+            if lower
+            <= float(node.properties.get("timestamp", float("-inf")))
+            <= upper
+        ]
+        await self._delete_history_nodes(nodes_to_delete)
 
     async def get_history_messages_by_ingestion_status(
         self,
@@ -477,58 +422,60 @@ class Neo4jProfileStorage(ProfileStorageBase):
         k: int = 0,
         is_ingested: bool = False,
     ) -> list[dict[str, Any]]:
-        limit_clause = "LIMIT $limit" if k > 0 else ""
-        records = await self._execute_query(
-            f"""
-            MATCH (h:HistoryEntry {{user_id: $user_id, ingested: $is_ingested}})
-            RETURN h.history_id AS history_id,
-                   h.user_id AS user_id,
-                   h.content AS content,
-                   h.metadata_json AS metadata_json,
-                   h.isolations_json AS isolations_json,
-                   h.timestamp AS timestamp
-            ORDER BY h.timestamp DESC
-            {limit_clause}
-            """,
-            user_id=user_id,
-            is_ingested=is_ingested,
-            limit=int(k),
-        )
+        nodes = await self._find_history_nodes({"user_id": user_id})
+        ingestion_status = await self._ingestion_status_map(nodes)
 
-        return [
-            {
-                "id": record["history_id"],
-                "user_id": record["user_id"],
-                "content": record["content"],
-                "metadata": record["metadata_json"],
-                "isolations": record["isolations_json"],
-            }
-            for record in records
+        filtered = [
+            node
+            for node in nodes
+            if ingestion_status.get(node.uuid, False) is is_ingested
         ]
+        filtered.sort(
+            key=lambda node: float(node.properties.get("timestamp", 0.0)), reverse=True
+        )
+        if k > 0:
+            filtered = filtered[:k]
+
+        return [self._history_node_to_dict(node) for node in filtered]
 
     async def get_uningested_history_messages_count(self) -> int:
-        records = await self._execute_query(
-            """
-            MATCH (h:HistoryEntry {ingested: false})
-            RETURN count(h) AS count
-            """
-        )
-        return records[0]["count"]
+        nodes = await self._find_history_nodes({})
+        ingestion_status = await self._ingestion_status_map(nodes)
+        return sum(not ingestion_status.get(node.uuid, False) for node in nodes)
 
     async def mark_messages_ingested(
         self,
-        ids: list[int],
+        ids: list[int | str],
     ) -> None:
-        if not ids:
-            return
-        await self._execute_query(
-            """
-            MATCH (h:HistoryEntry)
-            WHERE h.history_id IN $ids
-            SET h.ingested = true
-            """,
-            ids=[int(i) for i in ids],
-        )
+        for history_id in ids:
+            history_uuid = self._parse_uuid(history_id)
+            if history_uuid is None:
+                continue
+            history_node = await self._find_history_node_by_uuid(history_uuid)
+            if history_node is None:
+                continue
+            if await self._is_history_ingested(history_node):
+                continue
+
+            marker_node = Node(
+                uuid=uuid4(),
+                labels={self._ingestion_marker_label},
+                properties={
+                    "history_uuid": str(history_uuid),
+                    "created_at": float(time.time()),
+                },
+            )
+            await self._graph_store.add_nodes([marker_node])
+            await self._graph_store.add_edges(
+                [
+                    Edge(
+                        uuid=uuid4(),
+                        source_uuid=history_node.uuid,
+                        target_uuid=marker_node.uuid,
+                        relation=self._ingestion_relation,
+                    )
+                ]
+            )
 
     async def get_history_message(
         self,
@@ -538,28 +485,26 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ) -> list[str]:
         isolations_map = self._normalize_isolations(isolations)
+        nodes = await self._find_history_nodes(
+            self._apply_isolations_to_properties({"user_id": user_id}, isolations_map)
+        )
         lower = float(start_time) if start_time else float("-inf")
         upper = float(end_time) if end_time else float("inf")
-        params = {
-            "user_id": user_id,
-            "lower": lower,
-            "upper": upper,
-        }
-        params.update(self._isolation_params(isolations_map))
-
-        records = await self._execute_query(
-            """
-            MATCH (h:HistoryEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                h[$iso_prefix + key] IS NOT NULL AND h[$iso_prefix + key] = $isolations[key])
-              AND h.timestamp >= $lower
-              AND h.timestamp <= $upper
-            RETURN h.content AS content
-            ORDER BY h.timestamp ASC
-            """,
-            **params,
+        matching_nodes = [
+            node
+            for node in nodes
+            if lower
+            <= float(node.properties.get("timestamp", float("-inf")))
+            <= upper
+        ]
+        matching_nodes.sort(
+            key=lambda node: float(node.properties.get("timestamp", 0.0))
         )
-        return [record["content"] for record in records]
+        return [
+            str(node.properties.get("content"))
+            for node in matching_nodes
+            if node.properties.get("content") is not None
+        ]
 
     async def purge_history(
         self,
@@ -568,48 +513,182 @@ class Neo4jProfileStorage(ProfileStorageBase):
         isolations: dict[str, bool | int | float | str] | None = None,
     ):
         isolations_map = self._normalize_isolations(isolations)
+        nodes = await self._find_history_nodes(
+            self._apply_isolations_to_properties({"user_id": user_id}, isolations_map)
+        )
         threshold = float(start_time) if start_time else float("-inf")
-        params = {"user_id": user_id, "threshold": threshold}
-        params.update(self._isolation_params(isolations_map))
+        nodes_to_delete = [
+            node
+            for node in nodes
+            if float(node.properties.get("timestamp", float("-inf"))) <= threshold
+        ]
+        await self._delete_history_nodes(nodes_to_delete)
 
-        await self._execute_query(
-            """
-            MATCH (h:HistoryEntry {user_id: $user_id})
-            WHERE ALL(key IN keys($isolations) WHERE
-                h[$iso_prefix + key] IS NOT NULL AND h[$iso_prefix + key] = $isolations[key])
-              AND h.timestamp <= $threshold
-            DETACH DELETE h
-            """,
-            **params,
+    @staticmethod
+    def _normalize_isolations(
+        isolations: dict[str, bool | int | float | str] | None,
+    ) -> dict[str, bool | int | float | str]:
+        if isolations is None:
+            return {}
+        return dict(isolations)
+
+    def _build_isolation_properties(
+        self, isolations: dict[str, bool | int | float | str]
+    ) -> dict[str, Any]:
+        return {
+            f"{self._isolation_prefix}{key}": value for key, value in isolations.items()
+        }
+
+    def _apply_isolations_to_properties(
+        self,
+        base: dict[str, Any],
+        isolations: dict[str, bool | int | float | str],
+    ) -> dict[str, Any]:
+        merged = dict(base)
+        merged.update(self._build_isolation_properties(isolations))
+        return merged
+
+    async def _find_profile_nodes(self, filters: dict[str, Any]) -> list[Node]:
+        return await self._graph_store.search_matching_nodes(
+            required_labels={self._profile_label},
+            required_properties=filters,
         )
 
-    async def _ensure_constraints(self):
-        await self._execute_query(
-            """
-            CREATE CONSTRAINT profile_entry_id IF NOT EXISTS
-            FOR (p:ProfileEntry) REQUIRE p.profile_id IS UNIQUE
-            """
+    async def _find_profile_node_by_uuid(self, node_uuid: UUID) -> Node | None:
+        nodes = await self._graph_store.search_matching_nodes(
+            limit=1,
+            required_labels={self._profile_label},
+            required_properties={"uuid": str(node_uuid)},
         )
-        await self._execute_query(
-            """
-            CREATE CONSTRAINT history_entry_id IF NOT EXISTS
-            FOR (h:HistoryEntry) REQUIRE h.history_id IS UNIQUE
-            """
-        )
-        await self._execute_query(
-            """
-            CREATE CONSTRAINT sequence_name IF NOT EXISTS
-            FOR (s:Sequence) REQUIRE s.name IS UNIQUE
-            """
+        return nodes[0] if nodes else None
+
+    async def _find_history_nodes(self, filters: dict[str, Any]) -> list[Node]:
+        return await self._graph_store.search_matching_nodes(
+            required_labels={self._history_label},
+            required_properties=filters,
         )
 
-    async def _execute_query(self, query: str, **parameters: Any):
-        if self._driver is None:
-            raise RuntimeError("Neo4jProfileStorage has not been started")
+    async def _find_history_node_by_uuid(self, node_uuid: UUID) -> Node | None:
+        nodes = await self._graph_store.search_matching_nodes(
+            limit=1,
+            required_labels={self._history_label},
+            required_properties={"uuid": str(node_uuid)},
+        )
+        return nodes[0] if nodes else None
 
-        exec_params = {key: value for key, value in parameters.items()}
-        if "database_" not in exec_params and self._database:
-            exec_params["database_"] = self._database
+    async def _find_history_nodes_by_uuids(
+        self, history_uuids: Iterable[UUID]
+    ) -> list[Node]:
+        tasks = [
+            self._find_history_node_by_uuid(history_uuid)
+            for history_uuid in history_uuids
+        ]
+        if not tasks:
+            return []
+        nodes = await asyncio.gather(*tasks)
+        return [node for node in nodes if node is not None]
 
-        records, _, _ = await self._driver.execute_query(query, **exec_params)
-        return records
+    async def _delete_nodes(self, node_uuids: Iterable[UUID]):
+        uuids = list(dict.fromkeys(node_uuids))
+        if not uuids:
+            return
+        await self._graph_store.delete_nodes(uuids)
+
+    async def _delete_history_nodes(self, nodes: Iterable[Node]):
+        nodes_list = list(nodes)
+        if not nodes_list:
+            return
+
+        marker_nodes: list[Node] = []
+        for node in nodes_list:
+            related_markers = await self._graph_store.search_related_nodes(
+                node_uuid=node.uuid,
+                allowed_relations={self._ingestion_relation},
+                find_sources=False,
+                find_targets=True,
+                required_labels={self._ingestion_marker_label},
+            )
+            marker_nodes.extend(related_markers)
+
+        await self._delete_nodes(node.uuid for node in nodes_list)
+        await self._delete_nodes(marker.uuid for marker in marker_nodes)
+
+    async def _get_citation_contents(
+        self, profile_nodes: Iterable[Node]
+    ) -> dict[UUID, list[str]]:
+        nodes = list(profile_nodes)
+        if not nodes:
+            return {}
+        tasks = [
+            self._graph_store.search_related_nodes(
+                node_uuid=node.uuid,
+                allowed_relations={self._citation_relation},
+                find_sources=False,
+                find_targets=True,
+                required_labels={self._history_label},
+            )
+            for node in nodes
+        ]
+        related_lists = await asyncio.gather(*tasks)
+        citation_contents: dict[UUID, list[str]] = {}
+        for node, related in zip(nodes, related_lists):
+            citation_contents[node.uuid] = [
+                str(history_node.properties.get("content"))
+                for history_node in related
+                if history_node.properties.get("content") is not None
+            ]
+        return citation_contents
+
+    async def _ingestion_status_map(
+        self, history_nodes: Iterable[Node]
+    ) -> dict[UUID, bool]:
+        nodes = list(history_nodes)
+        if not nodes:
+            return {}
+        tasks = [
+            self._graph_store.search_related_nodes(
+                node_uuid=node.uuid,
+                allowed_relations={self._ingestion_relation},
+                find_sources=False,
+                find_targets=True,
+                required_labels={self._ingestion_marker_label},
+            )
+            for node in nodes
+        ]
+        related_lists = await asyncio.gather(*tasks)
+        return {
+            node.uuid: len(related) > 0
+            for node, related in zip(nodes, related_lists)
+        }
+
+    async def _is_history_ingested(self, history_node: Node) -> bool:
+        related = await self._graph_store.search_related_nodes(
+            node_uuid=history_node.uuid,
+            allowed_relations={self._ingestion_relation},
+            find_sources=False,
+            find_targets=True,
+            required_labels={self._ingestion_marker_label},
+        )
+        return len(related) > 0
+
+    def _history_node_to_dict(self, node: Node) -> dict[str, Any]:
+        metadata_json = node.properties.get("metadata_json") or "{}"
+        isolations_json = node.properties.get("isolations_json") or "{}"
+        return {
+            "id": str(node.uuid),
+            "user_id": node.properties.get("user_id"),
+            "content": node.properties.get("content"),
+            "metadata": metadata_json,
+            "isolations": isolations_json,
+        }
+
+    @staticmethod
+    def _parse_uuid(identifier: int | str | UUID | None) -> UUID | None:
+        if isinstance(identifier, UUID):
+            return identifier
+        if identifier is None:
+            return None
+        try:
+            return UUID(str(identifier))
+        except (TypeError, ValueError):
+            return None

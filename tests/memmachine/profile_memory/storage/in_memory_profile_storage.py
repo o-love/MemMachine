@@ -230,13 +230,19 @@ class InMemoryProfileStorage(ProfileStorageBase):
             else:
                 self._profiles_by_user.pop(user_id, None)
 
-    async def delete_profile_feature_by_id(self, pid: int):
+    async def delete_profile_feature_by_id(self, pid: int | str):
+        try:
+            lookup_id = int(pid)
+        except (TypeError, ValueError):
+            return
         async with self._lock:
-            entry = self._profiles_by_id.pop(pid, None)
+            entry = self._profiles_by_id.pop(lookup_id, None)
             if entry is None:
                 return
             user_entries = [
-                e for e in self._profiles_by_user.get(entry.user_id, []) if e.id != pid
+                e
+                for e in self._profiles_by_user.get(entry.user_id, [])
+                if e.id != lookup_id
             ]
             if user_entries:
                 self._profiles_by_user[entry.user_id] = user_entries
@@ -244,13 +250,17 @@ class InMemoryProfileStorage(ProfileStorageBase):
                 self._profiles_by_user.pop(entry.user_id, None)
 
     async def get_all_citations_for_ids(
-        self, pids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
+        self, pids: list[int | str]
+    ) -> list[tuple[int | str, dict[str, bool | int | float | str]]]:
         async with self._lock:
-            result: list[tuple[int, dict[str, bool | int | float | str]]] = []
+            result: list[tuple[int | str, dict[str, bool | int | float | str]]] = []
             seen: set[int] = set()
             for pid in pids:
-                entry = self._profiles_by_id.get(pid)
+                try:
+                    lookup_id = int(pid)
+                except (TypeError, ValueError):
+                    continue
+                entry = self._profiles_by_id.get(lookup_id)
                 if entry is None:
                     continue
                 for cid in entry.citations:

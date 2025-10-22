@@ -790,28 +790,30 @@ class ProfileMemory:
             keep_all_memories = True
 
         if not keep_all_memories:
-            valid_keep_memories = []
+            valid_keep_memories: list[str] = []
             for memory_id in keep_memories:
-                if not isinstance(memory_id, int):
+                try:
+                    normalized_id = str(memory_id)
+                except Exception:
                     logger.warning(
                         "AI response format incorrect: "
-                        "expected int memory id in 'keep_memories', got %s %s",
+                        "unable to parse memory id in 'keep_memories', got %s %s",
                         type(memory_id).__name__,
                         memory_id,
                     )
                     continue
-
-                valid_keep_memories.append(memory_id)
+                valid_keep_memories.append(normalized_id)
 
             for memory in memories:
-                if memory["metadata"]["id"] not in valid_keep_memories:
+                memory_identifier = str(memory["metadata"]["id"])
+                if memory_identifier not in valid_keep_memories:
                     self._profile_cache.erase(user_id)
                     await self._profile_storage.delete_profile_feature_by_id(
                         memory["metadata"]["id"]
                     )
 
         class ConsolidateMemoryMetadata(BaseModel):
-            citations: list[int]
+            citations: list[int | str]
 
         class ConsolidateMemory(BaseModel):
             tag: str

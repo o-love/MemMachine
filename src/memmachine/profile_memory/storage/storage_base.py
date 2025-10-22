@@ -67,7 +67,7 @@ class ProfileStorageBase(ABC):
         embedding: np.ndarray,
         metadata: dict[str, Any] | None = None,
         isolations: dict[str, bool | int | float | str] | None = None,
-        citations: list[int] | None = None,
+        citations: list[int | str] | None = None,
     ):
         """
         Add a new feature to the profile.
@@ -87,13 +87,13 @@ class ProfileStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_profile_feature_by_id(self, pid: int):
+    async def delete_profile_feature_by_id(self, pid: int | str):
         raise NotImplementedError
 
     @abstractmethod
     async def get_all_citations_for_ids(
-        self, pids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
+        self, pids: list[int | str]
+    ) -> list[tuple[int | str, dict[str, bool | int | float | str]]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -165,7 +165,7 @@ class ProfileStorageBase(ABC):
     @abstractmethod
     async def mark_messages_ingested(
         self,
-        ids: list[int],
+        ids: list[int | str],
     ) -> None:
         """
         mark the messages with the id as ingested
