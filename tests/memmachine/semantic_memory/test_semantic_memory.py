@@ -1,7 +1,6 @@
 """Unit tests for the profile_memory module."""
 
 import asyncio
-import time
 from unittest.mock import create_autospec
 
 import pytest
@@ -11,10 +10,8 @@ from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
 from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemory,
-    SemanticMemoryParams,
-    SemanticUpdateTracker,
-    SemanticUpdateTrackerManager,
+    SemanticMemoryManager,
+    SemanticMemoryMangagerParams,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 from tests.memmachine.common.reranker.test_embedder_reranker import FakeEmbedder
@@ -24,68 +21,6 @@ from tests.memmachine.semantic_memory.storage.in_memory_profile_storage import (
 
 # Mark all tests in this file as asyncio
 pytestmark = pytest.mark.asyncio
-
-
-@pytest.fixture
-def profile_tracker():
-    return SemanticUpdateTracker("a", message_limit=2, time_limit_sec=0.1)
-
-
-def test_profile_tracker_expires(profile_tracker):
-    assert not profile_tracker.should_update()
-    profile_tracker.mark_update()
-    assert not profile_tracker.should_update()
-    time.sleep(0.15)
-    assert profile_tracker.should_update()
-
-
-def test_profile_tracker_message_limit(profile_tracker):
-    assert not profile_tracker.should_update()
-    profile_tracker.mark_update()
-    assert not profile_tracker.should_update()
-    profile_tracker.mark_update()
-    assert profile_tracker.should_update()
-    profile_tracker.reset()
-    assert not profile_tracker.should_update()
-
-
-@pytest.fixture
-def profile_update_tracker_manager():
-    return SemanticUpdateTrackerManager(message_limit=2, time_limit_sec=0.1)
-
-
-async def test_profile_update_tracker_manager_with_message_limit(
-    profile_update_tracker_manager,
-):
-    users = await profile_update_tracker_manager.get_users_to_update()
-    assert users == []
-
-    for user in ["a", "b", "a", "a"]:
-        await profile_update_tracker_manager.mark_update(user)
-
-    users = await profile_update_tracker_manager.get_users_to_update()
-    assert set(users) == {"a"}
-
-    for user in ["b", "a"]:
-        await profile_update_tracker_manager.mark_update(user)
-    users = await profile_update_tracker_manager.get_users_to_update()
-    assert set(users) == {"b"}
-
-
-async def test_profile_update_tracker_manager_with_time_limit(
-    profile_update_tracker_manager,
-):
-    users = await profile_update_tracker_manager.get_users_to_update()
-    assert users == []
-
-    await profile_update_tracker_manager.mark_update("a")
-    await profile_update_tracker_manager.mark_update("b")
-    users = await profile_update_tracker_manager.get_users_to_update()
-    assert users == []
-
-    time.sleep(0.15)
-    users = await profile_update_tracker_manager.get_users_to_update()
-    assert set(users) == {"a", "b"}
 
 
 @pytest.fixture
@@ -122,7 +57,7 @@ async def semantic_memory(
     mock_prompt: SemanticPrompt,
     mock_storage: SemanticStorageBase,
 ):
-    params = SemanticMemoryParams(
+    params = SemanticMemoryMangagerParams(
         model=mock_llm,
         embeddings=mock_embedder,
         prompt=mock_prompt,
@@ -131,7 +66,7 @@ async def semantic_memory(
         feature_update_message_limit=1,
         feature_update_time_limit_sec=0.1,
     )
-    pm = SemanticMemory(params=params)
+    pm = SemanticMemoryManager(params=params)
     await pm.startup()
     yield pm
     await pm.delete_all()
@@ -140,8 +75,8 @@ async def semantic_memory(
 
 @pytest_asyncio.fixture
 async def single_feature_profile_response(semantic_memory):
-    await semantic_memory.add_new_profile(
-        user_id="test_user",
+    await semantic_memory.add_new_feature(
+        set_id="test_user",
         feature="test_feature",
         value="test_value",
         tag="test_tag",
@@ -156,20 +91,20 @@ async def single_feature_profile_response(semantic_memory):
         }
     }
 
-    await semantic_memory.delete_user_profile_feature(
-        user_id="test_user",
+    await semantic_memory.delete_set_feature(
+        set_id="test_user",
         feature="test_feature",
         tag="test_tag",
     )
 
 
 async def test_store_and_get_profile(
-    semantic_memory: SemanticMemory, single_feature_profile_response
+    semantic_memory: SemanticMemoryManager, single_feature_profile_response
 ):
     # Given a profile with a single user
     # When we retrieve the profile
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    profile = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
 
     # Expect the profile to contain the feature
@@ -177,15 +112,15 @@ async def test_store_and_get_profile(
 
 
 @pytest_asyncio.fixture
-async def multiple_feature_profile_response(semantic_memory: SemanticMemory):
-    await semantic_memory.add_new_profile(
-        user_id="test_user",
+async def multiple_feature_profile_response(semantic_memory: SemanticMemoryManager):
+    await semantic_memory.add_new_feature(
+        set_id="test_user",
         feature="test_feature_a",
         value="test_value_a",
         tag="test_tag_a",
     )
-    await semantic_memory.add_new_profile(
-        user_id="test_user",
+    await semantic_memory.add_new_feature(
+        set_id="test_user",
         feature="test_feature_b",
         value="test_value_b",
         tag="test_tag_b",
@@ -204,25 +139,25 @@ async def multiple_feature_profile_response(semantic_memory: SemanticMemory):
         },
     }
 
-    await semantic_memory.delete_user_profile_feature(
-        user_id="test_user",
+    await semantic_memory.delete_set_feature(
+        set_id="test_user",
         feature="test_feature_a",
         tag="test_tag_a",
     )
-    await semantic_memory.delete_user_profile_feature(
-        user_id="test_user",
+    await semantic_memory.delete_set_feature(
+        set_id="test_user",
         feature="test_feature_b",
         tag="test_tag_b",
     )
 
 
 async def test_multiple_features(
-    semantic_memory: SemanticMemory, multiple_feature_profile_response
+    semantic_memory: SemanticMemoryManager, multiple_feature_profile_response
 ):
     # Given a profile with two features
     # When we retrieve the profile
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    profile = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
 
     # Expect the profile to contain both features
@@ -230,26 +165,26 @@ async def test_multiple_features(
 
 
 async def test_delete_feature(
-    semantic_memory: SemanticMemory, multiple_feature_profile_response
+    semantic_memory: SemanticMemoryManager, multiple_feature_profile_response
 ):
     # Given a user profile with feature 'a' and 'b'
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    profile = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
     assert profile == multiple_feature_profile_response
     assert "test_tag_a" in profile
     assert "test_tag_b" in profile
 
     # When deleting feature 'a'
-    await semantic_memory.delete_user_profile_feature(
-        user_id="test_user",
+    await semantic_memory.delete_set_feature(
+        set_id="test_user",
         feature="test_feature_a",
         tag="test_tag_a",
     )
 
     # Expect feature 'a' to no longer exist. While feature 'b' still exists.
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    profile = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
     assert "test_tag_a" not in profile
     assert "test_tag_b" in profile
@@ -260,19 +195,19 @@ async def test_delete_feature(
 
 async def test_delete_profile(semantic_memory, single_feature_profile_response):
     # Given a profile
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    profile = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
     assert profile == single_feature_profile_response
 
     # When we delete the profile
-    await semantic_memory.delete_user_profile(
-        user_id="test_user",
+    await semantic_memory.delete_set_features(
+        set_id="test_user",
     )
 
     # Then the profile should no longer exist
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    profile = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
     assert profile == {}
 
@@ -281,7 +216,7 @@ async def test_add_persona_message_with_speaker_metadata(semantic_memory):
     """Ensure persona messages store speaker metadata and trigger updates."""
     await semantic_memory.add_persona_message(
         content="My dog is pretty",
-        user_id="test_user",
+        set_id="test_user",
         metadata={"speaker": "User"},
     )
 
@@ -295,7 +230,7 @@ async def test_add_persona_message_with_speaker_metadata(semantic_memory):
 
 
 @pytest_asyncio.fixture
-async def mock_persona_think_response(mock_llm, semantic_memory: SemanticMemory):
+async def mock_persona_think_response(mock_llm, semantic_memory: SemanticMemoryManager):
     mock_llm.generate_response.return_value = (
         """{
       "1": {
@@ -346,7 +281,7 @@ async def mock_persona_think_response(mock_llm, semantic_memory: SemanticMemory)
 
     await semantic_memory.add_persona_message(
         content="test_content",
-        user_id="test_user",
+        set_id="test_user",
         metadata={"speaker": "User"},
     )
 
@@ -374,7 +309,7 @@ async def mock_persona_think_response(mock_llm, semantic_memory: SemanticMemory)
     }
 
 
-async def test_persona_think_updates_profile(
+async def test_persona_think_updates_features(
     semantic_memory, mock_persona_think_response
 ):
     count = -1
@@ -386,8 +321,8 @@ async def test_persona_think_updates_profile(
     if count != 0:
         pytest.fail("Messages are not ingested")
 
-    profile = await semantic_memory.get_user_profile(
-        user_id="test_user",
+    features = await semantic_memory.get_set_features(
+        set_id="test_user",
     )
 
-    assert profile == mock_persona_think_response
+    assert features == mock_persona_think_response

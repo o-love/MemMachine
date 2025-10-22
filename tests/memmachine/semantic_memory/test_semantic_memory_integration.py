@@ -11,8 +11,8 @@ from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemory,
-    SemanticMemoryParams,
+    SemanticMemoryManager,
+    SemanticMemoryMangagerParams,
 )
 from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
 from memmachine.semantic_memory.storage.syncschema import sync_to as setup_pg_schema
@@ -25,7 +25,7 @@ def config():
         "api_key": open_api_key,
         "llm_model": "gpt-4o-mini",
         "embedding_model": "text-embedding-3-small",
-        "prompt_module": "writing_assistant_prompt",
+        "prompt_module": "profile_prompt",
     }
 
 
@@ -100,8 +100,8 @@ async def semantic_memory(
     prompt,
     storage,
 ):
-    mem = SemanticMemory(
-        SemanticMemoryParams(
+    mem = SemanticMemoryManager(
+        SemanticMemoryMangagerParams(
             model=llm_model,
             embeddings=embedder,
             prompt=prompt,
@@ -118,25 +118,25 @@ class TestLongMemEvalIngestion:
     @staticmethod
     async def ingest_question_convos(
         user_id: str,
-        semantic_memory: SemanticMemory,
+        semantic_memory: SemanticMemoryManager,
         conversation_sessions: list[list[dict[str, str]]],
     ):
         for convo in conversation_sessions:
             for turn in convo:
                 await semantic_memory.add_persona_message(
-                    user_id=user_id,
+                    set_id=user_id,
                     content=turn["content"],
                 )
 
     @staticmethod
     async def eval_answer(
         user_id: str,
-        semantic_memory: SemanticMemory,
+        semantic_memory: SemanticMemoryManager,
         question_str: str,
         llm_model: OpenAILanguageModel,
     ):
         semantic_search_resp = await semantic_memory.semantic_search(
-            question_str, user_id=user_id
+            question_str, set_id=user_id
         )
         semantic_search_resp = semantic_search_resp[:4]
 

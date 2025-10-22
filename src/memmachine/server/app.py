@@ -43,8 +43,8 @@ from memmachine.episodic_memory.episodic_memory_manager import (
 )
 from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemory,
-    SemanticMemoryParams,
+    SemanticMemoryManager,
+    SemanticMemoryMangagerParams,
 )
 from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
 
@@ -459,7 +459,7 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-semantic_memory: SemanticMemory | None = None
+semantic_memory: SemanticMemoryManager | None = None
 episodic_memory: EpisodicMemoryManager | None = None
 
 
@@ -468,7 +468,7 @@ episodic_memory: EpisodicMemoryManager | None = None
 
 async def initialize_resource(
     config_file: str,
-) -> tuple[EpisodicMemoryManager, SemanticMemory]:
+) -> tuple[EpisodicMemoryManager, SemanticMemoryManager]:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -569,8 +569,8 @@ async def initialize_resource(
         }
     )
 
-    profile_memory = SemanticMemory(
-        SemanticMemoryParams(
+    profile_memory = SemanticMemoryManager(
+        SemanticMemoryMangagerParams(
             model=llm_model,
             embeddings=embeddings,
             semantic_storage=semantic_storage,
@@ -912,7 +912,7 @@ async def _add_memory(episode: NewEpisode):
             )
 
         ctx = inst.get_memory_context()
-        await cast(SemanticMemory, semantic_memory).add_persona_message(
+        await cast(SemanticMemoryManager, semantic_memory).add_persona_message(
             str(episode.episode_content),
             episode.metadata if episode.metadata is not None else {},
             {
@@ -921,7 +921,7 @@ async def _add_memory(episode: NewEpisode):
                 "producer": episode.producer,
                 "produced_for": episode.produced_for,
             },
-            user_id=episode.producer,
+            set_id=episode.producer,
         )
 
 
@@ -1026,7 +1026,7 @@ async def _add_semantic_memory(episode: NewEpisode):
     session = episode.get_session()
     group_id = session.group_id
 
-    await cast(SemanticMemory, semantic_memory).add_persona_message(
+    await cast(SemanticMemoryManager, semantic_memory).add_persona_message(
         str(episode.episode_content),
         episode.metadata if episode.metadata is not None else {},
         {
@@ -1035,7 +1035,7 @@ async def _add_semantic_memory(episode: NewEpisode):
             "producer": episode.producer,
             "produced_for": episode.produced_for,
         },
-        user_id=episode.producer,
+        set_id=episode.producer,
     )
 
 
@@ -1091,14 +1091,14 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
         )
         res = await asyncio.gather(
             inst.query_memory(q.query, q.limit, q.filter),
-            cast(SemanticMemory, semantic_memory).semantic_search(
+            cast(SemanticMemoryManager, semantic_memory).semantic_search(
                 q.query,
                 q.limit if q.limit is not None else 5,
                 isolations={
                     "group_id": ctx.group_id,
                     "session_id": ctx.session_id,
                 },
-                user_id=user_id,
+                set_id=user_id,
             ),
         )
         return SearchResult(
@@ -1185,14 +1185,14 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     user_id = session.user_id[0] if session.user_id is not None else ""
     group_id = session.group_id if session.group_id is not None else ""
 
-    res = await cast(SemanticMemory, semantic_memory).semantic_search(
+    res = await cast(SemanticMemoryManager, semantic_memory).semantic_search(
         q.query,
         q.limit if q.limit is not None else 5,
         isolations={
             "group_id": group_id,
             "session_id": session.session_id,
         },
-        user_id=user_id,
+        set_id=user_id,
     )
     return SearchResult(content={"profile_memory": res})
 

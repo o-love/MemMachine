@@ -63,7 +63,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             self._next_profile_id = 1
             self._next_history_id = 1
 
-    async def get_profile(
+    async def get_set_features(
         self,
         user_id: str,
         isolations: dict[str, bool | int | float | str] | None = None,
@@ -105,7 +105,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                     citations.extend(entry.citations)
             return citations
 
-    async def delete_profile(
+    async def delete_feature_set(
         self,
         user_id: str,
         isolations: dict[str, bool | int | float | str] | None = None,
@@ -123,7 +123,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             else:
                 self._profiles_by_user.pop(user_id, None)
 
-    async def add_profile_feature(
+    async def add_feature(
         self,
         user_id: str,
         feature: str,
@@ -203,7 +203,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 results.append(payload)
             return results
 
-    async def delete_profile_feature(
+    async def delete_feature(
         self,
         user_id: str,
         feature: str,
@@ -230,7 +230,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             else:
                 self._profiles_by_user.pop(user_id, None)
 
-    async def delete_profile_feature_by_id(self, pid: int):
+    async def delete_features_by_id(self, pid: int):
         async with self._lock:
             entry = self._profiles_by_id.pop(pid, None)
             if entry is None:
@@ -263,7 +263,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                     result.append((cid, dict(history.isolations)))
             return result
 
-    async def get_large_profile_sections(
+    async def get_large_feature_sections(
         self,
         user_id: str,
         thresh: int,

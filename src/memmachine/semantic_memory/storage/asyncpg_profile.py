@@ -63,7 +63,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             raise ValueError("DB database is not in config")
         self._config = config
 
-        self.main_table = "prof"
+        self.main_table = "semantic"
         self.junction_table = "citations"
         self.history_table = "history"
         schema = self._config.get("schema")
@@ -101,10 +101,9 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             await conn.execute(f"TRUNCATE TABLE {self.history_table} CASCADE")
             await conn.execute(f"TRUNCATE TABLE {self.junction_table} CASCADE")
 
-    async def get_profile(
+    async def get_set_features(
         self,
-        user_id: str,
-        isolations: dict[str, bool | int | float | str] | None = None,
+        set_id: str,
     ) -> dict[str, dict[str, Any | list[Any]]]:
         result: dict[str, dict[str, list[Any]]] = {}
         assert self._pool is not None
@@ -112,11 +111,9 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             rows = await conn.fetch(
                 f"""
                 SELECT feature, value, tag, create_at FROM {self.main_table}
-                WHERE user_id = $1
-                AND isolations @> $2
+                WHERE set_id = $1
                 """,
-                user_id,
-                json.dumps(isolations),
+                set_id,
             )
 
             for feature, value, tag, create_at in rows:
@@ -136,11 +133,10 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     async def get_citation_list(
         self,
-        user_id: str,
+        set_id: str,
         feature: str,
         value: str,
         tag: str,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ) -> list[int]:
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -148,50 +144,43 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 f"""
                 SELECT j.content_id
                 FROM {self.main_table} p
-                LEFT JOIN {self.junction_table} j ON p.id = j.profile_id
-                WHERE user_id = $1 AND feature = $2
+                LEFT JOIN {self.junction_table} j ON p.id = j.semantic_id
+                WHERE set_id = $1 AND feature = $2
                 AND value = $3 AND tag = $4
-                AND isolations @> $5
             """,
-                user_id,
+                set_id,
                 feature,
                 value,
                 tag,
-                json.dumps(isolations),
             )
             return [i[0] for i in result]
 
-    async def delete_profile(
+    async def delete_feature_set(
         self,
-        user_id: str,
-        isolations: dict[str, bool | int | float | str] | None = None,
+        set_id: str,
     ):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f"""
                     DELETE FROM {self.main_table}
-                    WHERE user_id = $1
-                    AND isolations @> $2
+                    WHERE set_id = $1
                     """,
-                user_id,
+                set_id,
             )
 
-    async def add_profile_feature(
+    async def add_feature(
         self,
-        user_id: str,
+        set_id: str,
         feature: str,
         value: str,
         tag: str,
         embedding: np.ndarray,
         metadata: dict[str, Any] | None = None,
-        isolations: dict[str, bool | int | float | str] | None = None,
         citations: list[int] | None = None,
     ):
         if metadata is None:
             metadata = {}
-        if isolations is None:
-            isolations = {}
         if citations is None:
             citations = []
 
@@ -202,17 +191,16 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 pid = await conn.fetchval(
                     f"""
                     INSERT INTO {self.main_table}
-                    (user_id, tag, feature, value, embedding, metadata, isolations)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    (set_id, tag, feature, value, embedding, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING id
                 """,
-                    user_id,
+                    set_id,
                     tag,
                     feature,
                     value,
                     embedding,
                     json.dumps(metadata),
-                    json.dumps(isolations),
                 )
 
                 if pid is None:
@@ -222,60 +210,52 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 await conn.executemany(
                     f"""
                     INSERT INTO {self.junction_table}
-                    (profile_id, content_id)
+                    (semantic_id, content_id)
                     VALUES ($1, $2)
                 """,
                     [(pid, c) for c in citations],
                 )
 
-    async def delete_profile_feature(
+    async def delete_feature(
         self,
-        user_id: str,
+        set_id: str,
         feature: str,
         tag: str,
         value: str | None = None,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ):
-        if isolations is None:
-            isolations = {}
-
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             if value is None:
                 await conn.execute(
                     f"""
                     DELETE FROM {self.main_table}
-                    WHERE user_id = $1 AND feature = $2 AND tag = $3
-                    AND isolations @> $4
+                    WHERE set_id = $1 AND feature = $2 AND tag = $3
                     """,
-                    user_id,
+                    set_id,
                     feature,
                     tag,
-                    json.dumps(isolations),
                 )
             else:
                 await conn.execute(
                     f"""
                     DELETE FROM {self.main_table}
-                    WHERE user_id = $1 AND feature = $2 AND tag = $3 AND value = $4
-                    AND isolations @> $5
+                    WHERE set_id = $1 AND feature = $2 AND tag = $3 AND value = $4
                     """,
-                    user_id,
+                    set_id,
                     feature,
                     tag,
                     value,
-                    json.dumps(isolations),
                 )
 
-    async def delete_profile_feature_by_id(self, pid: int):
+    async def delete_features_by_id(self, pids: list[int]):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             await conn.execute(
                 f"""
             DELETE FROM {self.main_table}
-            where id = $1
+            where id = ANY($1)
             """,
-                pid,
+                pids,
             )
 
     async def get_all_citations_for_ids(
@@ -286,26 +266,22 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             stm = f"""
-                SELECT DISTINCT j.content_id, h.isolations
+                SELECT DISTINCT j.content_id
                 FROM {self.junction_table} j
                 JOIN {self.history_table} h ON j.content_id = h.id
-                WHERE j.profile_id = ANY($1)
+                WHERE j.semantic_id = ANY($1)
             """
             res = await conn.fetch(stm, pids)
             return [(i[0], json.loads(i[1])) for i in res]
 
-    async def get_large_profile_sections(
+    async def get_large_feature_sections(
         self,
-        user_id: str,
+        set_id: str,
         thresh: int = 20,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ) -> list[list[dict[str, Any]]]:
         """
-        Retrieve every section of the user's profile which has more then 20 entries, formatted as json.
+        Retrieve every section of the user's feature set which has more then 20 entries, formatted as json.
         """
-        if isolations is None:
-            isolations = {}
-
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             agg = await conn.fetch(
@@ -317,24 +293,20 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                     'metadata', JSON_BUILD_OBJECT('id', id)
                 ))
                 FROM {self.main_table}
-                WHERE user_id = $1
-                AND isolations @> $2
+                WHERE set_id = $1
                 AND tag IN (
                     SELECT tag
                     FROM {self.main_table}
-                    WHERE user_id = $1
-                    AND isolations @> $2
+                    WHERE set_id = $1
                     GROUP BY tag
                     HAVING COUNT(*) >= $3
                 )
                 GROUP BY tag
             """,
-                user_id,
-                json.dumps(isolations),
+                set_id,
                 thresh,
             )
             out = [json.loads(obj[0]) for obj in agg]
-            # print("large_profile_sections for user_id", out)
             return out
 
     def _normalize_value(self, value: Any) -> str:
@@ -352,16 +324,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     async def semantic_search(
         self,
-        user_id: str,
+        set_id: str,
         qemb: np.ndarray,
         k: int,
         min_cos: float,
-        isolations: dict[str, bool | int | float | str] | None = None,
         include_citations: bool = False,
     ) -> list[dict[str, Any]]:
-        if isolations is None:
-            isolations = {}
-
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             agg = await conn.fetch(
@@ -381,7 +349,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                                 SELECT JSON_AGG(h.content)
                                 FROM {self.junction_table} j
                                 JOIN {self.history_table} h ON j.content_id = h.id
-                                WHERE p.id = j.profile_id
+                                WHERE p.id = j.semantic_id
                             ),
                             '[]'::json
                         )
@@ -393,17 +361,15 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                     )
                 )
                 FROM {self.main_table} p
-                WHERE p.user_id = $2
+                WHERE p.set_id = $2
                 AND -(p.embedding <#> $1::vector) > $3
-                AND p.isolations @> $4
                 GROUP BY p.tag, p.feature, p.value, p.id, p.embedding
                 ORDER BY -(p.embedding <#> $1::vector) DESC
                 LIMIT $5
                 """,
                 qemb,
-                user_id,
+                set_id,
                 min_cos,
-                json.dumps(isolations),
                 k,
             )
             res = [json.loads(a[0]) for a in agg]
@@ -411,63 +377,58 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     async def add_history(
         self,
-        user_id: str,
+        set_id: str,
         content: str,
         metadata: dict[str, str] | None = None,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ) -> Mapping[str, Any]:
-        if isolations is None:
-            isolations = {}
         if metadata is None:
             metadata = {}
 
         stm = f"""
-            INSERT INTO {self.history_table} (user_id, content, metadata, isolations)
+            INSERT INTO {self.history_table} (set_id, content, metadata)
             VALUES($1, $2, $3, $4)
-            RETURNING id, user_id, content, metadata, isolations
+            RETURNING id, set_id, content, metadata
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 stm,
-                user_id,
+                set_id,
                 content,
                 json.dumps(metadata),
-                json.dumps(isolations),
             )
         return RecordMapping(row)
 
     async def delete_history(
         self,
-        user_id: str,
+        set_id: str,
         start_time: int = 0,
         end_time: int = 0,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ):
         stm = f"""
             DELETE FROM {self.history_table}
-            WHERE user_id = $1 AND isolations @> $2
+            WHERE set_id = $1 
             AND timestamp >= {start_time} AND timestamp <= {end_time}
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            await conn.execute(stm, user_id, json.dumps(isolations))
+            await conn.execute(stm, set_id)
 
     async def get_history_messages_by_ingestion_status(
         self,
-        user_id: str,
+        set_id: str,
         k: int = 10,
         is_ingested: bool = False,
     ) -> list[Mapping[str, Any]]:
         stm = f"""
-            SELECT id, user_id, content, metadata, isolations FROM {self.history_table}
-            WHERE user_id = $1 AND ingested = $2
+            SELECT id, set_id, content, metadata FROM {self.history_table}
+            WHERE set_id = $1 AND ingested = $2
             ORDER BY create_at DESC
             LIMIT $3
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            rows = await conn.fetch(stm, user_id, is_ingested, k)
+            rows = await conn.fetch(stm, set_id, is_ingested, k)
             return [RecordMapping(row) for row in rows]
 
     async def get_uningested_history_messages_count(self) -> int:
@@ -495,44 +456,36 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
     async def get_history_message(
         self,
-        user_id: str,
+        set_id: str,
         start_time: int = 0,
         end_time: int = 0,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ) -> list[str]:
-        if isolations is None:
-            isolations = {}
-
         stm = f"""
             SELECT content FROM {self.history_table}
-            WHERE timestamp >= $1 AND timestamp <= $2 AND user_id=$3
-            AND isolations @> $4
+            WHERE timestamp >= $1 AND timestamp <= $2 AND set_id=$3
             ORDER BY timestamp ASC
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
-                stm, start_time, end_time, user_id, json.dumps(isolations)
+                stm, start_time, end_time, set_id
             )
             print(rows)
             return rows
 
     async def purge_history(
         self,
-        user_id: str,
+        set_id: str,
         start_time: int = 0,
-        isolations: dict[str, bool | int | float | str] | None = None,
     ):
-        if isolations is None:
-            isolations = {}
 
         query = f"""
             DELETE FROM {self.history_table}
-            WHERE user_id = $1 AND isolations @> $2 AND start_time > $3
+            WHERE set_id = $1 AND start_time > $3
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            await conn.execute(query, user_id, start_time, json.dumps(isolations))
+            await conn.execute(query, set_id, start_time)
 
     async def cleanup(self):
         await self._pool.close()

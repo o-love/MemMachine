@@ -20,21 +20,21 @@ async def storage():
 async def test_add_get_and_delete_profile_entries(storage: InMemorySemanticStorage):
     embed = np.array([1.0, 0.0], dtype=float)
 
-    await storage.add_profile_feature(
+    await storage.add_feature(
         user_id="user",
         feature="likes",
         value="pizza",
         tag="food",
         embedding=embed,
     )
-    await storage.add_profile_feature(
+    await storage.add_feature(
         user_id="user",
         feature="likes",
         value="sushi",
         tag="food",
         embedding=embed,
     )
-    await storage.add_profile_feature(
+    await storage.add_feature(
         user_id="user",
         feature="color",
         value="blue",
@@ -43,33 +43,33 @@ async def test_add_get_and_delete_profile_entries(storage: InMemorySemanticStora
         isolations={"tenant": "A"},
     )
 
-    profile_default = await storage.get_profile("user", {})
+    profile_default = await storage.get_set_features("user", {})
     assert profile_default["food"]["likes"][0]["value"] == "pizza"
     assert {item["value"] for item in profile_default["food"]["likes"]} == {
         "pizza",
         "sushi",
     }
 
-    tenant_profile = await storage.get_profile("user", {"tenant": "A"})
+    tenant_profile = await storage.get_set_features("user", {"tenant": "A"})
     assert tenant_profile == {
         "prefs": {"color": {"value": "blue"}},
     }
 
-    await storage.delete_profile_feature(
+    await storage.delete_feature(
         user_id="user",
         feature="likes",
         tag="food",
         value="pizza",
         isolations={},
     )
-    after_delete = await storage.get_profile("user", {})
+    after_delete = await storage.get_set_features("user", {})
     assert after_delete["food"]["likes"]["value"] == "sushi"
 
-    await storage.delete_profile("user", {"tenant": "A"})
-    assert await storage.get_profile("user", {"tenant": "A"}) == {}
+    await storage.delete_feature_set("user", {"tenant": "A"})
+    assert await storage.get_set_features("user", {"tenant": "A"}) == {}
 
-    await storage.delete_profile("user", {})
-    assert await storage.get_profile("user", {}) == {}
+    await storage.delete_feature_set("user", {})
+    assert await storage.get_set_features("user", {}) == {}
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ async def test_citation_helpers(storage: InMemorySemanticStorage):
         isolations={"tenant": "A"},
     )
 
-    await storage.add_profile_feature(
+    await storage.add_feature(
         user_id="user",
         feature="greeting",
         value="hello",
@@ -100,7 +100,7 @@ async def test_citation_helpers(storage: InMemorySemanticStorage):
     )
     assert citations == [history["id"]]
 
-    sections = await storage.get_large_profile_sections(
+    sections = await storage.get_large_feature_sections(
         user_id="user",
         thresh=1,
         isolations={"tenant": "A"},
@@ -110,8 +110,8 @@ async def test_citation_helpers(storage: InMemorySemanticStorage):
     all_citations = await storage.get_all_citations_for_ids([profile_id])
     assert all_citations == [(history["id"], {"tenant": "A"})]
 
-    await storage.delete_profile_feature_by_id(profile_id)
-    assert await storage.get_profile("user", {"tenant": "A"}) == {}
+    await storage.delete_features_by_id(profile_id)
+    assert await storage.get_set_features("user", {"tenant": "A"}) == {}
 
 
 @pytest.mark.asyncio
@@ -123,7 +123,7 @@ async def test_semantic_search_sorting_and_citations(storage: InMemorySemanticSt
         isolations={},
     )
 
-    await storage.add_profile_feature(
+    await storage.add_feature(
         user_id="user",
         feature="topic",
         value="ai",
@@ -131,7 +131,7 @@ async def test_semantic_search_sorting_and_citations(storage: InMemorySemanticSt
         embedding=np.array([1.0, 0.0]),
         citations=[history["id"]],
     )
-    await storage.add_profile_feature(
+    await storage.add_feature(
         user_id="user",
         feature="topic",
         value="music",

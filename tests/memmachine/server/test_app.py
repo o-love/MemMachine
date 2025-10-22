@@ -12,7 +12,7 @@ from memmachine.common.language_model import LanguageModel, LanguageModelBuilder
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-from memmachine.semantic_memory.semantic_memory import SemanticMemory
+from memmachine.semantic_memory.semantic_memory import SemanticMemoryManager
 from memmachine.server.app import initialize_resource
 
 
@@ -23,7 +23,7 @@ def mock_dependencies(monkeypatch):
     mock_embedder = MagicMock(spec=Embedder)
 
     mock_metrics_builder = MagicMock()
-    mock_semantic_memory = MagicMock(spec=SemanticMemory)
+    mock_semantic_memory = MagicMock(spec=SemanticMemoryManager)
     mock_episodic_manager = MagicMock(spec=EpisodicMemoryManager)
     mock_import_module = MagicMock()
 
@@ -38,7 +38,9 @@ def mock_dependencies(monkeypatch):
     monkeypatch.setattr(
         "memmachine.server.app.MetricsFactoryBuilder", mock_metrics_builder
     )
-    monkeypatch.setattr("memmachine.server.app.SemanticMemory", mock_semantic_memory)
+    monkeypatch.setattr(
+        "memmachine.server.app.SemanticMemoryManager", mock_semantic_memory
+    )
     monkeypatch.setattr(
         "memmachine.server.app.EpisodicMemoryManager", mock_episodic_manager
     )
