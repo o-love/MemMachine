@@ -5,6 +5,8 @@ from importlib import import_module
 
 import pytest
 import pytest_asyncio
+from neo4j import AsyncGraphDatabase
+from testcontainers.neo4j import Neo4jContainer
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
@@ -12,6 +14,7 @@ from memmachine.common.language_model.openai_language_model import OpenAILanguag
 from memmachine.profile_memory.profile_memory import ProfileMemory
 from memmachine.profile_memory.prompt_provider import ProfilePrompt
 from memmachine.profile_memory.storage.asyncpg_profile import AsyncPgProfileStorage
+from memmachine.profile_memory.storage.neo4j_profile import Neo4jProfileStorage
 from memmachine.profile_memory.storage.syncschema import sync_to as setup_pg_schema
 
 
@@ -73,13 +76,57 @@ async def pg_server(pg_container):
 
 @pytest.fixture
 def asyncpg_profile_storage(pg_server):
-    storage = AsyncPgProfileStorage(pg_server)
-    yield storage
+    return AsyncPgProfileStorage(pg_server)
+
+
+@pytest.fixture(scope="module")
+def neo4j_connection_info():
+    neo4j_username = "neo4j"
+    neo4j_password = "password"
+
+    with Neo4jContainer(
+        image="neo4j:latest",
+        username=neo4j_username,
+        password=neo4j_password,
+    ) as neo4j:
+        yield {
+            "uri": neo4j.get_connection_url(),
+            "username": neo4j_username,
+            "password": neo4j_password,
+        }
+
+
+@pytest_asyncio.fixture
+async def neo4j_driver(neo4j_connection_info):
+    driver = AsyncGraphDatabase.driver(
+        neo4j_connection_info["uri"],
+        auth=(
+            neo4j_connection_info["username"],
+            neo4j_connection_info["password"],
+        ),
+    )
+    yield driver
+    await driver.close()
 
 
 @pytest.fixture
-def storage(asyncpg_profile_storage):
-    return asyncpg_profile_storage
+def neo4j_profile_storage(neo4j_driver):
+    return Neo4jProfileStorage(
+        Neo4jProfileStorage.Params(
+            driver=neo4j_driver,
+        )
+    )
+
+
+@pytest.fixture(params=["asyncpg", "neo4j"])
+def storage(request):
+    match request.param:
+        case "asyncpg":
+            return request.getfixturevalue("asyncpg_profile_storage")
+        case "neo4j":
+            return request.getfixturevalue("neo4j_profile_storage")
+        case _:
+            raise ValueError(f"Unknown storage type: {request.param}")
 
 
 @pytest.fixture
