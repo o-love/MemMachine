@@ -55,7 +55,7 @@ async def test_add_get_and_delete_profile_entries(storage: InMemorySemanticStora
         "prefs": {"color": {"value": "blue"}},
     }
 
-    await storage.delete_feature(
+    await storage.delete_feature_with_filter(
         user_id="user",
         feature="likes",
         tag="food",
@@ -110,7 +110,7 @@ async def test_citation_helpers(storage: InMemorySemanticStorage):
     all_citations = await storage.get_all_citations_for_ids([profile_id])
     assert all_citations == [(history["id"], {"tenant": "A"})]
 
-    await storage.delete_features_by_id(profile_id)
+    await storage.delete_features(profile_id)
     assert await storage.get_set_features("user", {"tenant": "A"}) == {}
 
 

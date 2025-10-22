@@ -36,6 +36,7 @@ class SemanticMemoryMangagerParams(BaseModel):
     prompt: SemanticPrompt
     semantic_storage: InstanceOf[SemanticStorageBase]
     max_cache_size: int = 1000
+    consolidation_threshold: int = 20
 
     feature_update_interval_sec: float = 2.0
     """ Interval in seconds for feature updates. This controls how often the
@@ -97,6 +98,8 @@ class SemanticMemoryManager:
         self._is_shutting_down = False
 
         self._semantic_cache = LRUCache(params.max_cache_size)
+
+        self._consolidation_threshold = params.consolidation_threshold
 
     async def startup(self):
         """Initializes resources, such as the database connection pool."""
@@ -176,14 +179,16 @@ class SemanticMemoryManager:
         self._semantic_cache.erase(set_id)
         emb = (await self._embeddings.ingest_embed([value]))[0]
         await self._semantic_storage.add_feature(
-            set_id,
-            feature,
-            value,
-            tag,
-            np.array(emb),
+            set_id=set_id,
+            semantic_type_id="default",
+            feature=feature,
+            value=value,
+            tag=tag,
+            embedding=np.array(emb),
             metadata=metadata,
             citations=citations,
         )
+
 
     async def delete_set_feature(
         self,
@@ -204,13 +209,17 @@ class SemanticMemoryManager:
                 feature and tag are deleted.
         """
         self._semantic_cache.erase(set_id)
-        await self._semantic_storage.delete_feature(
-            set_id, feature, tag, value
+        await self._semantic_storage.delete_feature_with_filter(
+            set_id=set_id,
+            semantic_type_id="default",
+            feature=feature,
+            tag=tag,
         )
 
     @validate_call
     async def semantic_search(
         self,
+        *,
         set_id: str,
         query: str,
         k: int = 1_000_000,
@@ -269,6 +278,7 @@ class SemanticMemoryManager:
 
     async def add_persona_message(
         self,
+        *,
         set_id: str,
         content: str,
         metadata: dict[str, str] | None = None,
@@ -329,27 +339,21 @@ class SemanticMemoryManager:
         if len(messages) == 0:
             return
 
-        mark_tasks = []
+        mark_messages = []
 
-        for i in range(0, len(messages) - 1):
-            message = messages[i]
-            await self._update_set_features_think(message)
-            mark_tasks.append(
-                self._semantic_storage.mark_messages_ingested([message["id"]])
-            )
+        for message in messages:
+            await self._update_set_features_think(set_id, message)
+            mark_messages.append(message["id"])
 
-        await self._update_set_features_think(messages[-1], wait_consolidate=True)
-        mark_tasks.append(
-            self._semantic_storage.mark_messages_ingested([messages[-1]["id"]])
+        await asyncio.gather(
+             self._consolidate_memories_if_applicable(set_id=set_id),
+             self._semantic_storage.mark_messages_ingested(mark_messages)
         )
-        await asyncio.gather(*mark_tasks)
-
 
     async def _update_set_features_think(
         self,
         set_id: str,
         record: Any,
-        wait_consolidate: bool = False,
     ):
         """
         update set features based on json output, after doing a chain
@@ -374,13 +378,6 @@ class SemanticMemoryManager:
             citation_id=citation_id,
         )
 
-        if wait_consolidate:
-            s = await self._semantic_storage.get_large_feature_sections(
-                set_id, thresh=5
-            )
-            await asyncio.gather(
-                *[self._deduplicate_features(set_id, section) for section in s]
-            )
 
     async def _apply_commands(
         self,
@@ -436,6 +433,18 @@ class SemanticMemoryManager:
             citations=new_citations,
         )
 
+    async def _consolidate_memories_if_applicable(
+        self,
+        *,
+        set_id: str
+    ):
+        s = await self._semantic_storage.get_large_feature_sections(
+            set_id, thresh=self._consolidation_threshold
+        )
+        await asyncio.gather(
+            *[self._deduplicate_features(set_id, section) for section in s]
+        )
+
     async def _deduplicate_features(
         self,
         set_id: str,
@@ -459,5 +468,5 @@ class SemanticMemoryManager:
                 for m in memories
                 if m.metadata.id not in consolidate_resp.keep_memories
             ]
-            await self._semantic_storage.delete_features_by_id(memory_ids_to_delete)
+            await self._semantic_storage.delete_features(memory_ids_to_delete)
             self._semantic_cache.erase(set_id)

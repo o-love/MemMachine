@@ -136,7 +136,7 @@ class TestLongMemEvalIngestion:
         llm_model: OpenAILanguageModel,
     ):
         semantic_search_resp = await semantic_memory.semantic_search(
-            question_str, set_id=user_id
+            query=question_str, set_id=user_id
         )
         semantic_search_resp = semantic_search_resp[:4]
 

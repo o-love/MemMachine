@@ -569,7 +569,7 @@ async def initialize_resource(
         }
     )
 
-    profile_memory = SemanticMemoryManager(
+    semantic_memory = SemanticMemoryManager(
         SemanticMemoryMangagerParams(
             model=llm_model,
             embeddings=embeddings,
@@ -578,7 +578,7 @@ async def initialize_resource(
         )
     )
     episodic_memory = EpisodicMemoryManager.create_episodic_memory_manager(config_file)
-    return episodic_memory, profile_memory
+    return episodic_memory, semantic_memory
 
 
 @asynccontextmanager
@@ -911,16 +911,9 @@ async def _add_memory(episode: NewEpisode):
                         or {session.agent_id}""",
             )
 
-        ctx = inst.get_memory_context()
         await cast(SemanticMemoryManager, semantic_memory).add_persona_message(
-            str(episode.episode_content),
-            episode.metadata if episode.metadata is not None else {},
-            {
-                "group_id": ctx.group_id,
-                "session_id": ctx.session_id,
-                "producer": episode.producer,
-                "produced_for": episode.produced_for,
-            },
+            content=str(episode.episode_content),
+            metadata=episode.metadata if episode.metadata is not None else {},
             set_id=episode.producer,
         )
 
@@ -1023,18 +1016,11 @@ async def _add_semantic_memory(episode: NewEpisode):
 
     See the docstring for add_profile_memory() for details.
     """
-    session = episode.get_session()
-    group_id = session.group_id
+    _ = episode.get_session()
 
     await cast(SemanticMemoryManager, semantic_memory).add_persona_message(
-        str(episode.episode_content),
-        episode.metadata if episode.metadata is not None else {},
-        {
-            "group_id": group_id if group_id is not None else "",
-            "session_id": session.session_id,
-            "producer": episode.producer,
-            "produced_for": episode.produced_for,
-        },
+        content=str(episode.episode_content),
+        metadata=episode.metadata if episode.metadata is not None else {},
         set_id=episode.producer,
     )
 

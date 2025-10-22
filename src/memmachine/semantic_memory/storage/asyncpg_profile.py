@@ -2,11 +2,12 @@ import functools
 import json
 import logging
 from collections.abc import Mapping
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import asyncpg
 import numpy as np
 from pgvector.asyncpg import register_vector
+from pydantic import validate_call, InstanceOf
 
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -101,9 +102,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             await conn.execute(f"TRUNCATE TABLE {self.history_table} CASCADE")
             await conn.execute(f"TRUNCATE TABLE {self.junction_table} CASCADE")
 
+    @validate_call
     async def get_set_features(
         self,
         set_id: str,
+        semantic_type_id: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> dict[str, dict[str, Any | list[Any]]]:
         result: dict[str, dict[str, list[Any]]] = {}
         assert self._pool is not None
@@ -131,6 +135,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                         fv[feature] = value[0]
             return result
 
+    @validate_call
     async def get_citation_list(
         self,
         set_id: str,
@@ -155,9 +160,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             )
             return [i[0] for i in result]
 
+    @validate_call
     async def delete_feature_set(
         self,
         set_id: str,
+        semantic_type_id: Optional[str] = None,
+        tag: Optional[str] = None,
     ):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -169,13 +177,15 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 set_id,
             )
 
+    @validate_call
     async def add_feature(
         self,
         set_id: str,
+        semantic_type_id: str,
         feature: str,
         value: str,
         tag: str,
-        embedding: np.ndarray,
+        embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
         citations: list[int] | None = None,
     ):
@@ -191,11 +201,12 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 pid = await conn.fetchval(
                     f"""
                     INSERT INTO {self.main_table}
-                    (set_id, tag, feature, value, embedding, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    (set_id, semantic_type, tag, feature, value, embedding, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
                     RETURNING id
                 """,
                     set_id,
+                    semantic_type_id,
                     tag,
                     feature,
                     value,
@@ -216,38 +227,25 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                     [(pid, c) for c in citations],
                 )
 
-    async def delete_feature(
+    async def delete_feature_with_filter(
         self,
         set_id: str,
         feature: str,
         tag: str,
-        value: str | None = None,
     ):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            if value is None:
-                await conn.execute(
-                    f"""
-                    DELETE FROM {self.main_table}
-                    WHERE set_id = $1 AND feature = $2 AND tag = $3
-                    """,
-                    set_id,
-                    feature,
-                    tag,
-                )
-            else:
-                await conn.execute(
-                    f"""
-                    DELETE FROM {self.main_table}
-                    WHERE set_id = $1 AND feature = $2 AND tag = $3 AND value = $4
-                    """,
-                    set_id,
-                    feature,
-                    tag,
-                    value,
-                )
+            await conn.execute(
+                f"""
+                DELETE FROM {self.main_table}
+                WHERE set_id = $1 AND feature = $2 AND tag = $3
+                """,
+                set_id,
+                feature,
+                tag,
+            )
 
-    async def delete_features_by_id(self, pids: list[int]):
+    async def delete_features(self, feature_ids: list[int]):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             await conn.execute(
@@ -255,13 +253,13 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
             DELETE FROM {self.main_table}
             where id = ANY($1)
             """,
-                pids,
+                feature_ids,
             )
 
     async def get_all_citations_for_ids(
-        self, pids: list[int]
+        self, feature_ids: list[int]
     ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
-        if len(pids) == 0:
+        if len(feature_ids) == 0:
             return []
         assert self._pool is not None
         async with self._pool.acquire() as conn:
@@ -271,7 +269,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 JOIN {self.history_table} h ON j.content_id = h.id
                 WHERE j.semantic_id = ANY($1)
             """
-            res = await conn.fetch(stm, pids)
+            res = await conn.fetch(stm, feature_ids)
             return [(i[0], json.loads(i[1])) for i in res]
 
     async def get_large_feature_sections(
@@ -299,7 +297,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                     FROM {self.main_table}
                     WHERE set_id = $1
                     GROUP BY tag
-                    HAVING COUNT(*) >= $3
+                    HAVING COUNT(*) >= $2
                 )
                 GROUP BY tag
             """,
@@ -365,7 +363,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                 AND -(p.embedding <#> $1::vector) > $3
                 GROUP BY p.tag, p.feature, p.value, p.id, p.embedding
                 ORDER BY -(p.embedding <#> $1::vector) DESC
-                LIMIT $5
+                LIMIT $4
                 """,
                 qemb,
                 set_id,
@@ -386,7 +384,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
 
         stm = f"""
             INSERT INTO {self.history_table} (set_id, content, metadata)
-            VALUES($1, $2, $3, $4)
+            VALUES($1, $2, $3)
             RETURNING id, set_id, content, metadata
         """
         assert self._pool is not None
@@ -423,7 +421,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         stm = f"""
             SELECT id, set_id, content, metadata FROM {self.history_table}
             WHERE set_id = $1 AND ingested = $2
-            ORDER BY create_at DESC
+            ORDER BY create_at ASC
             LIMIT $3
         """
         assert self._pool is not None

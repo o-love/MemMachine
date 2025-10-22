@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 
 import numpy as np
 
@@ -36,7 +36,10 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def get_set_features(
         self,
+        *,
         set_id: str,
+        semantic_type_id: Optional[str] = None,
+        tag: Optional[str] = None,
     ) -> dict[str, Any]:
         """
         Get feature set by user id
@@ -48,7 +51,10 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def delete_feature_set(
         self,
+        *,
         set_id: str,
+        semantic_type_id: Optional[str] = None,
+        tag: Optional[str] = None,
     ):
         """
         Delete all the features by id
@@ -58,7 +64,9 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def add_feature(
         self,
+        *,
         set_id: str,
+        semantic_type_id: str,
         feature: str,
         value: str,
         tag: str,
@@ -83,22 +91,23 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_features_by_id(self, pids: list[int]):
+    async def delete_features(self, feature_ids: list[int]):
         raise NotImplementedError
 
     @abstractmethod
     async def get_all_citations_for_ids(
-        self, pids: list[int]
+        self, feature_ids: list[int]
     ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_feature(
+    async def delete_feature_with_filter(
         self,
+        *,
         set_id: str,
+        semantic_type_id: str,
         feature: str,
         tag: str,
-        value: str | None = None,
     ):
         """
         Delete a feature from the user

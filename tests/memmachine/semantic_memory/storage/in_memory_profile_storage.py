@@ -203,7 +203,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 results.append(payload)
             return results
 
-    async def delete_feature(
+    async def delete_feature_with_filter(
         self,
         user_id: str,
         feature: str,
@@ -230,7 +230,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             else:
                 self._profiles_by_user.pop(user_id, None)
 
-    async def delete_features_by_id(self, pid: int):
+    async def delete_features(self, pid: int):
         async with self._lock:
             entry = self._profiles_by_id.pop(pid, None)
             if entry is None:
@@ -244,12 +244,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 self._profiles_by_user.pop(entry.user_id, None)
 
     async def get_all_citations_for_ids(
-        self, pids: list[int]
+        self, feature_ids: list[int]
     ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
         async with self._lock:
             result: list[tuple[int, dict[str, bool | int | float | str]]] = []
             seen: set[int] = set()
-            for pid in pids:
+            for pid in feature_ids:
                 entry = self._profiles_by_id.get(pid)
                 if entry is None:
                     continue
