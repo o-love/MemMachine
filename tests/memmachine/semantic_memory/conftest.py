@@ -4,7 +4,7 @@ from testcontainers.postgres import PostgresContainer
 
 from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
 from memmachine.semantic_memory.storage.syncschema import sync_to as setup_pg_schema
-from tests.memmachine.semantic_memory.storage.in_memory_profile_storage import (
+from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
 )
 

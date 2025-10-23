@@ -165,6 +165,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             self._next_profile_id += 1
             self._profiles_by_set.setdefault(set_id, []).append(entry)
             self._profiles_by_id[entry.id] = entry
+            return entry.id
 
     async def semantic_search(
         self,
@@ -388,25 +389,6 @@ class InMemorySemanticStorage(SemanticStorageBase):
             ]
             entries.sort(key=lambda item: item.timestamp)
             return [entry.content for entry in entries]
-
-    async def purge_history(
-        self,
-        *,
-        set_id: str,
-        start_time: int = 0,
-    ):
-        async with self._lock:
-            threshold = start_time if start_time else float("-inf")
-            keep: list[_HistoryEntry] = []
-            for entry in self._history_by_set.get(set_id, []):
-                if entry.timestamp <= threshold:
-                    self._history_by_id.pop(entry.id, None)
-                else:
-                    keep.append(entry)
-            if keep:
-                self._history_by_set[set_id] = keep
-            else:
-                self._history_by_set.pop(set_id, None)
 
     async def get_ingested_history_messages(
         self,
