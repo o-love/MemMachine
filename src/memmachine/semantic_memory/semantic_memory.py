@@ -462,7 +462,8 @@ class SemanticMemoryManager:
         memory_ids_to_delete = [
             m.metadata.id
             for m in memories
-            if m.metadata.id is not None and m.metadata.id not in consolidate_resp.keep_memories
+            if m.metadata.id is not None
+            and m.metadata.id not in consolidate_resp.keep_memories
         ]
         await self._semantic_storage.delete_features(memory_ids_to_delete)
         self._semantic_cache.erase(set_id)
