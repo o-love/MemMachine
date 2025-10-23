@@ -15,7 +15,7 @@ from memmachine.semantic_memory.semantic_memory import (
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 from tests.memmachine.common.reranker.test_embedder_reranker import FakeEmbedder
-from tests.memmachine.semantic_memory.storage.in_memory_profile_storage import (
+from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
 )
 
@@ -57,7 +57,7 @@ async def semantic_memory(
     mock_embedder: Embedder,
     mock_llm: LanguageModel,
     mock_prompt: SemanticPrompt,
-        storage: SemanticStorageBase,
+    storage: SemanticStorageBase,
 ):
     params = SemanticMemoryMangagerParams(
         model=mock_llm,

@@ -24,13 +24,13 @@ async def with_multiple_features(storage: SemanticStorageBase):
     )
 
     yield {
-        'food': {
-            'likes': [
+        "food": {
+            "likes": [
                 {
-                    'value': 'pizza',
+                    "value": "pizza",
                 },
                 {
-                    'value': 'sushi',
+                    "value": "sushi",
                 },
             ]
         }
@@ -75,30 +75,30 @@ async def with_multiple_sets(storage: SemanticStorageBase):
     )
 
     yield {
-        'user1': {
-            'food': {
-                'likes': [
+        "user1": {
+            "food": {
+                "likes": [
                     {
-                        'value': 'pizza',
+                        "value": "pizza",
                     },
                     {
-                        'value': 'sushi',
-                    }
+                        "value": "sushi",
+                    },
                 ]
             }
         },
-        'user2': {
-            'food': {
-                'likes': [
+        "user2": {
+            "food": {
+                "likes": [
                     {
-                        'value': 'fish',
+                        "value": "fish",
                     },
                     {
-                        'value': 'chips',
-                    }
+                        "value": "chips",
+                    },
                 ]
             }
-        }
+        },
     }
 
     await storage.delete_features([idx_a, idx_b, idx_c, idx_d])

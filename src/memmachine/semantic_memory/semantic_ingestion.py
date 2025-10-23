@@ -123,7 +123,7 @@ class SemanticCommand(BaseModel):
     command: str
     feature: str
     tag: str
-    value: str | None = None
+    value: str
 
 
 def _process_commands(commands) -> list[SemanticCommand]:

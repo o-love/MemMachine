@@ -146,6 +146,7 @@ class SemanticMemoryManager:
 
     async def add_new_feature(
         self,
+        *,
         set_id: str,
         feature: str,
         value: str,
@@ -184,6 +185,7 @@ class SemanticMemoryManager:
 
     async def delete_set_feature(
         self,
+        *,
         set_id: str,
         feature: str,
         tag: str,
@@ -378,32 +380,37 @@ class SemanticMemoryManager:
             match command.command:
                 case "add":
                     await self.add_new_feature(
-                        set_id,
-                        command.feature,
-                        command.value,
-                        command.tag,
+                        set_id=set_id,
+                        feature=command.feature,
+                        value=command.value,
+                        tag=command.tag,
                         citations=[citation_id],
                     )
                 case "delete":
                     await self.delete_set_feature(
-                        set_id,
+                        set_id=set_id,
                         feature=command.feature,
                         tag=command.tag,
                         value=command.value,
                     )
                 case _:
-                    logger.error("Command with unknown action: %s", command["command"])
+                    logger.error("Command with unknown action: %s", command.command)
                     raise ValueError(
-                        "Command with unknown action: " + str(command["command"])
+                        "Command with unknown action: " + str(command.command)
                     )
 
     async def _store_consolidated_memory(self, *, memory: SemanticMemory, set_id: str):
         # TODO: Validate that this association citation logic is correct.
-        associations = await self._semantic_storage.get_all_citations_for_ids(
-            memory.metadata.citations
-        )
 
-        new_citations = [i[0] for i in associations]
+        if memory.metadata.citations is None:
+            logger.error("No citations passed for store_consolidated_memory")
+            new_citations = []
+        else:
+            associations = await self._semantic_storage.get_all_citations_for_ids(
+                memory.metadata.citations
+            )
+
+            new_citations = [i for i in associations]
 
         logger.debug(
             "CITATION_CHECK",
@@ -414,10 +421,10 @@ class SemanticMemoryManager:
         )
 
         await self.add_new_feature(
-            set_id,
-            memory.feature,
-            memory.value,
-            memory.tag,
+            set_id=set_id,
+            feature=memory.feature,
+            value=memory.value,
+            tag=memory.tag,
             citations=new_citations,
         )
 
@@ -426,7 +433,12 @@ class SemanticMemoryManager:
             set_id=set_id, thresh=self._consolidation_threshold
         )
         await asyncio.gather(
-            *[self._deduplicate_features(set_id, section) for section in s]
+            *[
+                self._deduplicate_features(
+                    set_id, [SemanticMemory(**memories) for memories in section]
+                )
+                for section in s
+            ]
         )
 
     async def _deduplicate_features(
@@ -443,14 +455,14 @@ class SemanticMemoryManager:
             consolidate_prompt=self._prompt.consolidation_prompt,
         )
 
-        if not consolidate_resp:
+        if consolidate_resp is None or consolidate_resp.keep_memories is None:
             logger.warning("Failed to consolidate features")
+            return
 
-        if consolidate_resp.keep_memories is not None:
-            memory_ids_to_delete = [
-                m.metatdata.id
-                for m in memories
-                if m.metadata.id not in consolidate_resp.keep_memories
-            ]
-            await self._semantic_storage.delete_features(memory_ids_to_delete)
-            self._semantic_cache.erase(set_id)
+        memory_ids_to_delete = [
+            m.metadata.id
+            for m in memories
+            if m.metadata.id is not None and m.metadata.id not in consolidate_resp.keep_memories
+        ]
+        await self._semantic_storage.delete_features(memory_ids_to_delete)
+        self._semantic_cache.erase(set_id)

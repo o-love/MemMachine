@@ -192,7 +192,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
         citations: list[int] | None = None,
-    )-> int:
+    ) -> int:
         if metadata is None:
             metadata = {}
         if citations is None:

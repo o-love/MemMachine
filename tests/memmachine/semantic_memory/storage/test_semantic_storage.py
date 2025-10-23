@@ -5,7 +5,6 @@ from datetime import datetime
 
 import numpy as np
 import pytest
-import pytest_asyncio
 
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -27,10 +26,11 @@ def storage(request):
 async def test_empty_storage(storage: SemanticStorageBase):
     assert await storage.get_set_features(set_id="user") == {}
 
+
 @pytest.mark.asyncio
 async def test_multiple_features(
-        storage: SemanticStorageBase,
-        with_multiple_features,
+    storage: SemanticStorageBase,
+    with_multiple_features,
 ):
     # Given a storage with two features
     # When we retrieve the profile
@@ -38,6 +38,7 @@ async def test_multiple_features(
 
     # Then the profile should contain both features
     assert profile == with_multiple_features
+
 
 @pytest.mark.asyncio
 async def test_delete_feature(storage: SemanticStorageBase):
@@ -53,11 +54,10 @@ async def test_delete_feature(storage: SemanticStorageBase):
     # Given a storage with a single feature
     features = await storage.get_set_features(set_id="user")
     assert features == {
-        'food': {
-            'likes':
-                {
-                    'value': 'pizza',
-                }
+        "food": {
+            "likes": {
+                "value": "pizza",
+            }
         }
     }
 
@@ -72,8 +72,8 @@ async def test_delete_feature(storage: SemanticStorageBase):
 
 @pytest.mark.asyncio
 async def test_delete_feature_set(
-        storage: SemanticStorageBase,
-        with_multiple_sets,
+    storage: SemanticStorageBase,
+    with_multiple_sets,
 ):
     # Given a storage with two sets
     set_a = await storage.get_set_features(set_id="user1")
