@@ -597,7 +597,6 @@ async def http_app_lifespan(application: FastAPI):
     global episodic_memory
     global semantic_memory
     episodic_memory, semantic_memory = await initialize_resource(config_file)
-    await semantic_memory.startup()
     yield
     await semantic_memory.stop()
     await episodic_memory.shut_down()
@@ -1069,21 +1068,12 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
     if inst is None:
         raise q.new_404_not_found_error("unable to find episodic memory")
     async with AsyncEpisodicMemory(inst) as inst:
-        ctx = inst.get_memory_context()
-        user_id = (
-            session.user_id[0]
-            if session.user_id is not None and len(session.user_id) > 0
-            else ""
-        )
+        user_id = session.from_user_id_or("unkown")
         res = await asyncio.gather(
             inst.query_memory(q.query, q.limit, q.filter),
             cast(SemanticMemoryManager, semantic_memory).semantic_search(
-                q.query,
-                q.limit if q.limit is not None else 5,
-                isolations={
-                    "group_id": ctx.group_id,
-                    "session_id": ctx.session_id,
-                },
+                query=q.query,
+                k=q.limit if q.limit is not None else 5,
                 set_id=user_id,
             ),
         )
@@ -1168,16 +1158,11 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     See the docstring for search_profile_memory() for details.
     """
     session = q.get_session()
-    user_id = session.user_id[0] if session.user_id is not None else ""
-    group_id = session.group_id if session.group_id is not None else ""
+    user_id = session.from_user_id_or("unkown")
 
     res = await cast(SemanticMemoryManager, semantic_memory).semantic_search(
-        q.query,
-        q.limit if q.limit is not None else 5,
-        isolations={
-            "group_id": group_id,
-            "session_id": session.session_id,
-        },
+        query=q.query,
+        k=q.limit if q.limit is not None else 5,
         set_id=user_id,
     )
     return SearchResult(content={"profile_memory": res})
