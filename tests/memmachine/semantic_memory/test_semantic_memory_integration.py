@@ -11,7 +11,7 @@ from memmachine.common.language_model.openai_language_model import OpenAILanguag
 from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
     SemanticMemoryManager,
-    SemanticMemoryMangagerParams,
+    SemanticMemoryManagerParams,
 )
 
 
@@ -61,7 +61,7 @@ async def semantic_memory(
     storage,
 ):
     mem = SemanticMemoryManager(
-        SemanticMemoryMangagerParams(
+        SemanticMemoryManagerParams(
             model=llm_model,
             embeddings=embedder,
             prompt=prompt,

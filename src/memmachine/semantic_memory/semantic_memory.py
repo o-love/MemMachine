@@ -30,7 +30,7 @@ from .util.lru_cache import LRUCache
 logger = logging.getLogger(__name__)
 
 
-class SemanticMemoryMangagerParams(BaseModel):
+class SemanticMemoryManagerParams(BaseModel):
     model: InstanceOf[LanguageModel]
     embeddings: InstanceOf[Embedder]
     prompt: SemanticPrompt
@@ -79,7 +79,7 @@ class SemanticMemoryManager:
 
     def __init__(
         self,
-        params: SemanticMemoryMangagerParams,
+        params: SemanticMemoryManagerParams,
     ):
         self._model = params.model
         self._embeddings = params.embeddings

@@ -44,7 +44,7 @@ from memmachine.episodic_memory.episodic_memory_manager import (
 from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
     SemanticMemoryManager,
-    SemanticMemoryMangagerParams,
+    SemanticMemoryManagerParams,
 )
 from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
 
@@ -591,7 +591,7 @@ async def initialize_resource(
     )
 
     semantic_memory = SemanticMemoryManager(
-        SemanticMemoryMangagerParams(
+        SemanticMemoryManagerParams(
             model=llm_model,
             embeddings=embeddings,
             semantic_storage=semantic_storage,
@@ -1089,7 +1089,7 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
     if inst is None:
         raise q.new_404_not_found_error("unable to find episodic memory")
     async with AsyncEpisodicMemory(inst) as inst:
-        user_id = session.from_user_id_or("unkown")
+        user_id = session.from_user_id_or("unknown")
         res = await asyncio.gather(
             inst.query_memory(q.query, q.limit, q.filter),
             cast(SemanticMemoryManager, semantic_memory).semantic_search(
@@ -1179,7 +1179,7 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     See the docstring for search_profile_memory() for details.
     """
     session = q.get_session()
-    user_id = session.from_user_id_or("unkown")
+    user_id = session.from_user_id_or("unknown")
 
     res = await cast(SemanticMemoryManager, semantic_memory).semantic_search(
         query=q.query,
