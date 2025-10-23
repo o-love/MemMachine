@@ -599,7 +599,7 @@ async def http_app_lifespan(application: FastAPI):
     episodic_memory, semantic_memory = await initialize_resource(config_file)
     await semantic_memory.startup()
     yield
-    await semantic_memory.cleanup()
+    await semantic_memory.stop()
     await episodic_memory.shut_down()
 
 
@@ -1373,7 +1373,7 @@ def main():
             finally:
                 # Clean up resources when server stops
                 if semantic_memory:
-                    await semantic_memory.cleanup()
+                    await semantic_memory.stop()
 
         asyncio.run(run_mcp_server())
     else:

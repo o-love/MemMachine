@@ -74,7 +74,7 @@ async def semantic_memory(
     await mem.startup()
     yield mem
     await mem.delete_all()
-    await mem.cleanup()
+    await mem.stop()
 
 
 class TestLongMemEvalIngestion:

@@ -70,7 +70,7 @@ async def semantic_memory(
     await pm.startup()
     yield pm
     await pm.delete_all()
-    await pm.cleanup()
+    await pm.stop()
 
 
 @pytest_asyncio.fixture

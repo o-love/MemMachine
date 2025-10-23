@@ -101,15 +101,10 @@ class SemanticMemoryManager:
 
         self._consolidation_threshold = params.consolidation_threshold
 
-    async def startup(self):
-        """Initializes resources, such as the database connection pool."""
-        await self._semantic_storage.startup()
-
-    async def cleanup(self):
+    async def stop(self):
         """Releases resources, such as the database connection pool."""
         self._is_shutting_down = True
         await self._ingestion_task
-        await self._semantic_storage.cleanup()
 
     # === CRUD ===
 
