@@ -68,7 +68,6 @@ async def semantic_memory(
             semantic_storage=storage,
         )
     )
-    await mem.startup()
     yield mem
     await mem.delete_all()
     await mem.stop()
