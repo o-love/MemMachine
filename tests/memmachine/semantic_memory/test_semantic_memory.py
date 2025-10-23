@@ -44,8 +44,10 @@ def mock_prompt():
     yield prompt
 
 
-@pytest.fixture
-def mock_storage():
+@pytest.fixture(
+    params=[pytest.param("postgres", marks=pytest.mark.integration), "inmemory"]
+)
+def storage():
     storage = InMemorySemanticStorage()
     yield storage
 
@@ -55,19 +57,18 @@ async def semantic_memory(
     mock_embedder: Embedder,
     mock_llm: LanguageModel,
     mock_prompt: SemanticPrompt,
-    mock_storage: SemanticStorageBase,
+        storage: SemanticStorageBase,
 ):
     params = SemanticMemoryMangagerParams(
         model=mock_llm,
         embeddings=mock_embedder,
         prompt=mock_prompt,
-        semantic_storage=mock_storage,
+        semantic_storage=storage,
         feature_update_interval_sec=0.1,
         feature_update_message_limit=1,
         feature_update_time_limit_sec=0.1,
     )
     pm = SemanticMemoryManager(params=params)
-    await pm.startup()
     yield pm
     await pm.delete_all()
     await pm.stop()
@@ -86,6 +87,7 @@ async def single_feature_profile_response(semantic_memory):
     yield {
         "test_tag": {
             "test_feature": {
+                "metadata": {"test_metadata": "test_metadata_value"},
                 "value": "test_value",
             }
         }
@@ -221,7 +223,7 @@ async def test_add_persona_message_with_speaker_metadata(semantic_memory):
     )
 
     history = await semantic_memory._semantic_storage.get_ingested_history_messages(
-        user_id="test_user",
+        set_id="test_user",
         k=1,
     )
 

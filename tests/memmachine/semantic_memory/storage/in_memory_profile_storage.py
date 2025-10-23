@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Mapping, Optional
 
 import numpy as np
@@ -224,20 +225,20 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 if entry is None:
                     continue
                 items = [
-                    e for e in self._profiles_by_set.get(entry.set_id, []) if e.id != fid
+                    e
+                    for e in self._profiles_by_set.get(entry.set_id, [])
+                    if e.id != fid
                 ]
                 if items:
                     self._profiles_by_set[entry.set_id] = items
                 else:
                     self._profiles_by_set.pop(entry.set_id, None)
 
-    async def get_all_citations_for_ids(
-        self, feature_ids: list[int]
-    ) -> list[tuple[int, dict[str, bool | int | float | str]]]:
+    async def get_all_citations_for_ids(self, feature_ids: list[int]) -> list[int]:
         if not feature_ids:
             return []
         async with self._lock:
-            result: list[tuple[int, dict[str, bool | int | float | str]]] = []
+            citations: list[int] = []
             seen: set[int] = set()
             for fid in feature_ids:
                 entry = self._profiles_by_id.get(fid)
@@ -246,12 +247,9 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 for cid in entry.citations:
                     if cid in seen:
                         continue
-                    history = self._history_by_id.get(cid)
-                    if history is None:
-                        continue
                     seen.add(cid)
-                    result.append((cid, dict(history.metadata)))
-            return result
+                    citations.append(cid)
+            return citations
 
     async def delete_feature_with_filter(
         self,
@@ -306,7 +304,6 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     async def add_history(
         self,
-        *,
         set_id: str,
         content: str,
         metadata: dict[str, str] | None = None,
@@ -328,12 +325,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        start_time: int = 0,
-        end_time: int = 0,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ):
         async with self._lock:
-            start = start_time if start_time else float("-inf")
-            end = end_time if end_time else float("inf")
+            start = start_time.timestamp() if start_time else float("-inf")
+            end = end_time.timestamp() if end_time else float("inf")
             keep: list[_HistoryEntry] = []
             for entry in self._history_by_set.get(set_id, []):
                 if start <= entry.timestamp <= end:
@@ -360,9 +357,11 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     async def get_uningested_history_messages_count(self) -> int:
         async with self._lock:
-            return sum(1 for entry in self._history_by_id.values() if not entry.ingested)
+            return sum(
+                1 for entry in self._history_by_id.values() if not entry.ingested
+            )
 
-    async def mark_messages_ingested(self, ids: list[int]) -> None:
+    async def mark_messages_ingested(self, *, ids: list[int]) -> None:
         if not ids:
             return
         async with self._lock:
@@ -376,12 +375,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        start_time: int = 0,
-        end_time: int = 0,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ) -> list[str]:
         async with self._lock:
-            start = start_time if start_time else float("-inf")
-            end = end_time if end_time else float("inf")
+            start = start_time.timestamp() if start_time else float("-inf")
+            end = end_time.timestamp() if end_time else float("inf")
             entries = [
                 entry
                 for entry in self._history_by_set.get(set_id, [])
@@ -442,7 +441,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 for entry in self._history_by_set.get(set_id, [])
                 if entry.ingested == is_ingested
             ]
-            entries.sort(key=lambda item: item.timestamp, reverse=True)
+            entries.sort(key=lambda item: item.timestamp)
             if k > 0:
                 entries = entries[:k]
             return [self._history_entry_to_mapping(entry) for entry in entries]

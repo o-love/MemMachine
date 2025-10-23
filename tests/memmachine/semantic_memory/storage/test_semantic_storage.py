@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-import time
 
 import numpy as np
 import pytest
@@ -10,10 +9,9 @@ import pytest
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
-@pytest.fixture(params=[
-    pytest.param("postgres", marks=pytest.mark.integration),
-    "inmemory"
-])
+@pytest.fixture(
+    params=[pytest.param("postgres", marks=pytest.mark.integration), "inmemory"]
+)
 def storage(request):
     match request.param:
         case "postgres":
@@ -22,7 +20,6 @@ def storage(request):
             return request.getfixturevalue("in_memory_profile_storage")
         case _:
             raise ValueError(f"Unknown storage type: {request.param}")
-
 
 
 @pytest.mark.asyncio
@@ -138,9 +135,7 @@ async def test_semantic_search_and_citations(storage: SemanticStorageBase):
     assert filtered[0]["value"] == "ai"
 
     feature_ids = [entry["metadata"]["id"] for entry in results]
-    citation_map = [
-        cid for cid in await storage.get_all_citations_for_ids(feature_ids)
-    ]
+    citation_map = [cid for cid in await storage.get_all_citations_for_ids(feature_ids)]
     assert citation_map == [history["id"]]
 
     await storage.delete_features(feature_ids[:1])
@@ -170,7 +165,9 @@ async def test_history_workflow(storage: SemanticStorageBase):
         metadata={},
     )
 
-    all_messages = await storage.get_history_message(set_id="user", end_time=datetime.now())
+    all_messages = await storage.get_history_message(
+        set_id="user", end_time=datetime.now()
+    )
     assert all_messages == ["first", "second", "third"]
 
     latest_uningested = await storage.get_history_messages_by_ingestion_status(
@@ -181,7 +178,7 @@ async def test_history_workflow(storage: SemanticStorageBase):
     assert [entry["content"] for entry in latest_uningested] == ["first", "second"]
 
     assert await storage.get_uningested_history_messages_count() == 3
-    await storage.mark_messages_ingested([h1["id"], h2["id"]])
+    await storage.mark_messages_ingested(ids=[h1["id"], h2["id"]])
     assert await storage.get_uningested_history_messages_count() == 1
 
     ingested = await storage.get_history_messages_by_ingestion_status(

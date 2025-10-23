@@ -5,7 +5,6 @@ from importlib import import_module
 
 import pytest
 import pytest_asyncio
-from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
@@ -14,8 +13,6 @@ from memmachine.semantic_memory.semantic_memory import (
     SemanticMemoryManager,
     SemanticMemoryMangagerParams,
 )
-from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
-from memmachine.semantic_memory.storage.syncschema import sync_to as setup_pg_schema
 
 
 @pytest.fixture

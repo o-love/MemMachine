@@ -1,13 +1,22 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, create_engine, Engine
-from sqlalchemy.sql import func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Engine,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.sql import func
 
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 class BaseSemanticStorage(DeclarativeBase):
     pass
+
 
 class Feature(BaseSemanticStorage):
     __tablename__ = "semantic_feature"
@@ -26,6 +35,7 @@ class Feature(BaseSemanticStorage):
     embedding = Column(Vector(1536))
     metadata = Column(String, server_default="{}")
 
+
 class History(BaseSemanticStorage):
     __tablename__ = "history"
     id = Column(Integer, primary_key=True)
@@ -39,10 +49,13 @@ class History(BaseSemanticStorage):
     set_id = Column(String)
     ingested = Column(Boolean, default=False)
 
+
 class SemanticCitation(BaseSemanticStorage):
     __tablename__ = "semantic_citation"
-    semantic_feature_id = Column(Integer, ForeignKey('semantic_feature.id'), primary_key=True)
-    history_id = Column(Integer, ForeignKey('history.id'), primary_key=True)
+    semantic_feature_id = Column(
+        Integer, ForeignKey("semantic_feature.id"), primary_key=True
+    )
+    history_id = Column(Integer, ForeignKey("history.id"), primary_key=True)
 
 
 class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):

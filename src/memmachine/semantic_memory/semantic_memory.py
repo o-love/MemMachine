@@ -182,7 +182,6 @@ class SemanticMemoryManager:
             citations=citations,
         )
 
-
     async def delete_set_feature(
         self,
         set_id: str,
@@ -235,10 +234,7 @@ class SemanticMemoryManager:
         """
         qemb = (await self._embeddings.search_embed([query]))[0]
         candidates = await self._semantic_storage.semantic_search(
-            set_id=set_id,
-            qemb=np.array(qemb),
-            k=k,
-            min_cos=min_cos
+            set_id=set_id, qemb=np.array(qemb), k=k, min_cos=min_cos
         )
         formatted = [(i["metadata"]["similarity_score"], i) for i in candidates]
 
@@ -339,8 +335,8 @@ class SemanticMemoryManager:
             mark_messages.append(message["id"])
 
         await asyncio.gather(
-             self._consolidate_memories_if_applicable(set_id=set_id),
-             self._semantic_storage.mark_messages_ingested(ids=mark_messages)
+            self._consolidate_memories_if_applicable(set_id=set_id),
+            self._semantic_storage.mark_messages_ingested(ids=mark_messages),
         )
 
     async def _update_set_features_think(
@@ -370,7 +366,6 @@ class SemanticMemoryManager:
             set_id=set_id,
             citation_id=citation_id,
         )
-
 
     async def _apply_commands(
         self,
@@ -426,13 +421,9 @@ class SemanticMemoryManager:
             citations=new_citations,
         )
 
-    async def _consolidate_memories_if_applicable(
-        self,
-        *,
-        set_id: str
-    ):
+    async def _consolidate_memories_if_applicable(self, *, set_id: str):
         s = await self._semantic_storage.get_large_feature_sections(
-            set_id, thresh=self._consolidation_threshold
+            set_id=set_id, thresh=self._consolidation_threshold
         )
         await asyncio.gather(
             *[self._deduplicate_features(set_id, section) for section in s]
