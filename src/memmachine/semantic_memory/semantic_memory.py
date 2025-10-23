@@ -128,7 +128,7 @@ class SemanticMemoryManager:
         features = self._semantic_cache.get(set_id)
         if features is not None:
             return features
-        features = await self._semantic_storage.get_set_features(set_id)
+        features = await self._semantic_storage.get_set_features(set_id=set_id)
         self._semantic_cache.put(set_id, features)
         return features
 
@@ -147,7 +147,7 @@ class SemanticMemoryManager:
             set_id: The ID of the feature set whose features will be deleted.
         """
         self._semantic_cache.erase(set_id)
-        await self._semantic_storage.delete_feature_set(set_id)
+        await self._semantic_storage.delete_feature_set(set_id=set_id)
 
     async def add_new_feature(
         self,
@@ -158,8 +158,6 @@ class SemanticMemoryManager:
         metadata: dict[str, str] | None = None,
         citations: list[int] | None = None,
     ):
-        # pylint: disable=too-many-arguments
-        # pylint: disable=too-many-positional-arguments
         """Adds a new feature to a feature set.
 
         This invalidates the cache for the feature set.
@@ -347,7 +345,7 @@ class SemanticMemoryManager:
 
         await asyncio.gather(
              self._consolidate_memories_if_applicable(set_id=set_id),
-             self._semantic_storage.mark_messages_ingested(mark_messages)
+             self._semantic_storage.mark_messages_ingested(ids=mark_messages)
         )
 
     async def _update_set_features_think(

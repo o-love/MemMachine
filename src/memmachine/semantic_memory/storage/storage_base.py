@@ -83,6 +83,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def semantic_search(
         self,
+        *,
         set_id: str,
         qemb: np.ndarray,
         k: int,
@@ -138,6 +139,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def delete_history(
         self,
+        *,
         set_id: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
@@ -147,6 +149,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def get_history_messages_by_ingestion_status(
         self,
+        *,
         set_id: str,
         k: int = 0,
         is_ingested: bool = False,
@@ -167,6 +170,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def mark_messages_ingested(
         self,
+        *,
         ids: list[int],
     ) -> None:
         """
@@ -177,6 +181,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def get_history_message(
         self,
+        *,
         set_id: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
