@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import time
 
 import numpy as np
@@ -10,12 +11,12 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 @pytest.fixture(params=[
-    pytest.param("asyncpg", marks=pytest.mark.integration),
+    pytest.param("postgres", marks=pytest.mark.integration),
     "inmemory"
 ])
 def storage(request):
     match request.param:
-        case "asyncpg":
+        case "postgres":
             return request.getfixturevalue("asyncpg_profile_storage")
         case "inmemory":
             return request.getfixturevalue("in_memory_profile_storage")
@@ -161,7 +162,7 @@ async def test_history_workflow(storage: SemanticStorageBase):
         metadata={},
     )
     await asyncio.sleep(0.01)
-    cutoff = time.time()
+    cutoff = datetime.now()
     await asyncio.sleep(0.01)
     h3 = await storage.add_history(
         set_id="user",
@@ -169,12 +170,15 @@ async def test_history_workflow(storage: SemanticStorageBase):
         metadata={},
     )
 
+    all_messages = await storage.get_history_message(set_id="user", end_time=datetime.now())
+    assert all_messages == ["first", "second", "third"]
+
     latest_uningested = await storage.get_history_messages_by_ingestion_status(
         set_id="user",
         k=2,
         is_ingested=False,
     )
-    assert [entry["content"] for entry in latest_uningested] == ["third", "second"]
+    assert [entry["content"] for entry in latest_uningested] == ["first", "second"]
 
     assert await storage.get_uningested_history_messages_count() == 3
     await storage.mark_messages_ingested([h1["id"], h2["id"]])
@@ -185,6 +189,12 @@ async def test_history_workflow(storage: SemanticStorageBase):
         is_ingested=True,
     )
     assert {entry["id"] for entry in ingested} == {h1["id"], h2["id"]}
+
+    uningested = await storage.get_history_messages_by_ingestion_status(
+        set_id="user",
+        is_ingested=False,
+    )
+    assert {entry["id"] for entry in uningested} == {h3["id"]}
 
     window = await storage.get_history_message(
         set_id="user",
@@ -200,9 +210,7 @@ async def test_history_workflow(storage: SemanticStorageBase):
     assert remaining == ["third"]
 
     await asyncio.sleep(0.01)
-    purge_time = time.time()
-    await storage.purge_history(
+    await storage.delete_history(
         set_id="user",
-        start_time=purge_time,
     )
     assert await storage.get_history_message(set_id="user") == []

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Mapping, Optional
 
 import numpy as np
@@ -138,8 +139,8 @@ class SemanticStorageBase(ABC):
     async def delete_history(
         self,
         set_id: str,
-        start_time: int = 0,
-        end_time: int = 0,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ):
         raise NotImplementedError
 
@@ -177,15 +178,7 @@ class SemanticStorageBase(ABC):
     async def get_history_message(
         self,
         set_id: str,
-        start_time: int = 0,
-        end_time: int = 0,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ) -> list[str]:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def purge_history(
-        self,
-        set_id: str,
-        start_time: int = 0,
-    ):
         raise NotImplementedError

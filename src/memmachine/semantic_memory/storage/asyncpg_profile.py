@@ -2,6 +2,7 @@ import functools
 import json
 import logging
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, Iterator, Optional
 
 import asyncpg
@@ -402,17 +403,23 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
     async def delete_history(
             self,
             set_id: str,
-            start_time: int = 0,
-            end_time: int = 0,
+            start_time: Optional[datetime] = None,
+            end_time: Optional[datetime] = None,
     ):
+        if start_time is None:
+            start_time = datetime.fromtimestamp(0)
+        if end_time is None:
+            end_time = datetime.now()
+
         stm = f"""
             DELETE FROM {self.history_table}
-            WHERE set_id = $1 
-            AND timestamp >= {start_time} AND timestamp <= {end_time}
+            WHERE set_id=$1 
+            AND create_at >= $2 
+            AND create_at <= $3 
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
-            await conn.execute(stm, set_id)
+            await conn.execute(stm, set_id, start_time, end_time)
 
     async def get_history_messages_by_ingestion_status(
             self,
@@ -423,7 +430,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         stm = f"""
             SELECT id, set_id, content, metadata FROM {self.history_table}
             WHERE set_id = $1 AND ingested = $2
-            ORDER BY create_at ASC
+            ORDER BY create_at ASC 
             LIMIT $3
         """
         assert self._pool is not None
@@ -457,35 +464,26 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
     async def get_history_message(
             self,
             set_id: str,
-            start_time: int = 0,
-            end_time: int = 0,
+            start_time: Optional[datetime] = None,
+            end_time: Optional[datetime] = None,
     ) -> list[str]:
+        if start_time is None:
+            start_time = datetime.fromtimestamp(0)
+        if end_time is None:
+            end_time = datetime.now()
+
         stm = f"""
             SELECT content FROM {self.history_table}
-            WHERE timestamp >= $1 AND timestamp <= $2 AND set_id=$3
-            ORDER BY timestamp ASC
+            WHERE create_at >= $1 AND create_at <= $2 AND set_id=$3
+            ORDER BY create_at ASC 
         """
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 stm, start_time, end_time, set_id
             )
-            print(rows)
-            return rows
+            return [row["content"] for row in rows]
 
-    async def purge_history(
-            self,
-            set_id: str,
-            start_time: int = 0,
-    ):
-
-        query = f"""
-            DELETE FROM {self.history_table}
-            WHERE set_id = $1 AND start_time > $3
-        """
-        assert self._pool is not None
-        async with self._pool.acquire() as conn:
-            await conn.execute(query, set_id, start_time)
 
     async def cleanup(self):
         await self._pool.close()

@@ -51,4 +51,5 @@ async def asyncpg_profile_storage(pg_server):
     storage = AsyncPgSemanticStorage(pg_server)
     await storage.startup()
     yield storage
+    await storage.delete_all()
     await storage.cleanup()
