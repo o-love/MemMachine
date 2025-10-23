@@ -74,7 +74,7 @@ class SemanticStorageBase(ABC):
         embedding: np.ndarray,
         metadata: dict[str, Any] | None = None,
         citations: list[int] | None = None,
-    ):
+    ) -> int:
         """
         Add a new feature to the user.
         """

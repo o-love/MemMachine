@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 import pytest
+import pytest_asyncio
 
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -20,6 +21,77 @@ def storage(request):
             return request.getfixturevalue("in_memory_profile_storage")
         case _:
             raise ValueError(f"Unknown storage type: {request.param}")
+
+
+@pytest.mark.asyncio
+async def test_empty_storage(storage: SemanticStorageBase):
+    assert await storage.get_set_features(set_id="user") == {}
+
+@pytest.mark.asyncio
+async def test_multiple_features(
+        storage: SemanticStorageBase,
+        with_multiple_features,
+):
+    # Given a storage with two features
+    # When we retrieve the profile
+    profile = await storage.get_set_features(set_id="user")
+
+    # Then the profile should contain both features
+    assert profile == with_multiple_features
+
+@pytest.mark.asyncio
+async def test_delete_feature(storage: SemanticStorageBase):
+    idx_a = await storage.add_feature(
+        set_id="user",
+        semantic_type_id="default",
+        feature="likes",
+        value="pizza",
+        tag="food",
+        embedding=np.array([1.0] * 1536, dtype=float),
+    )
+
+    # Given a storage with a single feature
+    features = await storage.get_set_features(set_id="user")
+    assert features == {
+        'food': {
+            'likes':
+                {
+                    'value': 'pizza',
+                }
+        }
+    }
+
+    # When we delete the feature
+    await storage.delete_features([idx_a])
+
+    features = await storage.get_set_features(set_id="user")
+
+    # Then the feature should no longer exist
+    assert features == {}
+
+
+@pytest.mark.asyncio
+async def test_delete_feature_set(
+        storage: SemanticStorageBase,
+        with_multiple_sets,
+):
+    # Given a storage with two sets
+    set_a = await storage.get_set_features(set_id="user1")
+    set_b = await storage.get_set_features(set_id="user2")
+
+    assert set_a == with_multiple_sets["user1"]
+    assert set_b == with_multiple_sets["user2"]
+
+    # When we delete the first set
+    await storage.delete_feature_set(set_id="user1")
+
+    # Then the first set should be empty
+    set_a = await storage.get_set_features(set_id="user1")
+    assert set_a == {}
+
+    # And the second set should still exist
+    set_b = await storage.get_set_features(set_id="user2")
+    assert set_b == with_multiple_sets["user2"]
 
 
 @pytest.mark.asyncio

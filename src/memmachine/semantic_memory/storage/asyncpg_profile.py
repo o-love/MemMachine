@@ -192,7 +192,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
         citations: list[int] | None = None,
-    ):
+    )-> int:
         if metadata is None:
             metadata = {}
         if citations is None:
@@ -202,7 +202,7 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             async with conn.transaction():
-                pid = await conn.fetchval(
+                idx = await conn.fetchval(
                     f"""
                     INSERT INTO {self.main_table}
                     (set_id, semantic_type, tag, feature, value, embedding, metadata)
@@ -218,18 +218,19 @@ class AsyncPgSemanticStorage(SemanticStorageBase):
                     json.dumps(metadata),
                 )
 
-                if pid is None:
-                    return
-                if len(citations) == 0:
-                    return
-                await conn.executemany(
-                    f"""
-                    INSERT INTO {self.junction_table}
-                    (semantic_id, content_id)
-                    VALUES ($1, $2)
-                """,
-                    [(pid, c) for c in citations],
-                )
+                if idx is None:
+                    return -1
+                if len(citations) != 0:
+                    await conn.executemany(
+                        f"""
+                        INSERT INTO {self.junction_table}
+                        (semantic_id, content_id)
+                        VALUES ($1, $2)
+                    """,
+                        [(idx, c) for c in citations],
+                    )
+
+                return idx
 
     async def delete_feature_with_filter(
         self,
