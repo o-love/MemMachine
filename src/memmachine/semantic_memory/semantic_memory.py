@@ -356,12 +356,16 @@ class SemanticMemoryManager:
         features = await self.get_set_features(set_id)
         message_content = record["content"]
 
-        commands = await llm_feature_update(
-            features=features,
-            message_content=message_content,
-            model=self._model,
-            update_prompt=self._prompt.update_prompt,
-        )
+        try:
+            commands = await llm_feature_update(
+                features=features,
+                message_content=message_content,
+                model=self._model,
+                update_prompt=self._prompt.update_prompt,
+            )
+        except (ValueError, TypeError) as e:
+            logger.error("Failed to update features while calling LLM", e)
+            return
 
         await self._apply_commands(
             commands=commands,
@@ -449,11 +453,15 @@ class SemanticMemoryManager:
         """
         sends a list of features to a llm to consolidate
         """
-        consolidate_resp = await llm_consolidate_features(
-            memories=memories,
-            model=self._model,
-            consolidate_prompt=self._prompt.consolidation_prompt,
-        )
+        try:
+            consolidate_resp = await llm_consolidate_features(
+                memories=memories,
+                model=self._model,
+                consolidate_prompt=self._prompt.consolidation_prompt,
+            )
+        except (ValueError, TypeError) as e:
+            logger.error("Failed to update features while calling LLM", e)
+            return
 
         if consolidate_resp is None or consolidate_resp.keep_memories is None:
             logger.warning("Failed to consolidate features")
