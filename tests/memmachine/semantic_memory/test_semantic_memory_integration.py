@@ -8,11 +8,11 @@ import pytest_asyncio
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
-from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
     SemanticMemoryManager,
     SemanticMemoryManagerParams,
 )
+from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 
 
 @pytest.fixture
