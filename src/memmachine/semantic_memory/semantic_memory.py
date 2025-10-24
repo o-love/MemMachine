@@ -16,14 +16,14 @@ from pydantic import BaseModel, InstanceOf, validate_call
 from memmachine.common.embedder.embedder import Embedder
 from memmachine.common.language_model.language_model import LanguageModel
 
-from .prompt_provider import SemanticPrompt
 from .semantic_ingestion import (
     SemanticCommand,
     SemanticMemory,
-    SemanticUpdateTrackerManager,
     llm_consolidate_features,
     llm_feature_update,
 )
+from .semantic_prompt import SemanticPrompt
+from .semantic_tracker import SemanticUpdateTrackerManager
 from .storage.storage_base import SemanticStorageBase
 from .util.lru_cache import LRUCache
 

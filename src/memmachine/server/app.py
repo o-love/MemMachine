@@ -41,7 +41,7 @@ from memmachine.episodic_memory.episodic_memory import (
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-from memmachine.semantic_memory.prompt_provider import SemanticPrompt
+from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
     SemanticMemoryManager,
     SemanticMemoryManagerParams,

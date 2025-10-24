@@ -8,11 +8,11 @@ import pytest_asyncio
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
-from memmachine.semantic_memory.prompt_provider import SemanticPrompt
 from memmachine.semantic_memory.semantic_memory import (
     SemanticMemoryManager,
     SemanticMemoryManagerParams,
 )
+from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 from tests.memmachine.common.reranker.test_embedder_reranker import FakeEmbedder
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
