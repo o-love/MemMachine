@@ -4,10 +4,10 @@ from typing import Any
 
 from pydantic import (
     BaseModel,
+    InstanceOf,
     ValidationError,
     field_validator,
     validate_call,
-    InstanceOf,
 )
 
 from memmachine.common.data_types import ExternalServiceAPIError

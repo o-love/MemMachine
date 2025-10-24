@@ -13,7 +13,6 @@ from memmachine.semantic_memory.semantic_memory import (
 )
 from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
-from tests.memmachine.common.reranker.fake_embedder import FakeEmbedder
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
 )
