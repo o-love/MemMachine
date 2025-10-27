@@ -31,6 +31,9 @@ responses while coordinating asynchronous ingestion.
   with caching for hot sets.
 - Run ingestion in the background without blocking the calling agent and
   surface observability hooks for backlog visibility.
+- Allow per `set_id` configuration of the LLM prompts, consolidation
+  strategy, llm, and embedder.
+- Allow for multiple storage backends.
 
 
 ## Key Use Cases
@@ -45,36 +48,23 @@ responses while coordinating asynchronous ingestion.
 # High-Level Architecture
 
 ```
-Agent -> SemanticMemoryManager -> SemanticStorageBase
-                 |             ↘
-                 |              -> SemanticMemoryType
-                                            |          ↘
-                                            |            -> LanguageModel prompts (update/consolidate)
-                 |             ↘
-                 |              -> embeddings + vector db
-                 ↘
-          Background ingestion + consolidation loop
+Agent -> SemanticProfileWrapper -> SemanticManager
+                                         |         ↘
+                                         |          -> SemanticStorageBase
+                                         |         ↘
+                                         |          -> Per-`set_id` config loader.
+                                         |                            ↘
+                                         |                              -> list[SemanticMemoryType]
+                                         |                              -> LanguageModel
+                                         |                              -> Embedder
+                                         ↘
+                                  Background ingestion + consolidation loop
 ```
 
-The `SemanticMemoryManager` orchestrates ingestion, storage, search, and
-caching. It collaborates with:
 
-- `SemanticStorageBase` implementations that persist features and
-  history.
-- `SemanticMemoryType` implementations that manage feature sets and
-  consolidation.
-- `Embedder` instances that create embeddings for new features and
-  search queries.
-- A `LanguageModel` that executes prompts for feature updates and
-  consolidation.
-- An in-memory `LRUCache` for low-latency reads of frequently accessed
-  feature sets.
-- A background task that polls for dirty sets and processes un-ingested
-  history.
-
-When a new message is received, the `SemanticMemoryManager` stores it in
-the history database. Then after certain triggers are met the message
-will be ingested in the background. The `SemanticMemoryManager` will
+When a new message is received, the `SemanticManager` will store a reference
+in its internal storage. Then after certain triggers are met, the message
+will be ingested in the background. The `SemanticManager` will
 then invoke each `SemanticMemoryType` to update its feature set.
 
 To update a feature set, the feature set and the prompt associated with
@@ -82,50 +72,83 @@ a `SemanticMemoryType` are sent to the `LanguageModel`. The LLM
 produces a list of `SemanticCommand`s that are applied to the feature
 set.
 
-Then when a search is being conducted with a query, the `SemanticMemoryManager`
+Then when a search is being conducted with a query, the `SemanticProfileManager`
 will look up the query in the cache. If it is not found, it will invoke
 the `Embedder` to create an embedding for the query. Then it will
 invoke the `LanguageModel` to produce a list of `SemanticCommand`s that
 are applied to the feature set.
+
+`SemanticManager` will also support the configuration of the
+`SemanticMemoryType`, the `LanguageModel` prompts, and the underlying
+`Embedder` and `LanguageModel` at a per-`set_id` level.
+
+Finally, we have a top level `SemanticProfileWrapper` whoese responsibility
+is to translate the application specific `SessionData` into a `set_id`
+that will be used by the `SemanticManager`.
+This includes the `persona_id` and the `session_id`, for both the profile based
+semantic memory and the session based semantic memory.
 
 ## Data Model
 
 - **Feature Entry** – `(set_id, memory_type, feature, value, tag, embedding, metadata,
   citations)` tuples persisted by the storage backend. Metadata tracks
   provenance, timestamps, and arbitrary annotations.
-- **History Message** – conversational snippets stored per set with an
-  ingestion flag to avoid duplicate processing.
+- **Set Config Entry** – `(set_id, llm_model_name, embedder_name, []semantic_memory_type_names)`
 - **Semantic Commands** – structured add/delete directives returned by
   the update prompt and validated before application.
-- **Semantic Memories** – typed objects used when consolidating duplicate
-  features and determining which rows to keep.
+
+## Storage backend design
+
+Semantic memory can be backed by a variety of storage backends.
+Currently, we support Postgres with plans to support Neo4j in the near future.
+
+First-class data storage backends will have a guide on how to upgrade
+their schema without incurring any data loss.
+The current first-class backends are:
+- Postgres
+
+### Postgres
+
+For Postgres, we are using SQLAlchemy to manage the database schema.
+With SQLAlchemy, we can use Alembic to manage database migrations.
+
+### Neo4j
+
+Neo4j storage backend is planned for Semantic memory.
+
+Work will be done in investigating adding first-class support for Neo4j
+in the future.
+With the use of Neo4j-migrations[https://github.com/michael-simons/neo4j-migrations],
+or similar, we can explore supporting database schema upgrades.
 
 ## Ingestion Flow
 
-1. **Message Capture** – `add_persona_message` stores the raw content and
-   marks the set as dirty for later processing. The optional `speaker`
-   metadata is folded into the text for better grounding.
+1. **Message Capture** – `add_persona_message` marks the set, as specified by
+   `set_id`, as dirty for later processing to be done.
 2. **Dirty-Set Tracking** – `SemanticUpdateTrackerManager` counts
-   messages and elapsed time per set to decide when updates should run.
-3. **Background Loop** – `_background_ingestion_task` wakes on a fixed
-   interval, gathers all sets that crossed thresholds, and processes each
-   concurrently.
-4. **LLM Feature Update** – `_update_set_features_think` retrieves the
-   latest features, invokes `llm_feature_update`, and applies each
-   update command produced by the LLM.
+   messages and elapsed time per set to decide when feature set updates should run.
+3. **Background Loop** – A background loop wakes on a fixed
+   interval, gathers all sets that crossed the update thresholds,
+   and processes each set concurrently.
+4. **Updating the set** – When the background loop determines a set is to be
+   updated, it will first load that set's configuration. With this configuration
+   at hand, the configuration will be used to update the feature set.
 5. **Marking Progress** – message IDs that were processed are marked as
    ingested in storage to prevent re-processing.
 
 ## Consolidation Flow
 
-- `_consolidate_memories_if_applicable` asks storage for sections that
-  exceed the `consolidation_threshold` and dispatches each to
-  `_deduplicate_features`.
-- `llm_consolidate_features` returns `keep_memories` plus new aggregated
-  memories. Existing entries not referenced in `keep_memories` are
-  deleted, and consolidated memories are written back with merged
-  citations.
-- Cache entries for the set are invalidated whenever consolidation
-  mutates the feature set to keep reads consistent.
+- **Decide to consolidate** Asks storage for sections that
+  exceed the `consolidation_threshold` and sends them to be consolidated.
+  These sections are a combination of `set_id` and `memory_type`.
+- **Consolidate** The consolidation process is a two-step process.
+  First, the consolidation process will load the set's configuration.
+  Then, the consolidation process will load the set's feature set.
+  Finally, the consolidation process will invoke the `llm_consolidate_features`
+  function with the set's configuration and feature set.
+- **Apply consolidation** The consolidation step returns the memories to remove,
+  as well as the resulting new aggregated memories.
+  These new memories are then applied all the citations from the original memories
+  they are derived from.
 
 
