@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
+from collections import namedtuple
 from datetime import datetime
 from typing import Any, Mapping, Optional
 
 import numpy as np
+from pydantic import InstanceOf
+
+from memmachine.semantic_memory.semantic_model import SemanticFeature
 
 
 class SemanticStorageBase(ABC):
@@ -35,13 +39,28 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def semantic_search(
+        self,
+        *,
+        set_id: str,
+        qemb: InstanceOf[np.ndarray],
+        k: int,
+        min_cos: float,
+        include_citations: bool = False,
+    ) -> list[SemanticFeature]:
+        raise NotImplementedError
+
+    FeatureKey = namedtuple("Key", ["type", "tag", "feature"])
+
+    @abstractmethod
     async def get_set_features(
         self,
         *,
         set_id: str,
         semantic_type_id: Optional[str] = None,
+        feature_id: Optional[str] = None,
         tag: Optional[str] = None,
-    ) -> dict[str, Any]:
+    ) -> dict[FeatureKey, list[SemanticFeature]]:
         """
         Get feature set by user id
         Return: A list of KV for each feature and value.
@@ -50,16 +69,7 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_feature_set(
-        self,
-        *,
-        set_id: str,
-        semantic_type_id: Optional[str] = None,
-        tag: Optional[str] = None,
-    ):
-        """
-        Delete all the features by id
-        """
+    async def get_feature(self, feature_id: int) -> SemanticFeature | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -71,7 +81,7 @@ class SemanticStorageBase(ABC):
         feature: str,
         value: str,
         tag: str,
-        embedding: np.ndarray,
+        embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
         citations: list[int] | None = None,
     ) -> int:
@@ -81,36 +91,20 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def semantic_search(
-        self,
-        *,
-        set_id: str,
-        qemb: np.ndarray,
-        k: int,
-        min_cos: float,
-        include_citations: bool = False,
-    ) -> list[dict[str, Any]]:
-        raise NotImplementedError
-
-    @abstractmethod
     async def delete_features(self, feature_ids: list[int]):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_all_citations_for_ids(self, feature_ids: list[int]) -> list[int]:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def delete_feature_with_filter(
+    async def delete_feature_set(
         self,
         *,
         set_id: str,
-        semantic_type_id: str,
-        feature: str,
-        tag: str,
+        semantic_type_id: Optional[str] = None,
+        tag: Optional[str] = None,
+        feature: Optional[str] = None,
     ):
         """
-        Delete a feature from the user
+        Delete all the features by id
         """
         raise NotImplementedError
 
@@ -119,10 +113,14 @@ class SemanticStorageBase(ABC):
         self,
         set_id: str,
         thresh: int,
-    ) -> list[list[dict[str, Any]]]:
+    ) -> list[list[dict[str, Any]]]:  # TODO: return typed object
         """
         get feature sets with at least thresh entries
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_all_citations_for_ids(self, feature_ids: list[int]) -> list[int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -131,17 +129,41 @@ class SemanticStorageBase(ABC):
         set_id: str,
         content: str,
         metadata: dict[str, str] | None = None,
-    ) -> Mapping[str, Any]:
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_history(
+            self,
+            history_id: int,
+    )-> Optional[dict[str, Any]]: #TODO: return typed object
         raise NotImplementedError
 
     @abstractmethod
     async def delete_history(
+        self,
+        history_id: int,
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_history_by_date(
         self,
         *,
         set_id: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
     ):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_history_by_date(
+            self,
+            *,
+            set_id: str,
+            start_time: Optional[datetime] = None,
+            end_time: Optional[datetime] = None,
+    ) -> list[str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -176,12 +198,3 @@ class SemanticStorageBase(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    async def get_history_message(
-        self,
-        *,
-        set_id: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-    ) -> list[str]:
-        raise NotImplementedError

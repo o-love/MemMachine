@@ -372,7 +372,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                     continue
                 entry.ingested = True
 
-    async def get_history_message(
+    async def get_history_by_date(
         self,
         *,
         set_id: str,

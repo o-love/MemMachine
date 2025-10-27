@@ -15,7 +15,7 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 def storage(request):
     match request.param:
         case "postgres":
-            return request.getfixturevalue("asyncpg_profile_storage")
+            return request.getfixturevalue("sqlalchemy_profile_storage")
         case "inmemory":
             return request.getfixturevalue("in_memory_profile_storage")
         case _:
@@ -34,10 +34,20 @@ async def test_multiple_features(
 ):
     # Given a storage with two features
     # When we retrieve the profile
-    profile = await storage.get_set_features(set_id="user")
+    profile_result = await storage.get_set_features(set_id="user")
+
+    assert len(profile_result) == 1
+
+    key, expected_profile = with_multiple_features
+
+    test_user_profile = profile_result[key]
+    expected_test_user_profile = expected_profile[key]
 
     # Then the profile should contain both features
-    assert profile == with_multiple_features
+    assert len(test_user_profile) == 2
+    for i in range(len(test_user_profile)):
+        assert test_user_profile[i].value == expected_test_user_profile[i]["value"]
+    
 
 
 @pytest.mark.asyncio
@@ -53,13 +63,8 @@ async def test_delete_feature(storage: SemanticStorageBase):
 
     # Given a storage with a single feature
     features = await storage.get_set_features(set_id="user")
-    assert features == {
-        "food": {
-            "likes": {
-                "value": "pizza",
-            }
-        }
-    }
+    assert len(features) == 1
+    assert features[("default", "food", "likes")][0].value == "pizza"
 
     # When we delete the feature
     await storage.delete_features([idx_a])
@@ -76,11 +81,17 @@ async def test_delete_feature_set(
     with_multiple_sets,
 ):
     # Given a storage with two sets
-    set_a = await storage.get_set_features(set_id="user1")
-    set_b = await storage.get_set_features(set_id="user2")
+    res_a = await storage.get_set_features(set_id="user1")
+    res_b = await storage.get_set_features(set_id="user2")
 
-    assert set_a == with_multiple_sets["user1"]
-    assert set_b == with_multiple_sets["user2"]
+
+    key, expected = with_multiple_sets
+
+    set_a = [{"value": f.value} for f in res_a[key]]
+    set_b = [{"value": f.value} for f in res_b[key]]
+
+    assert set_a == expected["user1"]
+    assert set_b == expected["user2"]
 
     # When we delete the first set
     await storage.delete_feature_set(set_id="user1")
@@ -90,8 +101,9 @@ async def test_delete_feature_set(
     assert set_a == {}
 
     # And the second set should still exist
-    set_b = await storage.get_set_features(set_id="user2")
-    assert set_b == with_multiple_sets["user2"]
+    res_delete_b = await storage.get_set_features(set_id="user2")
+    set_delete_b = [{"value": f.value} for f in res_delete_b[key]]
+    assert set_delete_b == expected["user2"]
 
 
 @pytest.mark.asyncio
@@ -237,7 +249,7 @@ async def test_history_workflow(storage: SemanticStorageBase):
         metadata={},
     )
 
-    all_messages = await storage.get_history_message(
+    all_messages = await storage.get_history_by_date(
         set_id="user", end_time=datetime.now()
     )
     assert all_messages == ["first", "second", "third"]
@@ -265,7 +277,7 @@ async def test_history_workflow(storage: SemanticStorageBase):
     )
     assert {entry["id"] for entry in uningested} == {h3["id"]}
 
-    window = await storage.get_history_message(
+    window = await storage.get_history_by_date(
         set_id="user",
         end_time=cutoff,
     )
@@ -275,11 +287,11 @@ async def test_history_workflow(storage: SemanticStorageBase):
         set_id="user",
         end_time=cutoff,
     )
-    remaining = await storage.get_history_message(set_id="user")
+    remaining = await storage.get_history_by_date(set_id="user")
     assert remaining == ["third"]
 
     await asyncio.sleep(0.01)
     await storage.delete_history(
         set_id="user",
     )
-    assert await storage.get_history_message(set_id="user") == []
+    assert await storage.get_history_by_date(set_id="user") == []

@@ -12,26 +12,9 @@ from pydantic import (
 
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
+from memmachine.semantic_memory.semantic_model import SemanticCommand, SemanticFeature
 
 logger = logging.getLogger(__name__)
-
-
-class SemanticFeature(BaseModel):
-    class Metadata(BaseModel):
-        citations: list[int] | None = None
-        id: int | None = None
-
-    tag: str
-    feature: str
-    value: str
-    metadata: Metadata = Metadata()
-
-
-class SemanticCommand(BaseModel):
-    command: str
-    feature: str
-    tag: str
-    value: str
 
 
 def _process_commands(commands) -> list[SemanticCommand]:

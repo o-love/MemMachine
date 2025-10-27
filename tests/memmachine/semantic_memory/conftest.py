@@ -1,9 +1,9 @@
 import pytest
 import pytest_asyncio
+import sqlalchemy
 from testcontainers.postgres import PostgresContainer
 
-from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
-from memmachine.semantic_memory.storage.syncschema import sync_to as setup_pg_schema
+from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import SqlAlchemyPgVectorSemanticStorage
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
 )
@@ -31,14 +31,6 @@ async def pg_server(pg_container):
     user = pg_container.username
     password = pg_container.password
 
-    await setup_pg_schema(
-        database=database,
-        host=host,
-        port=f"{port}",
-        user=user,
-        password=password,
-    )
-
     yield {
         "host": host,
         "port": port,
@@ -47,10 +39,12 @@ async def pg_server(pg_container):
         "database": database,
     }
 
-
 @pytest_asyncio.fixture
-async def asyncpg_profile_storage(pg_server):
-    storage = AsyncPgSemanticStorage(pg_server)
+async def sqlalchemy_profile_storage(pg_server):
+    sqlalchemy_engine = sqlalchemy.create_engine(
+        f"postgresql://{pg_server['user']}:{pg_server['password']}@{pg_server['host']}:{pg_server['port']}/{pg_server['database']}"
+    )
+    storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
     await storage.startup()
     yield storage
     await storage.delete_all()

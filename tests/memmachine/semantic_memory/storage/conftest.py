@@ -8,7 +8,7 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 async def with_multiple_features(storage: SemanticStorageBase):
     idx_a = await storage.add_feature(
         set_id="user",
-        semantic_type_id="default",
+        semantic_type_id="test_type",
         feature="likes",
         value="pizza",
         tag="food",
@@ -16,25 +16,27 @@ async def with_multiple_features(storage: SemanticStorageBase):
     )
     idx_b = await storage.add_feature(
         set_id="user",
-        semantic_type_id="default",
+        semantic_type_id="test_type",
         feature="likes",
         value="sushi",
         tag="food",
         embedding=np.array([1.0] * 1536, dtype=float),
     )
-
-    yield {
-        "food": {
-            "likes": [
-                {
-                    "value": "pizza",
-                },
-                {
-                    "value": "sushi",
-                },
-            ]
-        }
-    }
+    key = SemanticStorageBase.FeatureKey(
+        type="test_type",
+        tag="food",
+        feature="likes",
+    )
+    yield (key, {
+        key: [
+            {
+                "value": "pizza",
+            },
+            {
+                "value": "sushi",
+            },
+        ]
+    })
 
     await storage.delete_features([idx_a, idx_b])
 
@@ -74,31 +76,29 @@ async def with_multiple_sets(storage: SemanticStorageBase):
         embedding=np.array([1.0] * 1536, dtype=float),
     )
 
-    yield {
-        "user1": {
-            "food": {
-                "likes": [
-                    {
-                        "value": "pizza",
-                    },
-                    {
-                        "value": "sushi",
-                    },
-                ]
+    key = SemanticStorageBase.FeatureKey(
+        type="default",
+        tag="food",
+        feature="likes",
+    )
+
+    yield (key, {
+        "user1": [
+            {
+                "value": "pizza",
+            },
+            {
+                "value": "sushi",
+            },
+        ],
+        "user2": [
+            {
+                "value": "fish",
+            },
+            {
+                "value": "chips",
             }
-        },
-        "user2": {
-            "food": {
-                "likes": [
-                    {
-                        "value": "fish",
-                    },
-                    {
-                        "value": "chips",
-                    },
-                ]
-            }
-        },
-    }
+        ],
+    })
 
     await storage.delete_features([idx_a, idx_b, idx_c, idx_d])
