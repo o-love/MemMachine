@@ -3,7 +3,9 @@ import pytest_asyncio
 import sqlalchemy
 from testcontainers.postgres import PostgresContainer
 
-from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import SqlAlchemyPgVectorSemanticStorage
+from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
+    SqlAlchemyPgVectorSemanticStorage,
+)
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
 )
@@ -38,6 +40,7 @@ async def pg_server(pg_container):
         "password": password,
         "database": database,
     }
+
 
 @pytest_asyncio.fixture
 async def sqlalchemy_profile_storage(pg_server):

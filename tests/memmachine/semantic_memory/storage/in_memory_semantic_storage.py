@@ -62,7 +62,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             self._next_profile_id = 1
             self._next_history_id = 1
 
-    async def get_set_features(
+    async def get_grouped_set_features(
         self,
         *,
         set_id: str,
@@ -343,7 +343,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             else:
                 self._history_by_set.pop(set_id, None)
 
-    async def get_history_messages_by_ingestion_status(
+    async def get_history_messages(
         self,
         *,
         set_id: str,

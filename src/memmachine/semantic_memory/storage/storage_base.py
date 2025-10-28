@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from collections import namedtuple
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 import numpy as np
 from pydantic import InstanceOf
 
-from memmachine.semantic_memory.semantic_model import SemanticFeature
+from memmachine.semantic_memory.semantic_model import SemanticFeature, SemanticHistory
 
 
 class SemanticStorageBase(ABC):
@@ -39,36 +39,6 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def semantic_search(
-        self,
-        *,
-        set_id: str,
-        qemb: InstanceOf[np.ndarray],
-        k: int,
-        min_cos: float,
-        include_citations: bool = False,
-    ) -> list[SemanticFeature]:
-        raise NotImplementedError
-
-    FeatureKey = namedtuple("Key", ["type", "tag", "feature"])
-
-    @abstractmethod
-    async def get_set_features(
-        self,
-        *,
-        set_id: str,
-        semantic_type_id: Optional[str] = None,
-        feature_id: Optional[str] = None,
-        tag: Optional[str] = None,
-    ) -> dict[FeatureKey, list[SemanticFeature]]:
-        """
-        Get feature set by user id
-        Return: A list of KV for each feature and value.
-           The value is an array with: feature value, feature tag and deleted, update time, create time and delete time.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     async def get_feature(self, feature_id: int) -> SemanticFeature | None:
         raise NotImplementedError
 
@@ -94,28 +64,44 @@ class SemanticStorageBase(ABC):
     async def delete_features(self, feature_ids: list[int]):
         raise NotImplementedError
 
+    @dataclass
+    class VectorSearchOpts:
+        query_embedding: InstanceOf[np.ndarray]
+        min_cos: float
+
     @abstractmethod
-    async def delete_feature_set(
+    async def get_feature_set(
         self,
         *,
-        set_id: str,
+        set_id: Optional[str] = None,
         semantic_type_id: Optional[str] = None,
+        feature_name: Optional[str] = None,
         tag: Optional[str] = None,
-        feature: Optional[str] = None,
-    ):
+        k: Optional[int] = None,
+        vector_search_opts: Optional[VectorSearchOpts] = None,
+        thresh: Optional[int] = None,
+    ) -> list[SemanticFeature]:
         """
-        Delete all the features by id
+        Get feature set by user id
+        Return: A list of KV for each feature and value.
+           The value is an array with: feature value, feature tag and deleted, update time, create time and delete time.
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def get_large_feature_sections(
+    async def delete_feature_set(
         self,
-        set_id: str,
-        thresh: int,
-    ) -> list[list[dict[str, Any]]]:  # TODO: return typed object
+        *,
+        set_id: Optional[str] = None,
+        semantic_type_id: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        tag: Optional[str] = None,
+        thresh: Optional[int] = None,
+        k: Optional[int] = None,
+        vector_search_opts: Optional[VectorSearchOpts] = None,
+    ):
         """
-        get feature sets with at least thresh entries
+        Delete all the features by id
         """
         raise NotImplementedError
 
@@ -128,15 +114,16 @@ class SemanticStorageBase(ABC):
         self,
         set_id: str,
         content: str,
-        metadata: dict[str, str] | None = None,
+        metadata: Optional[dict[str, str]] = None,
+        created_at: Optional[datetime] = None,
     ) -> int:
         raise NotImplementedError
 
     @abstractmethod
     async def get_history(
-            self,
-            history_id: int,
-    )-> Optional[dict[str, Any]]: #TODO: return typed object
+        self,
+        history_id: int,
+    ) -> Optional[SemanticHistory]:  # TODO: return typed object
         raise NotImplementedError
 
     @abstractmethod
@@ -147,33 +134,27 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_history_by_date(
+    async def delete_history_messages(
         self,
         *,
-        set_id: str,
+        set_id: Optional[str] = None,
+        k: Optional[int] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
+        is_ingested: Optional[bool] = None,
     ):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_history_by_date(
-            self,
-            *,
-            set_id: str,
-            start_time: Optional[datetime] = None,
-            end_time: Optional[datetime] = None,
-    ) -> list[str]:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def get_history_messages_by_ingestion_status(
+    async def get_history_messages(
         self,
         *,
-        set_id: str,
-        k: int = 0,
-        is_ingested: bool = False,
-    ) -> list[Mapping[str, Any]]:
+        set_id: Optional[str] = None,
+        k: Optional[int] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        is_ingested: Optional[bool] = None,
+    ) -> list[SemanticHistory]:
         """
         retrieve the list of the history messages for the user
         with the ingestion status, up to k messages if k > 0
@@ -181,9 +162,17 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_uningested_history_messages_count(self) -> int:
+    async def get_history_messages_count(
+        self,
+        *,
+        set_id: Optional[str] = None,
+        k: Optional[int] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        is_ingested: Optional[bool] = None,
+    ) -> int:
         """
-        retrieve the count of the uningested history messages
+        retrieve the count of the history messages
         """
         raise NotImplementedError
 
@@ -197,4 +186,3 @@ class SemanticStorageBase(ABC):
         mark the messages with the id as ingested
         """
         raise NotImplementedError
-

@@ -22,21 +22,24 @@ async def with_multiple_features(storage: SemanticStorageBase):
         tag="food",
         embedding=np.array([1.0] * 1536, dtype=float),
     )
-    key = SemanticStorageBase.FeatureKey(
-        type="test_type",
-        tag="food",
-        feature="likes",
+    key = (
+        "test_type",
+        "food",
+        "likes",
     )
-    yield (key, {
-        key: [
-            {
-                "value": "pizza",
-            },
-            {
-                "value": "sushi",
-            },
-        ]
-    })
+    yield (
+        key,
+        {
+            key: [
+                {
+                    "value": "pizza",
+                },
+                {
+                    "value": "sushi",
+                },
+            ]
+        },
+    )
 
     await storage.delete_features([idx_a, idx_b])
 
@@ -76,29 +79,32 @@ async def with_multiple_sets(storage: SemanticStorageBase):
         embedding=np.array([1.0] * 1536, dtype=float),
     )
 
-    key = SemanticStorageBase.FeatureKey(
-        type="default",
-        tag="food",
-        feature="likes",
+    key = (
+        "default",
+        "food",
+        "likes",
     )
 
-    yield (key, {
-        "user1": [
-            {
-                "value": "pizza",
-            },
-            {
-                "value": "sushi",
-            },
-        ],
-        "user2": [
-            {
-                "value": "fish",
-            },
-            {
-                "value": "chips",
-            }
-        ],
-    })
+    yield (
+        key,
+        {
+            "user1": [
+                {
+                    "value": "pizza",
+                },
+                {
+                    "value": "sushi",
+                },
+            ],
+            "user2": [
+                {
+                    "value": "fish",
+                },
+                {
+                    "value": "chips",
+                },
+            ],
+        },
+    )
 
     await storage.delete_features([idx_a, idx_b, idx_c, idx_d])

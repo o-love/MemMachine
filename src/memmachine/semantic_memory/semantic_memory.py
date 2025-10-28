@@ -123,7 +123,7 @@ class SemanticMemoryManager:
         features = self._semantic_cache.get(set_id)
         if features is not None:
             return features
-        features = await self._semantic_storage.get_set_features(set_id=set_id)
+        features = await self._semantic_storage.get_grouped_set_features(set_id=set_id)
         self._semantic_cache.put(set_id, features)
         return features
 
@@ -203,10 +203,10 @@ class SemanticMemoryManager:
                 feature and tag are deleted.
         """
         self._semantic_cache.erase(set_id)
-        await self._semantic_storage.delete_feature_with_filter(
+        await self._semantic_storage.delete_feature_set(
             set_id=set_id,
             semantic_type_id="default",
-            feature=feature,
+            feature_name=feature,
             tag=tag,
         )
 
@@ -235,8 +235,13 @@ class SemanticMemoryManager:
             A list of matching feature entries, filtered by similarity scores.
         """
         qemb = (await self._embeddings.search_embed([query]))[0]
-        candidates = await self._semantic_storage.semantic_search(
-            set_id=set_id, qemb=np.array(qemb), k=k, min_cos=min_cos
+        candidates = await self._semantic_storage.get_feature_set(
+            set_id=set_id,
+            k=k,
+            vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+                query_embedding=np.array(qemb),
+                min_cos=min_cos,
+            ),
         )
         formatted = [(i["metadata"]["similarity_score"], i) for i in candidates]
 
@@ -299,7 +304,9 @@ class SemanticMemoryManager:
         await self._dirty_sets.mark_update(set_id)
 
     async def uningested_message_count(self):
-        return await self._semantic_storage.get_uningested_history_messages_count()
+        return await self._semantic_storage.get_history_messages_count(
+            is_ingested=False
+        )
 
     async def _background_ingestion_task(self):
         while not self._is_shutting_down:
@@ -314,7 +321,7 @@ class SemanticMemoryManager:
             )
 
     async def _get_set_uningested_memories(self, set_id: str):
-        rows = await self._semantic_storage.get_history_messages_by_ingestion_status(
+        rows = await self._semantic_storage.get_history_messages(
             set_id=set_id,
             k=100,
             is_ingested=False,
@@ -430,15 +437,17 @@ class SemanticMemoryManager:
         )
 
     async def _consolidate_memories_if_applicable(self, *, set_id: str):
-        s = await self._semantic_storage.get_large_feature_sections(
+        features = await self._semantic_storage.get_feature_set(
             set_id=set_id, thresh=self._consolidation_threshold
+        )
+
+        consolidation_sections: list[list[SemanticFeature]] = list(
+            SemanticFeature.group_features(features).values()
         )
         await asyncio.gather(
             *[
-                self._deduplicate_features(
-                    set_id, [SemanticFeature(**memories) for memories in section]
-                )
-                for section in s
+                self._deduplicate_features(set_id, section_features)
+                for section_features in consolidation_sections
             ]
         )
 
