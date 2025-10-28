@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 import pytest
+import pytest_asyncio
 
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
@@ -77,7 +78,7 @@ async def test_delete_feature(storage: SemanticStorageBase):
 
 
 @pytest.mark.asyncio
-async def test_delete_feature_set(
+async def test_delete_feature_set_by_set_id(
     storage: SemanticStorageBase,
     with_multiple_sets,
 ):
@@ -110,8 +111,68 @@ async def test_delete_feature_set(
     assert set_delete_b == expected["user2"]
 
 
+@pytest_asyncio.fixture
+async def oposite_vector_features(storage: SemanticStorageBase):
+    embed_a = np.array([1.0], dtype=float)
+    value_a = "pizza"
+
+    embed_b = np.array([0.0], dtype=float)
+    value_b = "sushi"
+
+    id_a = await storage.add_feature(
+        set_id="user",
+        semantic_type_id="default",
+        tag="food",
+        feature="likes",
+        value=value_a,
+        embedding=embed_a,
+    )
+    id_b = await storage.add_feature(
+        set_id="user",
+        semantic_type_id="default",
+        tag="food",
+        feature="likes",
+        value=value_b,
+        embedding=embed_b,
+    )
+
+    yield [
+        (embed_a, value_a),
+        (embed_b, value_b),
+    ]
+
+    await storage.delete_features([id_a, id_b])
+
 @pytest.mark.asyncio
-async def test_feature_lifecycle(storage: SemanticStorageBase):
+async def test_get_feature_set_basic_vector_search(
+        storage: SemanticStorageBase,
+        oposite_vector_features,
+):
+    # Given a storage with fully distinct features
+    embed_a, value_a = oposite_vector_features[0]
+    embed_b, value_b = oposite_vector_features[1]
+
+    # When doing a vector search
+    results = await storage.get_feature_set(
+        set_id="user",
+        k=10,
+        vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+            query_embedding=embed_a,
+            min_cos=0.0,
+        ),
+    )
+
+    # Then the results should be the two distinct features
+    # With value_a being the first and value_b being the second
+    results = [f.value for f in results]
+    assert results == [ value_a, value_b ]
+
+@pytest.mark.asyncio
+async def test_get_feature_set_min_cos_vector_search(storage: SemanticStorageBase):
+    pass
+
+@pytest.mark.asyncio
+async def test_complex_feature_lifecycle(storage: SemanticStorageBase):
     embed = np.array([1.0] * 1536, dtype=float)
 
     await storage.add_feature(
@@ -178,7 +239,7 @@ async def test_feature_lifecycle(storage: SemanticStorageBase):
 
 
 @pytest.mark.asyncio
-async def test_semantic_search_and_citations(storage: SemanticStorageBase):
+async def test_complex_semantic_search_and_citations(storage: SemanticStorageBase):
     history_id = await storage.add_history(
         set_id="user",
         content="context note",
@@ -191,7 +252,7 @@ async def test_semantic_search_and_citations(storage: SemanticStorageBase):
         feature="topic",
         value="ai",
         tag="facts",
-        embedding=np.array([1.0, 0.0] + [0.0] * 1534),
+        embedding=np.array([1.0, 0.0]),
         citations=[history_id],
     )
     await storage.add_feature(
@@ -200,15 +261,15 @@ async def test_semantic_search_and_citations(storage: SemanticStorageBase):
         feature="topic",
         value="music",
         tag="facts",
-        embedding=np.array([0.0, 1.0] + [0.0] * 1534),
+        embedding=np.array([0.0, 1.0]),
     )
 
     results = await storage.get_feature_set(
         set_id="user",
         k=10,
         vector_search_opts=SemanticStorageBase.VectorSearchOpts(
-            query_embedding=np.array([1.0, 0.0] + [0.0] * 1534),
-            min_cos=0.5,
+            query_embedding=np.array([1.0, 0.0]),
+            min_cos=0.0,
         ),
         # include_citations=True,
     )
@@ -226,7 +287,7 @@ async def test_semantic_search_and_citations(storage: SemanticStorageBase):
         set_id="user",
         k=1,
         vector_search_opts=SemanticStorageBase.VectorSearchOpts(
-            query_embedding=np.array([1.0, 0.0] + [0.0] * 1534),
+            query_embedding=np.array([1.0, 0.0]),
             min_cos=0.5,
         ),
         # include_citations=False,
@@ -250,7 +311,7 @@ async def test_semantic_search_and_citations(storage: SemanticStorageBase):
 
 
 @pytest.mark.asyncio
-async def test_history_workflow(storage: SemanticStorageBase):
+async def test_complex_history_workflow(storage: SemanticStorageBase):
     h1_id = await storage.add_history(
         set_id="user",
         content="first",

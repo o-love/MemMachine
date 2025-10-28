@@ -366,7 +366,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         end_time: Optional[datetime] = None,
         is_ingested: Optional[bool] = None,
     ):
-
         if set_id is not None:
             stmt = stmt.where(History.set_id == set_id)
         if start_time is not None:
@@ -410,11 +409,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
                     Feature.embedding.cosine_distance(
                         vector_search_opts.query_embedding
                     )
-                    > vector_search_opts.min_cos
+                    >= vector_search_opts.min_cos
                 ).order_by(
                     Feature.embedding.cosine_distance(
                         vector_search_opts.query_embedding
-                    ).desc()
+                    ).asc()
                 )
 
             return _stmt
