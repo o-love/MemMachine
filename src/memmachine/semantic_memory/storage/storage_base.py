@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Optional
 
 import numpy as np
-from pydantic import InstanceOf
+from pydantic import InstanceOf, AwareDatetime
 
 from memmachine.semantic_memory.semantic_model import SemanticFeature, SemanticHistory
 
@@ -39,7 +38,11 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_feature(self, feature_id: int) -> SemanticFeature | None:
+    async def get_feature(
+        self,
+        feature_id: int,
+        load_citations: bool = False,
+    ) -> SemanticFeature | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -53,7 +56,6 @@ class SemanticStorageBase(ABC):
         tag: str,
         embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
-        citations: list[int] | None = None,
     ) -> int:
         """
         Add a new feature to the user.
@@ -67,7 +69,7 @@ class SemanticStorageBase(ABC):
     @dataclass
     class VectorSearchOpts:
         query_embedding: InstanceOf[np.ndarray]
-        min_cos: float
+        min_cos: Optional[float] = 0.7
 
     @abstractmethod
     async def get_feature_set(
@@ -80,6 +82,7 @@ class SemanticStorageBase(ABC):
         k: Optional[int] = None,
         vector_search_opts: Optional[VectorSearchOpts] = None,
         thresh: Optional[int] = None,
+        load_citations: bool = False,
     ) -> list[SemanticFeature]:
         """
         Get feature set by user id
@@ -106,7 +109,7 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_all_citations_for_ids(self, feature_ids: list[int]) -> list[int]:
+    async def add_citations(self, feature_id: int, history_ids: list[int]):
         raise NotImplementedError
 
     @abstractmethod
@@ -115,7 +118,7 @@ class SemanticStorageBase(ABC):
         set_id: str,
         content: str,
         metadata: Optional[dict[str, str]] = None,
-        created_at: Optional[datetime] = None,
+        created_at: Optional[AwareDatetime] = None,
     ) -> int:
         raise NotImplementedError
 
@@ -129,7 +132,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def delete_history(
         self,
-        history_id: int,
+        history_ids: list[int],
     ):
         raise NotImplementedError
 
@@ -139,8 +142,8 @@ class SemanticStorageBase(ABC):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ):
         raise NotImplementedError
@@ -151,8 +154,8 @@ class SemanticStorageBase(ABC):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ) -> list[SemanticHistory]:
         """
@@ -167,8 +170,8 @@ class SemanticStorageBase(ABC):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ) -> int:
         """

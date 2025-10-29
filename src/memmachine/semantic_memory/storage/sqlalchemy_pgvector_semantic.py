@@ -1,20 +1,30 @@
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 import numpy as np
-import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
-from pydantic import InstanceOf, TypeAdapter, validate_call
+from pydantic import InstanceOf, validate_call, AwareDatetime
 from sqlalchemy import (
+    TIMESTAMP,
     Boolean,
-    DateTime,
+    Column,
     Engine,
     ForeignKey,
     Integer,
     String,
+    Table,
+    delete,
+    insert,
     select,
+    update,
 )
-from sqlalchemy.orm import DeclarativeBase, mapped_column, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    joinedload,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
 from sqlalchemy.sql import func
 
 from memmachine.semantic_memory.semantic_model import SemanticFeature, SemanticHistory
@@ -25,8 +35,26 @@ class BaseSemanticStorage(DeclarativeBase):
     pass
 
 
+citation_association_table = Table(
+    "citations",
+    BaseSemanticStorage.metadata,
+    Column(
+        "feature_id",
+        Integer,
+        ForeignKey("feature.id", ondelete="CASCADE", onupdate="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "history_id",
+        Integer,
+        ForeignKey("history.id", ondelete="CASCADE", onupdate="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Feature(BaseSemanticStorage):
-    __tablename__ = "semantic_feature"
+    __tablename__ = "feature"
     id = mapped_column(Integer, primary_key=True)
 
     # Feature data
@@ -37,15 +65,32 @@ class Feature(BaseSemanticStorage):
     value = mapped_column(String)
 
     # metadata
-    created_a = mapped_column(DateTime, server_default=func.now())
-    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_a = mapped_column(
+        TIMESTAMP,
+        server_default=func.now(),
+    )
+    updated_at = mapped_column(
+        TIMESTAMP,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
     embedding = mapped_column(Vector)
     json_metadata = mapped_column(String, name="metadata", server_default="{}")
 
-    def to_typed_model(self) -> SemanticFeature:
+    citations: Mapped[Set["History"]] = relationship(
+        secondary=citation_association_table,
+    )
+
+    def to_typed_model(self, with_citations: bool = False) -> SemanticFeature:
+        if with_citations:
+            citations = [c.to_typed_model() for c in self.citations]
+        else:
+            citations = None
+
         return SemanticFeature(
             metadata=SemanticFeature.Metadata(
                 id=self.id,
+                citations=citations,
             ),
             set_id=self.set_id,
             type=self.semantic_type_id,
@@ -62,7 +107,10 @@ class History(BaseSemanticStorage):
     content = mapped_column(String)
 
     json_metadata = mapped_column(String, name="metadata", server_default="{}")
-    created_at = mapped_column(DateTime, server_default=func.now())
+    created_at = mapped_column(
+        TIMESTAMP,
+        server_default=func.now(),
+    )
 
     # semantic memory specific columns
     set_id = mapped_column(String)
@@ -78,14 +126,6 @@ class History(BaseSemanticStorage):
             created_at=self.created_at,
             ingested=self.ingested,
         )
-
-
-class SemanticCitation(BaseSemanticStorage):
-    __tablename__ = "semantic_citation"
-    semantic_feature_id = mapped_column(
-        Integer, ForeignKey("semantic_feature.id"), primary_key=True
-    )
-    history_id = mapped_column(Integer, ForeignKey("history.id"), primary_key=True)
 
 
 class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
@@ -110,9 +150,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     @validate_call
     async def delete_all(self):
         with self._create_session() as session:
+            session.query(citation_association_table).delete()
             session.query(Feature).delete()
             session.query(History).delete()
-            session.query(SemanticCitation).delete()
             session.commit()
 
     @validate_call
@@ -126,10 +166,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         tag: str,
         embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
-        citations: list[int] | None = None,
     ) -> int:
         stmt = (
-            sa.insert(Feature)
+            insert(Feature)
             .values(
                 set_id=set_id,
                 semantic_type_id=semantic_type_id,
@@ -149,11 +188,24 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         return res
 
     @validate_call
-    async def get_feature(self, feature_id: int) -> SemanticFeature | None:
-        stmt = sa.select(Feature).where(Feature.id == feature_id)
+    async def get_feature(
+        self,
+        feature_id: int,
+        load_citations: bool = False,
+    ) -> SemanticFeature | None:
+        stmt = select(Feature).where(Feature.id == feature_id)
+
+        if load_citations:
+            stmt.options(joinedload(Feature.citations))
 
         with self._create_session() as session:
-            return session.execute(stmt).scalar_one_or_none()
+            feature = session.execute(stmt).scalar_one_or_none()
+
+            return (
+                feature.to_typed_model(with_citations=load_citations)
+                if feature
+                else None
+            )
 
     @validate_call
     async def get_feature_set(
@@ -166,8 +218,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         k: Optional[int] = None,
         vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
         thresh: Optional[int] = None,
+        load_citations: bool = False,
     ) -> list[SemanticFeature]:
-        stmt = sa.select(Feature)
+        stmt = select(Feature)
 
         stmt = self._apply_feature_filter(
             stmt,
@@ -180,14 +233,17 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             vector_search_opts=vector_search_opts,
         )
 
+        if load_citations:
+            stmt.options(joinedload(Feature.citations))
+
         with self._create_session() as session:
             features = session.execute(stmt).scalars().all()
 
-        return [f.to_typed_model() for f in features]
+            return [f.to_typed_model(with_citations=load_citations) for f in features]
 
     @validate_call
     async def delete_features(self, feature_ids: list[int]):
-        stmt = sa.delete(Feature).where(Feature.id.in_(feature_ids))
+        stmt = delete(Feature).where(Feature.id.in_(feature_ids))
         with self._create_session() as session:
             session.execute(stmt)
             session.commit()
@@ -204,7 +260,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         k: Optional[int] = None,
         vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
     ):
-        stmt = sa.delete(Feature)
+        stmt = delete(Feature)
 
         stmt = self._apply_feature_filter(
             stmt,
@@ -221,9 +277,14 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             session.execute(stmt)
             session.commit()
 
-    @validate_call
-    async def get_all_citations_for_ids(self, feature_ids: list[int]) -> list[int]:
-        pass
+    async def add_citations(self, feature_id: int, history_ids: list[int]):
+        rows = [{"feature_id": feature_id, "history_id": hid} for hid in history_ids]
+
+        stmt = insert(citation_association_table).values(rows)
+
+        with self._create_session() as session:
+            session.execute(stmt)
+            session.commit()
 
     @validate_call
     async def add_history(
@@ -231,10 +292,10 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         set_id: str,
         content: str,
         metadata: dict[str, str] | None = None,
-        created_at: Optional[datetime] = None,
+        created_at: Optional[AwareDatetime] = None,
     ) -> int:
         stmt = (
-            sa.insert(History)
+            insert(History)
             .values(
                 set_id=set_id,
                 content=content,
@@ -253,15 +314,21 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         return res
 
     @validate_call
-    async def get_history(self, history_id: int) -> Optional[dict[str, Any]]:
-        stmt = sa.select(History).where(History.id == history_id)
+    async def get_history(self, history_id: int) -> Optional[SemanticHistory]:
+        stmt = select(History).where(History.id == history_id)
 
         with self._create_session() as session:
-            return session.execute(stmt).scalar_one_or_none()
+            history = session.execute(stmt).scalar_one_or_none()
+
+            return (
+                history.to_typed_model()
+                if history
+                else None
+            )
 
     @validate_call
-    async def delete_history(self, history_id: int):
-        stmt = sa.delete(History).where(History.id == history_id)
+    async def delete_history(self, history_ids: list[int]):
+        stmt = delete(History).where(History.id.in_(history_ids))
 
         with self._create_session() as session:
             session.execute(stmt)
@@ -273,11 +340,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ):
-        stmt = sa.delete(History)
+        stmt = delete(History)
 
         stmt = self._apply_history_filter(
             stmt,
@@ -298,11 +365,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ) -> list[SemanticHistory]:
-        stmt = sa.select(History)
+        stmt = select(History)
 
         # Order oldest to newest [ first, second, third ]
         stmt = stmt.order_by(History.created_at.asc())
@@ -327,11 +394,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ) -> int:
-        stmt = sa.select(func.count(History.id))
+        stmt = select(func.count(History.id))
 
         stmt = self._apply_history_filter(
             stmt,
@@ -350,7 +417,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         if len(ids) == 0:
             raise ValueError("No ids provided")
 
-        stmt = sa.update(History).where(History.id.in_(ids)).values(ingested=True)
+        stmt = update(History).where(History.id.in_(ids)).values(ingested=True)
 
         with self._create_session() as session:
             session.execute(stmt)
@@ -362,8 +429,8 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         *,
         set_id: Optional[str] = None,
         k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
     ):
         if set_id is not None:
@@ -396,21 +463,30 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         ):
             if set_id is not None:
                 _stmt = _stmt.where(Feature.set_id == set_id)
+
             if semantic_type_id is not None:
                 _stmt = _stmt.where(Feature.semantic_type_id == semantic_type_id)
+
             if tag is not None:
                 _stmt = _stmt.where(Feature.tag_id == tag)
+
             if feature_name is not None:
                 _stmt = _stmt.where(Feature.feature == feature_name)
+
             if k is not None:
                 _stmt = _stmt.limit(k)
+
             if vector_search_opts is not None:
-                _stmt = _stmt.where(
-                    Feature.embedding.cosine_distance(
-                        vector_search_opts.query_embedding
+                if vector_search_opts.min_cos is not None:
+                    threshold = 1 - vector_search_opts.min_cos
+                    _stmt = _stmt.where(
+                        Feature.embedding.cosine_distance(
+                            vector_search_opts.query_embedding
+                        )
+                        <= threshold
                     )
-                    >= vector_search_opts.min_cos
-                ).order_by(
+
+                _stmt = _stmt.order_by(
                     Feature.embedding.cosine_distance(
                         vector_search_opts.query_embedding
                     ).asc()

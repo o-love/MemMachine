@@ -1,13 +1,35 @@
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from pydantic import BaseModel
 
 
+class SemanticCommand(BaseModel):
+    command: str
+    feature: str
+    tag: str
+    value: str
+
+
+class SemanticHistory(BaseModel):
+    class Metadata(BaseModel):
+        id: Optional[int] = None
+        other: Optional[dict[str, Any]] = None
+
+    content: str
+    set_id: str
+    created_at: datetime
+
+    ingested: bool = False
+
+    metadata: Metadata = Metadata()
+
+
 class SemanticFeature(BaseModel):
     class Metadata(BaseModel):
-        citations: Optional[list[int]] = None
+        citations: Optional[list[SemanticHistory]] = None
         id: Optional[int] = None
+        other: Optional[dict[str, Any]] = None
 
     set_id: Optional[str] = None
     type: str
@@ -31,23 +53,3 @@ class SemanticFeature(BaseModel):
             grouped_features[key].append(f)
 
         return grouped_features
-
-
-class SemanticCommand(BaseModel):
-    command: str
-    feature: str
-    tag: str
-    value: str
-
-
-class SemanticHistory(BaseModel):
-    class Metadata(BaseModel):
-        id: Optional[int] = None
-
-    content: str
-    set_id: str
-    created_at: datetime
-
-    ingested: bool = False
-
-    metadata: Metadata = Metadata()
