@@ -4,14 +4,14 @@ import asyncio
 
 import pytest
 import pytest_asyncio
+from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemoryManager,
     SemanticMemoryManagerParams,
+    SemanticService,
 )
-from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
@@ -64,7 +64,7 @@ async def semantic_memory(
         feature_update_message_limit=1,
         feature_update_time_limit_sec=0.1,
     )
-    pm = SemanticMemoryManager(params=params)
+    pm = SemanticService(params=params)
     yield pm
     await pm.delete_all()
     await pm.stop()
@@ -97,7 +97,7 @@ async def single_feature_profile_response(semantic_memory):
 
 
 async def test_store_and_get_profile(
-    semantic_memory: SemanticMemoryManager, single_feature_profile_response
+    semantic_memory: SemanticService, single_feature_profile_response
 ):
     # Given a profile with a single user
     # When we retrieve the profile
@@ -110,7 +110,7 @@ async def test_store_and_get_profile(
 
 
 @pytest_asyncio.fixture
-async def multiple_feature_profile_response(semantic_memory: SemanticMemoryManager):
+async def multiple_feature_profile_response(semantic_memory: SemanticService):
     await semantic_memory.add_new_feature(
         set_id="test_user",
         feature="test_feature_a",
@@ -150,7 +150,7 @@ async def multiple_feature_profile_response(semantic_memory: SemanticMemoryManag
 
 
 async def test_multiple_features(
-    semantic_memory: SemanticMemoryManager, multiple_feature_profile_response
+    semantic_memory: SemanticService, multiple_feature_profile_response
 ):
     # Given a profile with two features
     # When we retrieve the profile
@@ -163,7 +163,7 @@ async def test_multiple_features(
 
 
 async def test_delete_feature(
-    semantic_memory: SemanticMemoryManager, multiple_feature_profile_response
+    semantic_memory: SemanticService, multiple_feature_profile_response
 ):
     # Given a user profile with feature 'a' and 'b'
     profile = await semantic_memory.get_set_features(
@@ -228,9 +228,7 @@ async def test_add_persona_message_with_speaker_metadata(semantic_memory):
 
 
 @pytest_asyncio.fixture
-async def mock_persona_think_response(
-    llm_model, semantic_memory: SemanticMemoryManager
-):
+async def mock_persona_think_response(llm_model, semantic_memory: SemanticService):
     llm_model.generate_response.return_value = (
         """{
       "1": {

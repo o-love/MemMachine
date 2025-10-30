@@ -42,8 +42,8 @@ from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemoryManager,
     SemanticMemoryManagerParams,
+    SemanticService,
 )
 from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
@@ -480,7 +480,7 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-semantic_memory: SemanticMemoryManager | None = None
+semantic_memory: SemanticService | None = None
 episodic_memory: EpisodicMemoryManager | None = None
 
 
@@ -489,7 +489,7 @@ episodic_memory: EpisodicMemoryManager | None = None
 
 async def initialize_resource(
     config_file: str,
-) -> tuple[EpisodicMemoryManager, SemanticMemoryManager]:
+) -> tuple[EpisodicMemoryManager, SemanticService]:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -590,7 +590,7 @@ async def initialize_resource(
         }
     )
 
-    semantic_memory = SemanticMemoryManager(
+    semantic_memory = SemanticService(
         SemanticMemoryManagerParams(
             model=llm_model,
             embeddings=embeddings,
@@ -931,7 +931,7 @@ async def _add_memory(episode: NewEpisode):
                         or {session.agent_id}""",
             )
 
-        await cast(SemanticMemoryManager, semantic_memory).add_persona_message(
+        await cast(SemanticService, semantic_memory).add_persona_message(
             content=str(episode.episode_content),
             metadata=episode.metadata if episode.metadata is not None else {},
             set_id=episode.producer,
@@ -1038,7 +1038,7 @@ async def _add_semantic_memory(episode: NewEpisode):
     """
     _ = episode.get_session()
 
-    await cast(SemanticMemoryManager, semantic_memory).add_persona_message(
+    await cast(SemanticService, semantic_memory).add_persona_message(
         content=str(episode.episode_content),
         metadata=episode.metadata if episode.metadata is not None else {},
         set_id=episode.producer,
@@ -1092,7 +1092,7 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
         user_id = session.from_user_id_or("unknown")
         res = await asyncio.gather(
             inst.query_memory(q.query, q.limit, q.filter),
-            cast(SemanticMemoryManager, semantic_memory).semantic_search(
+            cast(SemanticService, semantic_memory).semantic_search(
                 query=q.query,
                 k=q.limit if q.limit is not None else 5,
                 set_id=user_id,
@@ -1181,7 +1181,7 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     session = q.get_session()
     user_id = session.from_user_id_or("unknown")
 
-    res = await cast(SemanticMemoryManager, semantic_memory).semantic_search(
+    res = await cast(SemanticService, semantic_memory).semantic_search(
         query=q.query,
         k=q.limit if q.limit is not None else 5,
         set_id=user_id,

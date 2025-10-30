@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Tuple, Any
+from types import ModuleType
+from typing import Any, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -11,23 +13,36 @@ class SemanticCommand(BaseModel):
     value: str
 
 
-class SemanticHistory(BaseModel):
+class HistoryMessage(BaseModel):
     class Metadata(BaseModel):
         id: Optional[int] = None
         other: Optional[dict[str, Any]] = None
 
     content: str
-    set_id: str
     created_at: datetime
-
-    ingested: bool = False
 
     metadata: Metadata = Metadata()
 
 
+@dataclass
+class SemanticPrompt:
+    update_prompt: str
+    consolidation_prompt: str
+
+    @staticmethod
+    def load_from_module(prompt_module: ModuleType):
+        update_prompt = getattr(prompt_module, "UPDATE_PROMPT", "")
+        consolidation_prompt = getattr(prompt_module, "CONSOLIDATION_PROMPT", "")
+
+        return SemanticPrompt(
+            update_prompt=update_prompt,
+            consolidation_prompt=consolidation_prompt,
+        )
+
+
 class SemanticFeature(BaseModel):
     class Metadata(BaseModel):
-        citations: Optional[list[SemanticHistory]] = None
+        citations: Optional[list[HistoryMessage]] = None
         id: Optional[int] = None
         other: Optional[dict[str, Any]] = None
 
@@ -53,3 +68,11 @@ class SemanticFeature(BaseModel):
             grouped_features[key].append(f)
 
         return grouped_features
+
+
+class SemanticType(BaseModel):
+    id: Optional[int] = None
+
+    name: str
+    tags: set[str]
+    prompt: SemanticPrompt

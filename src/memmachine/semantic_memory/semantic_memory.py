@@ -8,10 +8,11 @@ information extraction and a vector database for semantic search capabilities.
 
 import asyncio
 import logging
-from typing import Any, Sequence
+from abc import ABC, abstractmethod
+from typing import Any, Protocol, Sequence, runtime_checkable
 
 import numpy as np
-from pydantic import BaseModel, InstanceOf, validate_call
+from pydantic import BaseModel, Field, InstanceOf, field_validator, validate_call
 
 from memmachine.common.embedder.embedder import Embedder
 from memmachine.common.language_model.language_model import LanguageModel
@@ -22,7 +23,8 @@ from .semantic_ingestion import (
     llm_consolidate_features,
     llm_feature_update,
 )
-from .semantic_prompt import SemanticPrompt
+from .semantic_model import SemanticPrompt
+from .semantic_set_config import ConfigManager
 from .semantic_tracker import SemanticUpdateTrackerManager
 from .storage.storage_base import SemanticStorageBase
 from .util.lru_cache import LRUCache
@@ -30,10 +32,79 @@ from .util.lru_cache import LRUCache
 logger = logging.getLogger(__name__)
 
 
+class SemanticService(ABC):
+    @abstractmethod
+    async def start(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def stop(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def search(self, set_ids: list[str], query: str) -> list[SemanticFeature]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def add_messages(self, set_id: str, history_ids: list[int]):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def add_message_to_sets(self, history_id: int, set_ids: list[str]):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def number_of_uningested(self, set_id: str) -> int:
+        raise NotImplementedError
+
+    class FeatureSearchOpts(BaseModel):
+        set_ids: list[str] = Field(min_length=1)
+        type_id: list[str] | None = None
+        tag_id: list[str] | None = None
+
+    @abstractmethod
+    async def add_new_feature(
+        self,
+        *,
+        set_id: str,
+        feature: str,
+        value: str,
+        tag: str,
+        metadata: dict[str, str] | None = None,
+        citations: list[int] | None = None,
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_features(self, feature_ids: list[str]) -> list[SemanticFeature]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_set_features(self, opts: FeatureSearchOpts) -> list[SemanticFeature]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_features(self, set_id: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_feature_set(self, opts: FeatureSearchOpts):
+        raise NotImplementedError
+
+
+@runtime_checkable
+class ResourceRetriever(Protocol):
+    class Resources(BaseModel):
+        embedder: InstanceOf[Embedder]
+        language_model: InstanceOf[LanguageModel]
+        semantic_prompts: list[InstanceOf[SemanticPrompt]]
+
+    def get_resources(self, set_id: str) -> Resources:
+        raise NotImplementedError
+
+
 class SemanticMemoryManagerParams(BaseModel):
-    model: InstanceOf[LanguageModel]
-    embeddings: InstanceOf[Embedder]
-    prompt: SemanticPrompt
+    config_manager: InstanceOf[ConfigManager]
     semantic_storage: InstanceOf[SemanticStorageBase]
     max_cache_size: int = 1000
     consolidation_threshold: int = 20
@@ -55,8 +126,23 @@ class SemanticMemoryManagerParams(BaseModel):
     the first message, their features will be updated.
     """
 
+    resource_retriever: InstanceOf[ResourceRetriever]
 
-class SemanticMemoryManager:
+    @field_validator("resource_retriever")
+    @classmethod
+    def validate_resource_storage(cls, v):
+        if not isinstance(v, ResourceRetriever):
+            raise ValueError(
+                "resource_storage must be an instance of ResourceRetriever"
+            )
+        return v
+
+
+def build_semantic_manager(params: SemanticMemoryManagerParams) -> SemanticService:
+    return _SemanticMemoryManagerImpl(params)
+
+
+class _SemanticMemoryManagerImpl(SemanticService):
     # pylint: disable=too-many-instance-attributes
     """Manages and maintains semantic feature sets based on conversation history.
 
@@ -81,11 +167,7 @@ class SemanticMemoryManager:
         self,
         params: SemanticMemoryManagerParams,
     ):
-        self._model = params.model
-        self._embeddings = params.embeddings
         self._semantic_storage = params.semantic_storage
-
-        self._prompt = params.prompt
 
         self._dirty_sets: SemanticUpdateTrackerManager = SemanticUpdateTrackerManager(
             message_limit=params.feature_update_message_limit,

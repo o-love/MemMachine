@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pytest
 import pytest_asyncio
-from pydantic import AwareDatetime
 
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
@@ -198,7 +197,7 @@ async def test_get_feature_set_min_cos_vector_search(
 
 @pytest_asyncio.fixture
 async def time_history_message(storage: SemanticStorageBase):
-    datetime_at = AwareDatetime.now(timezone.utc) - timedelta(days=1)
+    datetime_at = datetime.now(timezone.utc) - timedelta(days=1)
     datetime_before = datetime_at - timedelta(minutes=1)
     datetime_after = datetime_at + timedelta(minutes=1)
 
@@ -464,6 +463,7 @@ async def test_delete_feature_with_citations(
     after_delete = await storage.get_feature(feature_id=feature_id, load_citations=True)
     assert after_delete is None
 
+
 @pytest.mark.asyncio
 async def test_delete_history_with_citations(
     storage: SemanticStorageBase,
@@ -639,7 +639,7 @@ async def test_complex_history_workflow(storage: SemanticStorageBase):
         metadata={},
     )
     await asyncio.sleep(0.5)
-    cutoff = AwareDatetime.now(timezone.utc)
+    cutoff = datetime.now(timezone.utc)
     await asyncio.sleep(0.5)
     h3_id = await storage.add_history(
         set_id="user",

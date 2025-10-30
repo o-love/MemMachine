@@ -5,14 +5,14 @@ from importlib import import_module
 
 import pytest
 import pytest_asyncio
+from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemoryManager,
     SemanticMemoryManagerParams,
+    SemanticService,
 )
-from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ async def semantic_memory(
     prompt,
     storage,
 ):
-    mem = SemanticMemoryManager(
+    mem = SemanticService(
         SemanticMemoryManagerParams(
             model=llm_model,
             embeddings=embedder,
@@ -77,7 +77,7 @@ class TestLongMemEvalIngestion:
     @staticmethod
     async def ingest_question_convos(
         user_id: str,
-        semantic_memory: SemanticMemoryManager,
+        semantic_memory: SemanticService,
         conversation_sessions: list[list[dict[str, str]]],
     ):
         for convo in conversation_sessions:
@@ -90,7 +90,7 @@ class TestLongMemEvalIngestion:
     @staticmethod
     async def eval_answer(
         user_id: str,
-        semantic_memory: SemanticMemoryManager,
+        semantic_memory: SemanticService,
         question_str: str,
         llm_model: OpenAILanguageModel,
     ):

@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
-from pydantic import InstanceOf, AwareDatetime
+from pydantic import AwareDatetime, InstanceOf
 
-from memmachine.semantic_memory.semantic_model import SemanticFeature, SemanticHistory
+from memmachine.semantic_memory.semantic_model import HistoryMessage, SemanticFeature
 
 
 class SemanticStorageBase(ABC):
@@ -115,7 +115,6 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def add_history(
         self,
-        set_id: str,
         content: str,
         metadata: Optional[dict[str, str]] = None,
         created_at: Optional[AwareDatetime] = None,
@@ -126,7 +125,7 @@ class SemanticStorageBase(ABC):
     async def get_history(
         self,
         history_id: int,
-    ) -> Optional[SemanticHistory]:  # TODO: return typed object
+    ) -> Optional[HistoryMessage]:
         raise NotImplementedError
 
     @abstractmethod
@@ -141,7 +140,6 @@ class SemanticStorageBase(ABC):
         self,
         *,
         set_id: Optional[str] = None,
-        k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
@@ -157,7 +155,7 @@ class SemanticStorageBase(ABC):
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
-    ) -> list[SemanticHistory]:
+    ) -> list[HistoryMessage]:
         """
         retrieve the list of the history messages for the user
         with the ingestion status, up to k messages if k > 0
