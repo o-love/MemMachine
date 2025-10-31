@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
 from types import ModuleType
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Protocol, Tuple, runtime_checkable
 
-from pydantic import BaseModel
+from pydantic import BaseModel, InstanceOf
+
+from memmachine.common.embedder import Embedder
+from memmachine.common.language_model import LanguageModel
 
 
 class SemanticCommand(BaseModel):
@@ -69,6 +72,22 @@ class SemanticFeature(BaseModel):
 
         return grouped_features
 
+    @staticmethod
+    def group_features_by_tag(
+        features: list["SemanticFeature"],
+    ) -> dict[Tuple[str, str], list["SemanticFeature"]]:
+        grouped_features: dict[Tuple[str, str], list[SemanticFeature]] = {}
+
+        for f in features:
+            key = (f.tag, f.feature)
+
+            if key not in grouped_features:
+                grouped_features[key] = []
+
+            grouped_features[key].append(f)
+
+        return grouped_features
+
 
 class SemanticType(BaseModel):
     id: Optional[int] = None
@@ -76,3 +95,14 @@ class SemanticType(BaseModel):
     name: str
     tags: set[str]
     prompt: SemanticPrompt
+
+
+@runtime_checkable
+class ResourceRetriever(Protocol):
+    class Resources(BaseModel):
+        embedder: InstanceOf[Embedder]
+        language_model: InstanceOf[LanguageModel]
+        semantic_types: list[InstanceOf[SemanticType]]
+
+    def get_resources(self, set_id: str) -> Resources:
+        raise NotImplementedError

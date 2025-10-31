@@ -1,221 +1,235 @@
-import json
+import asyncio
+import itertools
 import logging
-from typing import Any
 
-from pydantic import (
-    BaseModel,
-    InstanceOf,
-    ValidationError,
-    field_validator,
-    validate_call,
+import numpy as np
+from pydantic import BaseModel, InstanceOf
+
+from memmachine.common.embedder import Embedder
+from memmachine.semantic_memory.semantic_llm import (
+    llm_consolidate_features,
+    llm_feature_update,
 )
-
-from memmachine.common.data_types import ExternalServiceAPIError
-from memmachine.common.language_model import LanguageModel
-from memmachine.semantic_memory.semantic_model import SemanticCommand, SemanticFeature
+from memmachine.semantic_memory.semantic_model import (
+    ResourceRetriever,
+    SemanticCommand,
+    SemanticFeature,
+    SemanticType,
+)
+from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 logger = logging.getLogger(__name__)
 
 
-def _process_commands(commands) -> list[SemanticCommand]:
-    valid_commands = []
-    for command in commands:
-        if not isinstance(command, dict):
-            logger.warning(
-                "AI response format incorrect: "
-                "expected feature update command to be dict, got %s %s",
-                type(command).__name__,
-                command,
-            )
-            continue
+class IngestionService:
+    class Params(BaseModel):
+        semantic_storage: InstanceOf[SemanticStorageBase]
+        resource_retriever: InstanceOf[ResourceRetriever]
+        consolidated_threshold: int = 20
 
+    def __init__(self, params: Params):
+        self._semantic_storage = params.semantic_storage
+        self._resource_retriever = params.resource_retriever
+        self._consolidation_threshold = params.consolidated_threshold
+
+    async def process_set_ids(self, set_ids: list[str]) -> None:
+        results = await asyncio.gather(
+            *[self._process_single_set(set_id) for set_id in set_ids],
+            return_exceptions=True,
+        )
+
+        errors = [r for r in results if isinstance(r, Exception)]
+        if len(errors) > 0:
+            for e in errors:
+                logger.error("Failed to process set", e)
+
+            raise errors[0]
+
+    async def _process_single_set(self, set_id: str):
+        resources = self._resource_retriever.get_resources(set_id)
+        messages = await self._semantic_storage.get_history_messages(
+            set_id=set_id,
+            k=50,
+            is_ingested=False,
+        )
+
+        if len(messages) == 0:
+            return
+
+        mark_messages = []
+
+        async def process_semantic_type(semantic_type: InstanceOf[SemanticType]):
+            for message in messages:
+                features = await self._semantic_storage.get_feature_set(
+                    set_ids=[set_id],
+                    type_names=[semantic_type.name],
+                )
+
+                try:
+                    commands = await llm_feature_update(
+                        features=features,
+                        message_content=message.content,
+                        model=resources.language_model,
+                        update_prompt=semantic_type.prompt.update_prompt,
+                    )
+                except (ValueError, TypeError) as e:
+                    logger.error(
+                        f"Failed to process message {message.id} for semantic type {semantic_type.name}",
+                        e,
+                    )
+                    continue
+
+                await self._apply_commands(
+                    commands=commands,
+                    set_id=set_id,
+                    type_name=semantic_type.name,
+                    citation_id=message.metadata.id,
+                    embedder=resources.embedder,
+                )
+
+                mark_messages.append(message["id"])
+
+        semantic_type_runners = []
+        for t in resources.semantic_types:
+            task = process_semantic_type(t)
+            semantic_type_runners.append(task)
+
+        await asyncio.gather(*semantic_type_runners)
+
+        await self._semantic_storage.mark_messages_ingested(
+            set_id=set_id,
+            ids=mark_messages,
+        )
+
+        await self._consolidate_set_memories_if_applicable(
+            set_id=set_id, resources=resources
+        )
+
+    async def _apply_commands(
+        self,
+        *,
+        commands: list[SemanticCommand],
+        set_id: str,
+        type_name: str,
+        citation_id: int,
+        embedder: InstanceOf[Embedder],
+    ):
+        for command in commands:
+            match command.command:
+                case "add":
+                    value_embedding = (await embedder.ingest_embed([command.value]))[0]
+
+                    f_id = await self._semantic_storage.add_feature(
+                        set_id=set_id,
+                        type_name=type_name,
+                        feature=command.feature,
+                        value=command.value,
+                        tag=command.tag,
+                        embedding=np.array(value_embedding),
+                    )
+
+                    await self._semantic_storage.add_citations(f_id, [citation_id])
+
+                case "delete":
+                    await self._semantic_storage.delete_feature_set(
+                        set_ids=[set_id],
+                        type_names=[type_name],
+                        feature_names=[command.feature],
+                        tags=[command.tag],
+                    )
+
+                case _:
+                    logger.error("Command with unknown action: %s", command.command)
+
+    async def _consolidate_set_memories_if_applicable(
+        self,
+        *,
+        set_id: str,
+        resources: InstanceOf[ResourceRetriever.Resources],
+    ):
+        async def _consolidate_type(semantic_type: InstanceOf[SemanticType]):
+            features = await self._semantic_storage.get_feature_set(
+                set_ids=[set_id],
+                type_names=[semantic_type.name],
+                tag_threshold=self._consolidation_threshold,
+                load_citations=True,
+            )
+
+            consolidation_sections: list[list[SemanticFeature]] = list(
+                SemanticFeature.group_features_by_tag(features).values()
+            )
+
+            await asyncio.gather(
+                *[
+                    self._deduplicate_features(
+                        set_id=set_id,
+                        memories=section_features,
+                        resources=resources,
+                        semantic_type=semantic_type,
+                    )
+                    for section_features in consolidation_sections
+                ]
+            )
+
+        type_tasks = []
+        for t in resources.semantic_types:
+            task = _consolidate_type(t)
+            type_tasks.append(task)
+
+        await asyncio.gather(*type_tasks)
+
+    async def _deduplicate_features(
+        self,
+        *,
+        set_id: str,
+        memories: list[SemanticFeature],
+        semantic_type: InstanceOf[SemanticType],
+        resources: InstanceOf[ResourceRetriever.Resources],
+    ):
         try:
-            pydantic_command = SemanticCommand(**command)
-        except Exception as e:
-            logger.warning(
-                "AI response format incorrect: unable to parse feature update command %s, error %s",
-                command,
-                str(e),
+            consolidate_resp = await llm_consolidate_features(
+                memories=memories,
+                model=resources.language_model,
+                consolidate_prompt=semantic_type.prompt.consolidation_prompt,
             )
-            continue
+        except (ValueError, TypeError) as e:
+            logger.error("Failed to update features while calling LLM", e)
+            return
 
-        valid_commands.append(pydantic_command)
+        if consolidate_resp is None or consolidate_resp.keep_memories is None:
+            logger.warning("Failed to consolidate features")
+            return
 
-    return valid_commands
-
-
-async def _llm_think(
-    model: LanguageModel,
-    system_prompt: str,
-    user_prompt: str,
-):
-    try:
-        response_text, _ = await model.generate_response(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-        )
-    except (ExternalServiceAPIError, ValueError, RuntimeError) as e:
-        logger.error("Model Error when processing semantic features: %s", str(e))
-        return
-
-    # Get thinking and JSON from language model response.
-    thinking, _, response_json = response_text.removeprefix("<think>").rpartition(
-        "</think>"
-    )
-    thinking = thinking.strip()
-
-    try:
-        response = json.loads(response_json)
-    except ValueError as e:
-        raise ValueError(
-            "Unable to load language model output '%s' as JSON, Error %s",
-            str(response_json),
-            e,
+        memories_to_delete = [
+            m
+            for m in memories
+            if m.metadata.id is not None
+            and m.metadata.id not in consolidate_resp.keep_memories
+        ]
+        await self._semantic_storage.delete_features(
+            [m.metadata.id for m in memories_to_delete]
         )
 
-    return thinking, response
-
-
-@validate_call
-async def llm_feature_update(
-    features,
-    message_content: str,
-    model: InstanceOf[LanguageModel],
-    update_prompt: str,
-) -> list[SemanticCommand]:
-    user_prompt = (
-        "The old feature set is provided below:\n"
-        "<OLD_PROFILE>\n"
-        "{feature_set}\n"
-        "</OLD_PROFILE>\n"
-        "\n"
-        "The history is provided below:\n"
-        "<HISTORY>\n"
-        "{message_content}\n"
-        "</HISTORY>\n"
-    ).format(
-        feature_set=str(features),
-        message_content=message_content,
-    )
-
-    try:
-        thinking, raw_commands = await _llm_think(
-            model=model,
-            system_prompt=update_prompt,
-            user_prompt=user_prompt,
+        merged_citations = itertools.chain.from_iterable(
+            [m.metadata.citations for m in memories_to_delete]
         )
-    except ValueError:
-        return []
 
-    logger.info(
-        "PROFILE MEMORY INGESTOR",
-        extra={
-            "queries_to_ingest": message_content,
-            "thoughts": thinking,
-            "outputs": raw_commands,
-        },
-    )
+        async def _add_feature(f: SemanticFeature):
+            value_embedding = (await resources.embedder.ingest_embed([f.value]))[0]
 
-    # This should probably just be a list of commands
-    # instead of a dictionary mapping
-    # from integers in strings (not even bare ints!)
-    # to commands.
-    # TODO: Consider improving this design in a breaking change.
-    if not isinstance(raw_commands, dict):
-        logger.warning(
-            "AI response format incorrect: expected dict, got %s %s",
-            type(raw_commands).__name__,
-            raw_commands,
-        )
-        return []
-
-    return _process_commands(raw_commands.values())
-
-
-class SemanticConsolidateMemoryRes(BaseModel):
-    consolidate_memories: list[SemanticFeature]
-    keep_memories: list[int] | None
-
-    @field_validator("consolidate_memories", mode="before")
-    @classmethod
-    def _filter_and_validate_memories(cls, v: Any) -> list[SemanticFeature]:
-        if v is None:
-            return []
-        if not isinstance(v, list):
-            logger.warning(
-                "AI response format incorrect: 'consolidate_memories' not a list, got %s %s",
-                type(v).__name__,
-                v,
+            f_id = await self._semantic_storage.add_feature(
+                set_id=set_id,
+                type_name=semantic_type.name,
+                tag=f.tag,
+                feature=f.feature,
+                value=f.value,
+                embedding=np.array(value_embedding),
             )
-            return []
+            await self._semantic_storage.add_citations(f_id, merged_citations)
 
-        cleaned: list[SemanticFeature] = []
-        for i, item in enumerate(v):
-            try:
-                cleaned.append(SemanticFeature.model_validate(item))
-            except ValidationError as e:
-                logger.warning(
-                    "Dropping invalid memory at index %d. Error: %s. Item: %r",
-                    i,
-                    e.errors(),
-                    item,
-                )
-        return cleaned
-
-    @field_validator("keep_memories", mode="before")
-    @classmethod
-    def _normalize_keep_memories(cls, v: Any) -> list[int] | None:
-        if v is None:
-            return None
-        if not isinstance(v, list):
-            logger.warning(
-                "AI response format incorrect: 'keep_memories' not a list, got %s %s",
-                type(v).__name__,
-                v,
-            )
-            return []
-        ints: list[int] = []
-        for i, x in enumerate(v):
-            try:
-                ints.append(int(x))
-            except Exception:
-                logger.warning(
-                    "Dropping invalid keep_memories[%d]=%r (not coercible to int)", i, x
-                )
-        return ints
-
-
-@validate_call
-async def llm_consolidate_features(
-    memories: list[SemanticFeature],
-    model: InstanceOf[LanguageModel],
-    consolidate_prompt: str,
-) -> SemanticConsolidateMemoryRes | None:
-    try:
-        thinking, updated_feature_entries = await _llm_think(
-            model=model,
-            system_prompt=consolidate_prompt,
-            user_prompt=json.dumps(memories),
+        await asyncio.gather(
+            *[
+                _add_feature(feature)
+                for feature in consolidate_resp.consolidated_memories
+            ],
         )
-    except ValueError as e:
-        logger.exception("Unable to consolidate features from LLM")
-        raise e
-
-    logger.info(
-        "PROFILE MEMORY CONSOLIDATOR",
-        extra={
-            "receives": memories,
-            "thoughts": thinking,
-            "outputs": updated_feature_entries,
-        },
-    )
-
-    if not isinstance(updated_feature_entries, dict):
-        logger.warning(
-            "AI response format incorrect: expected dict, got %s %s",
-            type(updated_feature_entries).__name__,
-            updated_feature_entries,
-        )
-        return None
-
-    return SemanticConsolidateMemoryRes.model_validate(updated_feature_entries)

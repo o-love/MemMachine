@@ -17,7 +17,7 @@ class SemanticStorageBase(ABC):
     async def startup(self):
         """
         initializations for the semantic storage,
-        such as creating connection to the database
+        such as creating a connection to the database
         """
         raise NotImplementedError
 
@@ -50,7 +50,7 @@ class SemanticStorageBase(ABC):
         self,
         *,
         set_id: str,
-        semantic_type_id: str,
+        type_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -60,6 +60,21 @@ class SemanticStorageBase(ABC):
         """
         Add a new feature to the user.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_feature(
+        self,
+        feature_id: int,
+        *,
+        set_id: Optional[str] = None,
+        type_name: Optional[str] = None,
+        feature: Optional[str] = None,
+        value: Optional[str] = None,
+        tag: Optional[str] = None,
+        embedding: Optional[InstanceOf[np.ndarray]] = None,
+        metadata: dict[str, Any] | None = None,
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -75,13 +90,13 @@ class SemanticStorageBase(ABC):
     async def get_feature_set(
         self,
         *,
-        set_id: Optional[str] = None,
-        semantic_type_id: Optional[str] = None,
-        feature_name: Optional[str] = None,
-        tag: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
+        type_names: Optional[list[str]] = None,
+        feature_names: Optional[list[str]] = None,
+        tags: Optional[list[str]] = None,
         k: Optional[int] = None,
         vector_search_opts: Optional[VectorSearchOpts] = None,
-        thresh: Optional[int] = None,
+        tag_threshold: Optional[int] = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         """
@@ -95,10 +110,10 @@ class SemanticStorageBase(ABC):
     async def delete_feature_set(
         self,
         *,
-        set_id: Optional[str] = None,
-        semantic_type_id: Optional[str] = None,
-        feature_name: Optional[str] = None,
-        tag: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
+        type_names: Optional[list[str]] = None,
+        feature_names: Optional[list[str]] = None,
+        tags: Optional[list[str]] = None,
         thresh: Optional[int] = None,
         k: Optional[int] = None,
         vector_search_opts: Optional[VectorSearchOpts] = None,
@@ -139,10 +154,8 @@ class SemanticStorageBase(ABC):
     async def delete_history_messages(
         self,
         *,
-        set_id: Optional[str] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
     ):
         raise NotImplementedError
 
@@ -178,9 +191,14 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def add_history_to_set(self, set_id: str, history_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def mark_messages_ingested(
         self,
         *,
+        set_id: str,
         ids: list[int],
     ) -> None:
         """

@@ -115,15 +115,13 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        semantic_type_id: Optional[str] = None,
+        type_name: Optional[str] = None,
         tag: Optional[str] = None,
     ):
         async with self._lock:
             keep: list[_ProfileEntry] = []
             for entry in self._profiles_by_set.get(set_id, []):
-                if semantic_type_id is not None and (
-                    entry.semantic_type_id != semantic_type_id
-                ):
+                if type_name is not None and (entry.semantic_type_id != type_name):
                     keep.append(entry)
                     continue
                 if tag is not None and entry.tag != tag:
@@ -140,7 +138,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        semantic_type_id: str,
+        type_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -154,7 +152,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             entry = _ProfileEntry(
                 id=self._next_profile_id,
                 set_id=set_id,
-                semantic_type_id=semantic_type_id,
+                semantic_type_id=type_name,
                 tag=tag,
                 feature=feature,
                 value=str(value),
