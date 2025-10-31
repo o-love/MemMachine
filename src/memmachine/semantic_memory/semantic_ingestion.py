@@ -188,7 +188,7 @@ class IngestionService:
     ):
         try:
             consolidate_resp = await llm_consolidate_features(
-                memories=memories,
+                features=memories,
                 model=resources.language_model,
                 consolidate_prompt=semantic_type.prompt.consolidation_prompt,
             )

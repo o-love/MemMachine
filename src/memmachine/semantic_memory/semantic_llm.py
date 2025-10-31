@@ -55,8 +55,7 @@ async def _llm_think(
             user_prompt=user_prompt,
         )
     except (ExternalServiceAPIError, ValueError, RuntimeError) as e:
-        logger.error("Model Error when processing semantic features: %s", str(e))
-        return
+        raise Exception("Model Error when processing semantic features") from e
 
     # Get thinking and JSON from language model response.
     thinking, _, response_json = response_text.removeprefix("<think>").rpartition(
@@ -76,9 +75,23 @@ async def _llm_think(
     return thinking, response
 
 
+def _features_to_llm_format(
+    features: list[SemanticFeature],
+) -> dict[str, dict[str, str]]:
+    structured_features = {}
+
+    for feature in features:
+        if feature.tag not in structured_features:
+            structured_features[feature.tag] = {}
+
+        structured_features[feature.tag][feature.feature] = feature.value
+
+    return structured_features
+
+
 @validate_call
 async def llm_feature_update(
-    features,
+    features: list[SemanticFeature],
     message_content: str,
     model: InstanceOf[LanguageModel],
     update_prompt: str,
@@ -94,20 +107,17 @@ async def llm_feature_update(
         "{message_content}\n"
         "</HISTORY>\n"
     ).format(
-        feature_set=str(features),
+        feature_set=json.dumps(_features_to_llm_format(features)),
         message_content=message_content,
     )
 
-    try:
-        thinking, raw_commands = await _llm_think(
-            model=model,
-            system_prompt=update_prompt,
-            user_prompt=user_prompt,
-        )
-    except ValueError:
-        return []
+    thinking, raw_commands = await _llm_think(
+        model=model,
+        system_prompt=update_prompt,
+        user_prompt=user_prompt,
+    )
 
-    logger.info(
+    logger.debug(
         "PROFILE MEMORY INGESTOR",
         extra={
             "queries_to_ingest": message_content,
@@ -136,7 +146,7 @@ class SemanticConsolidateMemoryRes(BaseModel):
     consolidated_memories: list[SemanticFeature]
     keep_memories: list[int] | None
 
-    @field_validator("consolidate_memories", mode="before")
+    @field_validator("consolidated_memories", mode="before")
     @classmethod
     def _filter_and_validate_memories(cls, v: Any) -> list[SemanticFeature]:
         if v is None:
@@ -185,9 +195,9 @@ class SemanticConsolidateMemoryRes(BaseModel):
         return ints
 
 
-@validate_call
+# @validate_call
 async def llm_consolidate_features(
-    memories: list[SemanticFeature],
+    features: list[SemanticFeature],
     model: InstanceOf[LanguageModel],
     consolidate_prompt: str,
 ) -> SemanticConsolidateMemoryRes | None:
@@ -195,16 +205,16 @@ async def llm_consolidate_features(
         thinking, updated_feature_entries = await _llm_think(
             model=model,
             system_prompt=consolidate_prompt,
-            user_prompt=json.dumps(memories),
+            user_prompt=json.dumps(_features_to_llm_format(features)),
         )
     except ValueError as e:
         logger.exception("Unable to consolidate features from LLM")
         raise e
 
-    logger.info(
+    logger.debug(
         "PROFILE MEMORY CONSOLIDATOR",
         extra={
-            "receives": memories,
+            "receives": features,
             "thoughts": thinking,
             "outputs": updated_feature_entries,
         },
@@ -218,4 +228,12 @@ async def llm_consolidate_features(
         )
         return None
 
-    return SemanticConsolidateMemoryRes.model_validate(updated_feature_entries)
+    try:
+        return SemanticConsolidateMemoryRes.model_validate(updated_feature_entries)
+    except ValidationError:
+        logger.warning(
+            "AI response format incorrect: expected dict with keys 'consolidated_memories' and 'keep_memories', got %s %s",
+            type(updated_feature_entries).__name__,
+            updated_feature_entries,
+        )
+        return None

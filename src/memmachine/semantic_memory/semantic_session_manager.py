@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Optional, Protocol, runtime_checkable
 
 from pydantic import AwareDatetime
@@ -18,29 +19,59 @@ class SessionData(Protocol):
 
 
 class SemanticSessionManager(ABC):
+    class IsolationType(Enum):
+        PROFILE = "profile"
+        SESSION = "session"
+        ALL = "all"
+
     @abstractmethod
     async def add_message(
         self,
         message: str,
         session_data: SessionData,
         created_at: Optional[AwareDatetime] = None,
-    ):
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    async def search_memories(
-        self, message: str, session_data: SessionData
+    async def search(
+        self,
+        message: str,
+        session_data: SessionData,
+        *,
+        memory_type: IsolationType = IsolationType.ALL,
+        min_cos: Optional[float] = None,
+        type_names: Optional[list[str]] = None,
+        tag_names: Optional[list[str]] = None,
+        feature_names: Optional[list[str]] = None,
+        k: Optional[int] = None,
+        load_citations: bool = False,
     ) -> list[SemanticFeature]:
         raise NotImplementedError
 
     @abstractmethod
-    async def get_memories(
-        self, session_data: SessionData, type_names: Optional[list[str]]
+    async def number_of_uningested_messages(
+        self,
+        session_data: SessionData
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_features(
+        self,
+        session_data: SessionData,
+        *,
+        type_names: Optional[list[str]],
+        tag_names: Optional[list[str]],
+        feature_names: Optional[list[str]],
     ) -> list[SemanticFeature]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def add_new_feature
 
-def _get_set_ids(session_data: SessionData) -> list[str]:
+
+def _get_set_ids(session_data: SessionData, isolation_level: SemanticSessionManager.IsolationType) -> list[str]:
     s: list[str] = []
     if session_data.producer_id() is not None:
         s.append(session_data.producer_id())
@@ -49,14 +80,6 @@ def _get_set_ids(session_data: SessionData) -> list[str]:
         s.append(session_data.session_id())
 
     return s
-
-
-def build() -> SemanticSessionManager:
-    # TODO: build resource manager and semantic_service with it.
-    return _SemanticSessionManagerImpl(
-        semantic_service=SemanticService(),
-        semantic_storage=SemanticStorageBase(),
-    )
 
 
 class _SemanticSessionManagerImpl(SemanticSessionManager):
