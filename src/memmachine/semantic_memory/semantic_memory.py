@@ -398,14 +398,15 @@ class _SemanticMemoryManagerImpl(SemanticService):
                 await asyncio.sleep(self._background_ingestion_interval_sec)
                 continue
 
-            await asyncio.gather(
-                *[self._process_uningested_memories(set_id) for set_id in dirty_sets]
+            results = await asyncio.gather(
+                *[self._process_uningested_memories(set_id) for set_id in dirty_sets],
+                return_exceptions=True,
             )
 
     async def _get_set_uningested_memories(self, set_id: str):
         rows = await self._semantic_storage.get_history_messages(
             set_id=set_id,
-            k=100,
+            k=10,
             is_ingested=False,
         )
         return rows
@@ -422,8 +423,10 @@ class _SemanticMemoryManagerImpl(SemanticService):
         mark_messages = []
 
         for message in messages:
-            await self._update_set_features_think(set_id, message)
-            mark_messages.append(message["id"])
+            success = await self._update_set_features_think(set_id, message)
+
+            if success:
+                mark_messages.append(message["id"])
 
         await asyncio.gather(
             self._consolidate_memories_if_applicable(set_id=set_id),
@@ -434,7 +437,7 @@ class _SemanticMemoryManagerImpl(SemanticService):
         self,
         set_id: str,
         record: Any,
-    ):
+    ) -> bool:
         """
         update set features based on json output, after doing a chain
         of thought.
@@ -454,13 +457,15 @@ class _SemanticMemoryManagerImpl(SemanticService):
             )
         except (ValueError, TypeError) as e:
             logger.error("Failed to update features while calling LLM", e)
-            return
+            return False
 
         await self._apply_commands(
             commands=commands,
             set_id=set_id,
             citation_id=citation_id,
         )
+
+        return True
 
     async def _apply_commands(
         self,
