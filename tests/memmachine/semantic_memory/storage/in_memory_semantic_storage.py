@@ -323,15 +323,21 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def get_history_messages(
         self,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
+        set_id: Optional[str] = None,
     ) -> list[HistoryMessage]:
+        if set_ids is not None and set_id is not None:
+            raise ValueError("Provide either set_id or set_ids, not both")
+        if set_id is not None:
+            set_ids = [set_id]
+
         async with self._lock:
             entries = self._filter_history_entries(
-                set_id=set_id,
+                set_ids=set_ids,
                 start_time=start_time,
                 end_time=end_time,
                 is_ingested=is_ingested,
@@ -345,15 +351,21 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def get_history_messages_count(
         self,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
         is_ingested: Optional[bool] = None,
+        set_id: Optional[str] = None,
     ) -> int:
+        if set_ids is not None and set_id is not None:
+            raise ValueError("Provide either set_id or set_ids, not both")
+        if set_id is not None:
+            set_ids = [set_id]
+
         async with self._lock:
             entries = self._filter_history_entries(
-                set_id=set_id,
+                set_ids=set_ids,
                 start_time=start_time,
                 end_time=end_time,
                 is_ingested=is_ingested,
@@ -468,7 +480,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 # Treat None (zero-norm vectors) as having -infinity similarity
                 # so they appear last in results but are still included
                 if similarity is None:
-                    similarity = float('-inf')
+                    similarity = float("-inf")
                 min_cos = vector_search_opts.min_cos
                 if min_cos is not None and similarity < min_cos:
                     continue
@@ -492,30 +504,36 @@ class InMemorySemanticStorage(SemanticStorageBase):
     def _filter_history_entries(
         self,
         *,
-        set_id: Optional[str],
+        set_ids: Optional[list[str]],
         start_time: Optional[AwareDatetime],
         end_time: Optional[AwareDatetime],
         is_ingested: Optional[bool],
     ) -> list[_HistoryEntry]:
         entries: Iterable[_HistoryEntry]
-        entries = self._history_by_id.values()
+        entries = list(self._history_by_id.values())
 
-        if set_id is not None or is_ingested is not None:
+        if set_ids is not None or is_ingested is not None:
+            allowed_sets = set(set_ids) if set_ids is not None else None
             filtered: list[_HistoryEntry] = []
             for entry in entries:
                 set_status = self._history_to_sets.get(entry.id, {})
 
-                if set_id is not None:
-                    if set_id not in set_status:
+                if allowed_sets is not None:
+                    relevant_sets = set(set_status.keys()) & allowed_sets
+                    if not relevant_sets:
                         continue
-                    if is_ingested is not None and set_status[set_id] != is_ingested:
+                else:
+                    relevant_sets = set(set_status.keys())
+                    if is_ingested is not None and not relevant_sets:
                         continue
+
+                if is_ingested is None:
                     filtered.append(entry)
                     continue
 
-                # No set filter, but ingestion filter requested
-                if any(status == is_ingested for status in set_status.values()):
+                if any(set_status[set_id] == is_ingested for set_id in relevant_sets):
                     filtered.append(entry)
+
             entries = filtered
 
         results: list[_HistoryEntry] = []

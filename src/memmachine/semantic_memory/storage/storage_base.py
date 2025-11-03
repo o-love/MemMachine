@@ -163,7 +163,7 @@ class SemanticStorageBase(ABC):
     async def get_history_messages(
         self,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
@@ -179,7 +179,7 @@ class SemanticStorageBase(ABC):
     async def get_history_messages_count(
         self,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,

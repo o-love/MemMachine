@@ -526,20 +526,20 @@ async def test_get_history_messsage_count_set_id(
     assert len(all_history) == 3
     assert all_count == 3
 
-    only_1_count = await storage.get_history_messages_count(set_id="only 1")
-    only_1_history = await storage.get_history_messages(set_id="only 1")
+    only_1_count = await storage.get_history_messages_count(set_ids=["only 1"])
+    only_1_history = await storage.get_history_messages(set_ids=["only 1"])
 
     assert len(only_1_history) == 1
     assert only_1_count == 1
 
-    has_2_count = await storage.get_history_messages_count(set_id="has 2")
-    has_2_history = await storage.get_history_messages(set_id="has 2")
+    has_2_count = await storage.get_history_messages_count(set_ids=["has 2"])
+    has_2_history = await storage.get_history_messages(set_ids=["has 2"])
 
     assert len(has_2_history) == 2
     assert has_2_count == 2
 
-    no_count = await storage.get_history_messages_count(set_id="no")
-    no_history = await storage.get_history_messages(set_id="no")
+    no_count = await storage.get_history_messages_count(set_ids=["no"])
+    no_history = await storage.get_history_messages(set_ids=["no"])
 
     assert len(no_history) == 0
     assert no_count == 0
@@ -721,12 +721,12 @@ async def test_complex_history_workflow(storage: SemanticStorageBase):
         history_id=h3_id,
     )
 
-    all_messages = await storage.get_history_messages(set_id="user")
+    all_messages = await storage.get_history_messages(set_ids=["user"])
     message_contents = [m.content for m in all_messages]
     assert message_contents == ["first", "second", "third"]
 
     latest_uningested = await storage.get_history_messages(
-        set_id="user",
+        set_ids=["user"],
         k=2,
         is_ingested=False,
     )
@@ -739,19 +739,19 @@ async def test_complex_history_workflow(storage: SemanticStorageBase):
     )
     assert await storage.get_history_messages_count(is_ingested=False) == 1
     ingested = await storage.get_history_messages(
-        set_id="user",
+        set_ids=["user"],
         is_ingested=True,
     )
     assert {entry.metadata.id for entry in ingested} == {h1_id, h2_id}
 
     uningested = await storage.get_history_messages(
-        set_id="user",
+        set_ids=["user"],
         is_ingested=False,
     )
     assert {entry.metadata.id for entry in uningested} == {h3_id}
 
     window = await storage.get_history_messages(
-        set_id="user",
+        set_ids=["user"],
         end_time=cutoff,
     )
     assert [h.content for h in window] == ["first", "second"]
@@ -759,10 +759,10 @@ async def test_complex_history_workflow(storage: SemanticStorageBase):
     await storage.delete_history_messages(
         end_time=cutoff,
     )
-    remaining = await storage.get_history_messages(set_id="user")
+    remaining = await storage.get_history_messages(set_ids=["user"])
     assert remaining[0].content == "third"
     assert len(remaining) == 1
 
     await asyncio.sleep(0.01)
     await storage.delete_history_messages()
-    assert await storage.get_history_messages(set_id="user") == []
+    assert await storage.get_history_messages(set_ids=["user"]) == []

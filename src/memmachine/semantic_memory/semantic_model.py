@@ -97,12 +97,13 @@ class SemanticType(BaseModel):
     prompt: SemanticPrompt
 
 
+class Resources(BaseModel):
+    embedder: InstanceOf[Embedder]
+    language_model: InstanceOf[LanguageModel]
+    semantic_types: list[InstanceOf[SemanticType]]
+
+
 @runtime_checkable
 class ResourceRetriever(Protocol):
-    class Resources(BaseModel):
-        embedder: InstanceOf[Embedder]
-        language_model: InstanceOf[LanguageModel]
-        semantic_types: list[InstanceOf[SemanticType]]
-
     def get_resources(self, set_id: str) -> Resources:
         raise NotImplementedError

@@ -409,7 +409,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def get_history_messages(
         self,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
@@ -422,7 +422,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
         stmt = self._apply_history_filter(
             stmt,
-            set_id=set_id,
+            set_ids=set_ids,
             start_time=start_time,
             end_time=end_time,
             k=k,
@@ -438,7 +438,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def get_history_messages_count(
         self,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
@@ -448,7 +448,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
         stmt = self._apply_history_filter(
             stmt,
-            set_id=set_id,
+            set_ids=set_ids,
             start_time=start_time,
             end_time=end_time,
             k=k,
@@ -490,7 +490,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     def _apply_history_filter(
         stmt,
         *,
-        set_id: Optional[str] = None,
+        set_ids: Optional[list[str]] = None,
         k: Optional[int] = None,
         start_time: Optional[AwareDatetime] = None,
         end_time: Optional[AwareDatetime] = None,
@@ -503,12 +503,12 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         if k is not None:
             stmt = stmt.limit(k)
 
-        if set_id is not None or is_ingested is not None:
+        if set_ids is not None or is_ingested is not None:
             stmt = stmt.join(
                 SetIngestedHistory, History.id == SetIngestedHistory.history_id
             )
-            if set_id is not None:
-                stmt = stmt.where(SetIngestedHistory.set_id == set_id)
+            if set_ids is not None:
+                stmt = stmt.where(SetIngestedHistory.set_id.in_(set_ids))
             if is_ingested is not None:
                 stmt = stmt.where(SetIngestedHistory.ingested == is_ingested)
 

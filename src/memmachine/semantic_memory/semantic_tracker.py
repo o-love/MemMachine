@@ -75,14 +75,15 @@ class SemanticUpdateTrackerManager:
             time_limit_sec=self._time_limit_sec,
         )
 
-    async def mark_update(self, set_id: str):
+    async def mark_update(self, set_ids: list[str]):
         """Marks that a new message has been assigned to a feature set.
         Creates a new tracker if one does not exist for the feature set.
         """
         async with self._trackers_lock:
-            if set_id not in self._trackers:
-                self._trackers[set_id] = self._new_tracker(set_id)
-            self._trackers[set_id].mark_update()
+            for set_id in set_ids:
+                if set_id not in self._trackers:
+                    self._trackers[set_id] = self._new_tracker(set_id)
+                self._trackers[set_id].mark_update()
 
     async def get_sets_to_update(self) -> list[str]:
         """Returns a list of sets whose features need to be updated.

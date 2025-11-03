@@ -1,101 +1,185 @@
 import asyncio
+import inspect
 import json
 import os
 from importlib import import_module
+from typing import Protocol
 
 import pytest
 import pytest_asyncio
-from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemoryManagerParams,
     SemanticService,
 )
+from memmachine.semantic_memory.semantic_model import (
+    ResourceRetriever,
+    SemanticType,
+    SemanticPrompt,
+    Resources,
+)
+from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
+from memmachine.semantic_memory.semantic_session_resource import (
+    SessionIdManager,
+    SessionIdTypeChecker,
+    IsolationType,
+    SessionResourceRetriever,
+    SessionData,
+)
+from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 @pytest.fixture
-def config():
-    open_api_key = os.environ.get("OPENAI_API_KEY")
+def embedder(openai_embedder):
+    return openai_embedder
+
+@pytest.fixture
+def llm_model(openai_llm_model):
+    return openai_llm_model
+
+
+@pytest.fixture
+def storage(sqlalchemy_profile_storage):
+    return sqlalchemy_profile_storage
+
+
+def load_types_from_modules(module_names):
+    types = []
+    for module_name in module_names:
+        prompt_module = import_module(
+            f"memmachine.server.prompt.{module_name}",
+            __package__,
+        )
+        prompt = SemanticPrompt.load_from_module(prompt_module)
+        semantic_type = SemanticType(
+            name=module_name,
+            tags={"unknown"},
+            prompt=prompt,
+        )
+        types.append(semantic_type)
+    return types
+
+
+@pytest.fixture
+def session_types(openai_integration_config):
+    module_names = [
+        # "crm_prompt",
+        "financial_analyst_prompt",
+    ]
+
+    return load_types_from_modules(module_names)
+
+
+@pytest.fixture
+def profile_types(openai_integration_config):
+    module_names = [
+        # "health_assistant_prompt",
+        # "writing_assistant_prompt",
+        "profile_prompt",
+    ]
+
+    return load_types_from_modules(module_names)
+
+
+@pytest.fixture
+def session_id_manager():
+    return SessionIdManager()
+
+
+@pytest.fixture
+def default_session_resources(
+    llm_model,
+    embedder,
+    session_types,
+    profile_types,
+):
     return {
-        "api_key": open_api_key,
-        "llm_model": "gpt-4o-mini",
-        "embedding_model": "text-embedding-3-small",
-        "prompt_module": "profile_prompt",
+        IsolationType.SESSION: Resources(
+            embedder=embedder,
+            language_model=llm_model,
+            semantic_types=session_types,
+        ),
+        IsolationType.PROFILE: Resources(
+            embedder=embedder,
+            language_model=llm_model,
+            semantic_types=profile_types,
+        ),
     }
 
 
 @pytest.fixture
-def embedder(config):
-    return OpenAIEmbedder(
-        {"api_key": config["api_key"], "model": config["embedding_model"]}
+def resource_retriever(
+    session_id_manager: SessionIdTypeChecker,
+    default_session_resources: dict[IsolationType, Resources],
+):
+    r = SessionResourceRetriever(
+        session_id_manager=session_id_manager,
+        default_resources=default_session_resources,
     )
+    assert isinstance(r, ResourceRetriever)
+    return r
 
 
 @pytest.fixture
-def llm_model(config):
-    return OpenAILanguageModel(
-        {"api_key": config["api_key"], "model": config["llm_model"]}
+def basic_session_data(session_id_manager: SessionIdManager):
+    return session_id_manager.generate_session_data(
+        profile_id="test_user",
+        session_id="test_session",
     )
 
 
-@pytest.fixture
-def storage(asyncpg_profile_storage):
-    return asyncpg_profile_storage
-
-
-@pytest.fixture
-def prompt(config):
-    prompt_module = import_module(
-        f"memmachine.server.prompt.{config['prompt_module']}", __package__
+@pytest_asyncio.fixture
+async def semantic_service(
+    storage,
+    resource_retriever: ResourceRetriever,
+):
+    mem = SemanticService(
+        SemanticService.Params(
+            semantic_storage=storage,
+            resource_retriever=resource_retriever,
+        )
     )
-    return SemanticPrompt.load_from_module(prompt_module)
+    await mem.start()
+    yield mem
+    await mem.stop()
 
 
 @pytest_asyncio.fixture
 async def semantic_memory(
-    embedder,
-    llm_model,
-    prompt,
-    storage,
+    semantic_service: SemanticService,
+    storage: SemanticStorageBase,
 ):
-    mem = SemanticService(
-        SemanticMemoryManagerParams(
-            model=llm_model,
-            embeddings=embedder,
-            prompt=prompt,
-            semantic_storage=storage,
-        )
+    return SemanticSessionManager(
+        semantic_service=semantic_service,
+        semantic_storage=storage,
     )
-    yield mem
-    await mem.delete_all()
-    await mem.stop()
 
 
 class TestLongMemEvalIngestion:
     @staticmethod
     async def ingest_question_convos(
-        user_id: str,
-        semantic_memory: SemanticService,
+        session_data: SessionData,
+        semantic_memory: SemanticSessionManager,
         conversation_sessions: list[list[dict[str, str]]],
     ):
         for convo in conversation_sessions:
             for turn in convo:
-                await semantic_memory.add_persona_message(
-                    set_id=user_id,
-                    content=turn["content"],
+                await semantic_memory.add_message(
+                    session_data=session_data,
+                    message=turn["content"],
                 )
 
     @staticmethod
     async def eval_answer(
-        user_id: str,
-        semantic_memory: SemanticService,
+        session_data: SessionData,
+        semantic_memory: SemanticSessionManager,
         question_str: str,
         llm_model: OpenAILanguageModel,
     ):
-        semantic_search_resp = await semantic_memory.semantic_search(
-            query=question_str, set_id=user_id
+        semantic_search_resp = await semantic_memory.search(
+            message=question_str,
+            session_data=session_data,
         )
         semantic_search_resp = semantic_search_resp[:4]
 
@@ -140,15 +224,19 @@ class TestLongMemEvalIngestion:
         long_mem_answer,
         semantic_memory,
         llm_model,
+        basic_session_data,
     ):
         await self.ingest_question_convos(
-            "test_user",
+            basic_session_data,
             semantic_memory=semantic_memory,
             conversation_sessions=long_mem_convos,
         )
         count = 1
         for i in range(1200):
-            count = await semantic_memory.uningested_message_count()
+            count = await semantic_memory.number_of_uningested_messages(
+                session_data=basic_session_data,
+            )
+
             if count == 0:
                 break
             await asyncio.sleep(1)
@@ -157,7 +245,7 @@ class TestLongMemEvalIngestion:
             pytest.fail("Messages are not ingested")
 
         eval_resp = await self.eval_answer(
-            "test_user",
+            session_data=basic_session_data,
             semantic_memory=semantic_memory,
             question_str=long_mem_question,
             llm_model=llm_model,

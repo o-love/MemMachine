@@ -30,7 +30,6 @@ def _consolidate_errors_and_raise(possible_errors: list[Any], msg: str) -> None:
 
 class SemanticService:
     class Params(BaseModel):
-        config_manager: InstanceOf[ConfigManager]
         semantic_storage: InstanceOf[SemanticStorageBase]
         consolidation_threshold: int = 20
 
@@ -52,15 +51,6 @@ class SemanticService:
         """
 
         resource_retriever: InstanceOf[ResourceRetriever]
-
-        @field_validator("resource_retriever")
-        @classmethod
-        def validate_resource_storage(cls, v):
-            if not isinstance(v, ResourceRetriever):
-                raise ValueError(
-                    "resource_storage must be an instance of ResourceRetriever"
-                )
-            return v
 
     def __init__(
         self,
@@ -104,7 +94,7 @@ class SemanticService:
         type_names: Optional[list[str]] = None,
         tag_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
-        k: Optional[int] = None,
+        k: Optional[int] = 30,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         resources = self._resource_retriever.get_resources(set_ids[0])
@@ -136,6 +126,8 @@ class SemanticService:
 
         _consolidate_errors_and_raise(res, "Failed to add messages to set")
 
+        await self._dirty_sets.mark_update([set_id])
+
     async def add_message_to_sets(self, history_id: int, set_ids: list[str]):
         res = await asyncio.gather(
             *[
@@ -149,9 +141,11 @@ class SemanticService:
 
         _consolidate_errors_and_raise(res, "Failed to add message to sets")
 
-    async def number_of_uningested(self, set_id: str) -> int:
+        await self._dirty_sets.mark_update(set_ids)
+
+    async def number_of_uningested(self, set_ids: list[str]) -> int:
         return await self._semantic_storage.get_history_messages_count(
-            set_id=set_id, is_ingested=False
+            set_ids=set_ids, is_ingested=False
         )
 
     async def add_new_feature(
@@ -164,7 +158,7 @@ class SemanticService:
         tag: str,
         metadata: dict[str, str] | None = None,
         citations: list[int] | None = None,
-    ):
+    ) -> int:
         resources = self._resource_retriever.get_resources(set_id)
         embedding = (await resources.embedder.ingest_embed([value]))[0]
 
@@ -181,8 +175,14 @@ class SemanticService:
         if citations is not None:
             await self._semantic_storage.add_citations(f_id, citations)
 
-    async def get_features(self, feature_ids: list[int]) -> list[SemanticFeature]:
-        pass
+        return f_id
+
+    async def get_feature(
+        self, feature_id: int, load_citations: bool
+    ) -> SemanticFeature | None:
+        return await self._semantic_storage.get_feature(
+            feature_id, load_citations=load_citations
+        )
 
     class FeatureSearchOpts(BaseModel):
         set_ids: list[str] | None = None
@@ -217,7 +217,11 @@ class SemanticService:
         metadata: dict[str, str] | None = None,
     ):
         resources = self._resource_retriever.get_resources(set_id)
-        embedding = (await resources.embedder.ingest_embed([value]))[0]
+
+        if value is not None:
+            embedding = (await resources.embedder.ingest_embed([value]))[0]
+        else:
+            embedding = None
 
         await self._semantic_storage.update_feature(
             feature_id=feature_id,

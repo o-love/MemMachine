@@ -65,11 +65,16 @@ async def _llm_think(
 
     try:
         response = json.loads(response_json)
-    except ValueError as e:
-        raise ValueError(
-            "Unable to load language model output '%s' as JSON, Error %s",
-            str(response_json),
-            e,
+    except Exception as e:
+        raise ExceptionGroup(
+            "Unable to load language model output as JSON",
+            [
+                ValueError(
+                    "JSON value error: %s",
+                    str(response_json),
+                ),
+                e,
+            ],
         )
 
     return thinking, response

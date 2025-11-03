@@ -15,6 +15,7 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticCommand,
     SemanticFeature,
     SemanticType,
+    Resources,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -41,14 +42,14 @@ class IngestionService:
         errors = [r for r in results if isinstance(r, Exception)]
         if len(errors) > 0:
             for e in errors:
-                logger.error("Failed to process set", e)
+                logger.error("Failed to process set")
 
             raise errors[0]
 
     async def _process_single_set(self, set_id: str):
         resources = self._resource_retriever.get_resources(set_id)
         messages = await self._semantic_storage.get_history_messages(
-            set_id=set_id,
+            set_ids=[set_id],
             k=50,
             is_ingested=False,
         )
@@ -74,7 +75,7 @@ class IngestionService:
                     )
                 except (ValueError, TypeError) as e:
                     logger.error(
-                        f"Failed to process message {message.id} for semantic type {semantic_type.name}",
+                        f"Failed to process message {message.metadata.id} for semantic type {semantic_type.name}",
                         e,
                     )
                     continue
@@ -87,7 +88,7 @@ class IngestionService:
                     embedder=resources.embedder,
                 )
 
-                mark_messages.append(message["id"])
+                mark_messages.append(message.metadata.id)
 
         semantic_type_runners = []
         for t in resources.semantic_types:
@@ -145,7 +146,7 @@ class IngestionService:
         self,
         *,
         set_id: str,
-        resources: InstanceOf[ResourceRetriever.Resources],
+        resources: InstanceOf[Resources],
     ):
         async def _consolidate_type(semantic_type: InstanceOf[SemanticType]):
             features = await self._semantic_storage.get_feature_set(
@@ -184,7 +185,7 @@ class IngestionService:
         set_id: str,
         memories: list[SemanticFeature],
         semantic_type: InstanceOf[SemanticType],
-        resources: InstanceOf[ResourceRetriever.Resources],
+        resources: InstanceOf[Resources],
     ):
         try:
             consolidate_resp = await llm_consolidate_features(
