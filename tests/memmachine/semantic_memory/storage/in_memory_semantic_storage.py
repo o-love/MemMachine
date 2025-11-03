@@ -1,18 +1,32 @@
 from __future__ import annotations
 
 import asyncio
-import time
+from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Mapping, Optional
+from datetime import datetime, timezone
+from typing import Any, Iterable, Optional
 
 import numpy as np
+from pydantic import AwareDatetime, InstanceOf
 
+from memmachine.semantic_memory.semantic_model import HistoryMessage, SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _cosine_similarity(lhs: np.ndarray, rhs: np.ndarray) -> Optional[float]:
+    lnorm = float(np.linalg.norm(lhs))
+    rnorm = float(np.linalg.norm(rhs))
+    if lnorm == 0 or rnorm == 0:
+        return None
+    return float(np.dot(lhs, rhs) / (lnorm * rnorm))
+
+
 @dataclass
-class _ProfileEntry:
+class _FeatureEntry:
     id: int
     set_id: str
     semantic_type_id: str
@@ -20,30 +34,30 @@ class _ProfileEntry:
     feature: str
     value: str
     embedding: np.ndarray
-    metadata: dict[str, Any]
-    citations: list[int]
-    created_at: float = field(default_factory=time.time)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    citations: list[int] = field(default_factory=list)
+    created_at: datetime = field(default_factory=_utcnow)
+    updated_at: datetime = field(default_factory=_utcnow)
 
 
 @dataclass
 class _HistoryEntry:
     id: int
-    set_id: str
     content: str
-    metadata: dict[str, Any]
-    timestamp: float = field(default_factory=time.time)
-    ingested: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=_utcnow)
 
 
 class InMemorySemanticStorage(SemanticStorageBase):
     """In-memory implementation of :class:`SemanticStorageBase` used for testing."""
 
     def __init__(self):
-        self._profiles_by_set: dict[str, list[_ProfileEntry]] = {}
-        self._profiles_by_id: dict[int, _ProfileEntry] = {}
-        self._history_by_set: dict[str, list[_HistoryEntry]] = {}
+        self._features_by_id: dict[int, _FeatureEntry] = {}
+        self._feature_ids_by_set: dict[str, list[int]] = {}
         self._history_by_id: dict[int, _HistoryEntry] = {}
-        self._next_profile_id = 1
+        self._set_history_map: dict[str, dict[int, bool]] = {}
+        self._history_to_sets: dict[int, dict[str, bool]] = {}
+        self._next_feature_id = 1
         self._next_history_id = 1
         self._lock = asyncio.Lock()
 
@@ -55,84 +69,24 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     async def delete_all(self):
         async with self._lock:
-            self._profiles_by_set.clear()
-            self._profiles_by_id.clear()
-            self._history_by_set.clear()
+            self._features_by_id.clear()
+            self._feature_ids_by_set.clear()
             self._history_by_id.clear()
-            self._next_profile_id = 1
+            self._set_history_map.clear()
+            self._history_to_sets.clear()
+            self._next_feature_id = 1
             self._next_history_id = 1
 
-    async def get_grouped_set_features(
+    async def get_feature(
         self,
-        *,
-        set_id: str,
-        semantic_type_id: Optional[str] = None,
-        tag: Optional[str] = None,
-    ) -> dict[str, dict[str, Any | list[Any]]]:
+        feature_id: int,
+        load_citations: bool = False,
+    ) -> SemanticFeature | None:
         async with self._lock:
-            result: dict[str, dict[str, Any | list[Any]]] = {}
-            entries = self._profiles_by_set.get(set_id, [])
-            for entry in entries:
-                if semantic_type_id is not None and (
-                    entry.semantic_type_id != semantic_type_id
-                ):
-                    continue
-                if tag is not None and entry.tag != tag:
-                    continue
-                payload = {"value": entry.value}
-                if entry.metadata:
-                    payload["metadata"] = dict(entry.metadata)
-
-                tag_bucket = result.setdefault(entry.tag, {})
-                values = tag_bucket.setdefault(entry.feature, [])
-                values.append(payload)
-
-            for tag_name, features in result.items():
-                for feature_name, values in list(features.items()):
-                    if len(values) == 1:
-                        features[feature_name] = values[0]
-            return result
-
-    async def get_citation_list(
-        self,
-        *,
-        set_id: str,
-        feature: str,
-        value: str,
-        tag: str,
-    ) -> list[int]:
-        async with self._lock:
-            citations: list[int] = []
-            for entry in self._profiles_by_set.get(set_id, []):
-                if entry.feature != feature or entry.tag != tag:
-                    continue
-                if entry.value != str(value):
-                    continue
-                citations.extend(entry.citations)
-            return citations
-
-    async def delete_feature_set(
-        self,
-        *,
-        set_id: str,
-        type_name: Optional[str] = None,
-        tag: Optional[str] = None,
-    ):
-        async with self._lock:
-            keep: list[_ProfileEntry] = []
-            for entry in self._profiles_by_set.get(set_id, []):
-                if type_name is not None and (entry.semantic_type_id != type_name):
-                    keep.append(entry)
-                    continue
-                if tag is not None and entry.tag != tag:
-                    keep.append(entry)
-                    continue
-                self._profiles_by_id.pop(entry.id, None)
-
-            if keep:
-                self._profiles_by_set[set_id] = keep
-            else:
-                self._profiles_by_set.pop(set_id, None)
+            entry = self._features_by_id.get(feature_id)
+            if entry is None:
+                return None
+            return self._feature_to_model(entry, load_citations=load_citations)
 
     async def add_feature(
         self,
@@ -142,286 +96,435 @@ class InMemorySemanticStorage(SemanticStorageBase):
         feature: str,
         value: str,
         tag: str,
-        embedding: np.ndarray,
+        embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
-        citations: list[int] | None = None,
-    ):
-        metadata = metadata or {}
-        citations = citations or []
+    ) -> int:
+        metadata = dict(metadata or {})
         async with self._lock:
-            entry = _ProfileEntry(
-                id=self._next_profile_id,
+            feature_id = self._next_feature_id
+            self._next_feature_id += 1
+            entry = _FeatureEntry(
+                id=feature_id,
                 set_id=set_id,
                 semantic_type_id=type_name,
                 tag=tag,
                 feature=feature,
-                value=str(value),
+                value=value,
                 embedding=np.array(embedding, dtype=float, copy=True),
-                metadata=dict(metadata),
-                citations=list(citations),
+                metadata=metadata,
             )
-            self._next_profile_id += 1
-            self._profiles_by_set.setdefault(set_id, []).append(entry)
-            self._profiles_by_id[entry.id] = entry
-            return entry.id
+            self._features_by_id[feature_id] = entry
+            self._feature_ids_by_set.setdefault(set_id, []).append(feature_id)
+            return feature_id
 
-    async def semantic_search(
+    async def update_feature(
         self,
+        feature_id: int,
         *,
-        set_id: str,
-        qemb: np.ndarray,
-        k: int,
-        min_cos: float,
-        include_citations: bool = False,
-    ) -> list[dict[str, Any]]:
+        set_id: Optional[str] = None,
+        type_name: Optional[str] = None,
+        feature: Optional[str] = None,
+        value: Optional[str] = None,
+        tag: Optional[str] = None,
+        embedding: Optional[InstanceOf[np.ndarray]] = None,
+        metadata: dict[str, Any] | None = None,
+    ):
         async with self._lock:
-            haystack = list(self._profiles_by_set.get(set_id, []))
-            qnorm = float(np.linalg.norm(qemb))
-            if qnorm == 0:
-                return []
+            entry = self._features_by_id.get(feature_id)
+            if entry is None:
+                return
 
-            hits: list[tuple[float, _ProfileEntry]] = []
-            for entry in haystack:
-                denom = float(np.linalg.norm(entry.embedding)) * qnorm
-                if denom == 0:
-                    continue
-                score = float(np.dot(entry.embedding, qemb) / denom)
-                if score > min_cos:
-                    hits.append((score, entry))
+            if set_id is not None and set_id != entry.set_id:
+                old_set_ids = self._feature_ids_by_set.get(entry.set_id, [])
+                if feature_id in old_set_ids:
+                    old_set_ids.remove(feature_id)
+                    if not old_set_ids:
+                        self._feature_ids_by_set.pop(entry.set_id, None)
+                self._feature_ids_by_set.setdefault(set_id, []).append(feature_id)
+                entry.set_id = set_id
 
-            hits.sort(key=lambda item: item[0], reverse=True)
-            if k > 0:
-                hits = hits[:k]
+            if type_name is not None:
+                entry.semantic_type_id = type_name
+            if feature is not None:
+                entry.feature = feature
+            if value is not None:
+                entry.value = value
+            if tag is not None:
+                entry.tag = tag
+            if embedding is not None:
+                entry.embedding = np.array(embedding, dtype=float, copy=True)
+            if metadata is not None:
+                entry.metadata = dict(metadata)
 
-            results: list[dict[str, Any]] = []
-            for score, entry in hits:
-                payload: dict[str, Any] = {
-                    "tag": entry.tag,
-                    "feature": entry.feature,
-                    "value": entry.value,
-                    "metadata": {
-                        "id": entry.id,
-                        "similarity_score": score,
-                    },
-                }
-                if include_citations:
-                    payload["metadata"]["citations"] = [
-                        self._history_by_id[cid].content
-                        for cid in entry.citations
-                        if cid in self._history_by_id
-                    ]
-                if entry.metadata:
-                    payload["metadata"].update(entry.metadata)
-                results.append(payload)
-            return results
+            entry.updated_at = _utcnow()
 
     async def delete_features(self, feature_ids: list[int]):
         if not feature_ids:
             return
+
         async with self._lock:
-            for fid in feature_ids:
-                entry = self._profiles_by_id.pop(fid, None)
+            for feature_id in feature_ids:
+                entry = self._features_by_id.pop(feature_id, None)
                 if entry is None:
                     continue
-                items = [
-                    e
-                    for e in self._profiles_by_set.get(entry.set_id, [])
-                    if e.id != fid
-                ]
-                if items:
-                    self._profiles_by_set[entry.set_id] = items
-                else:
-                    self._profiles_by_set.pop(entry.set_id, None)
+                ids = self._feature_ids_by_set.get(entry.set_id)
+                if ids and feature_id in ids:
+                    ids.remove(feature_id)
+                    if not ids:
+                        self._feature_ids_by_set.pop(entry.set_id, None)
 
-    async def get_all_citations_for_ids(self, feature_ids: list[int]) -> list[int]:
-        if not feature_ids:
-            return []
-        async with self._lock:
-            citations: list[int] = []
-            seen: set[int] = set()
-            for fid in feature_ids:
-                entry = self._profiles_by_id.get(fid)
-                if entry is None:
-                    continue
-                for cid in entry.citations:
-                    if cid in seen:
-                        continue
-                    seen.add(cid)
-                    citations.append(cid)
-            return citations
-
-    async def delete_feature_with_filter(
+    async def get_feature_set(
         self,
         *,
-        set_id: str,
-        semantic_type_id: str,
-        feature: str,
-        tag: str,
+        set_ids: Optional[list[str]] = None,
+        type_names: Optional[list[str]] = None,
+        feature_names: Optional[list[str]] = None,
+        tags: Optional[list[str]] = None,
+        k: Optional[int] = None,
+        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
+        tag_threshold: Optional[int] = None,
+        load_citations: bool = False,
+    ) -> list[SemanticFeature]:
+        async with self._lock:
+            entries = self._filter_features(
+                set_ids=set_ids,
+                type_names=type_names,
+                feature_names=feature_names,
+                tags=tags,
+                k=k,
+                vector_search_opts=vector_search_opts,
+                tag_threshold=tag_threshold,
+            )
+            return [
+                self._feature_to_model(entry, load_citations=load_citations)
+                for entry in entries
+            ]
+
+    async def delete_feature_set(
+        self,
+        *,
+        set_ids: Optional[list[str]] = None,
+        type_names: Optional[list[str]] = None,
+        feature_names: Optional[list[str]] = None,
+        tags: Optional[list[str]] = None,
+        thresh: Optional[int] = None,
+        k: Optional[int] = None,
+        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
     ):
         async with self._lock:
-            keep: list[_ProfileEntry] = []
-            for entry in self._profiles_by_set.get(set_id, []):
-                if entry.semantic_type_id != semantic_type_id:
-                    keep.append(entry)
-                    continue
-                if entry.feature != feature or entry.tag != tag:
-                    keep.append(entry)
-                    continue
-                self._profiles_by_id.pop(entry.id, None)
+            to_remove = self._filter_features(
+                set_ids=set_ids,
+                type_names=type_names,
+                feature_names=feature_names,
+                tags=tags,
+                k=k,
+                vector_search_opts=vector_search_opts,
+                tag_threshold=thresh,
+            )
+            for entry in to_remove:
+                self._features_by_id.pop(entry.id, None)
+                ids = self._feature_ids_by_set.get(entry.set_id)
+                if ids and entry.id in ids:
+                    ids.remove(entry.id)
+                    if not ids:
+                        self._feature_ids_by_set.pop(entry.set_id, None)
 
-            if keep:
-                self._profiles_by_set[set_id] = keep
-            else:
-                self._profiles_by_set.pop(set_id, None)
+    async def add_citations(self, feature_id: int, history_ids: list[int]):
+        if not history_ids:
+            return
 
-    async def get_large_feature_sections(
-        self,
-        *,
-        set_id: str,
-        thresh: int,
-    ) -> list[list[dict[str, Any]]]:
         async with self._lock:
-            sections: dict[str, list[_ProfileEntry]] = {}
-            for entry in self._profiles_by_set.get(set_id, []):
-                sections.setdefault(entry.tag, []).append(entry)
+            entry = self._features_by_id.get(feature_id)
+            if entry is None:
+                return
 
-            result: list[list[dict[str, Any]]] = []
-            for entries in sections.values():
-                if len(entries) < thresh:
+            existing: set[int] = set(entry.citations)
+            for history_id in history_ids:
+                if history_id not in self._history_by_id:
                     continue
-                section = [
-                    {
-                        "tag": entry.tag,
-                        "feature": entry.feature,
-                        "value": entry.value,
-                        "metadata": {"id": entry.id},
-                    }
-                    for entry in entries
-                ]
-                result.append(section)
-            return result
+                if history_id not in existing:
+                    entry.citations.append(history_id)
+                    existing.add(history_id)
+            entry.updated_at = _utcnow()
 
     async def add_history(
         self,
-        set_id: str,
         content: str,
         metadata: dict[str, str] | None = None,
-    ) -> Mapping[str, Any]:
+        created_at: Optional[AwareDatetime] = None,
+    ) -> int:
         metadata = dict(metadata or {})
         async with self._lock:
+            history_id = self._next_history_id
+            self._next_history_id += 1
             entry = _HistoryEntry(
-                id=self._next_history_id,
-                set_id=set_id,
+                id=history_id,
                 content=content,
                 metadata=metadata,
+                created_at=created_at if created_at is not None else _utcnow(),
             )
-            self._next_history_id += 1
-            self._history_by_set.setdefault(set_id, []).append(entry)
-            self._history_by_id[entry.id] = entry
-            return self._history_entry_to_mapping(entry)
+            self._history_by_id[history_id] = entry
+            return history_id
 
-    async def delete_history(
+    async def get_history(
+        self,
+        history_id: int,
+    ) -> Optional[HistoryMessage]:
+        async with self._lock:
+            entry = self._history_by_id.get(history_id)
+            if entry is None:
+                return None
+            return self._history_to_model(entry)
+
+    async def delete_history(self, history_ids: list[int]):
+        if not history_ids:
+            return
+
+        async with self._lock:
+            for history_id in history_ids:
+                entry = self._history_by_id.pop(history_id, None)
+                if entry is None:
+                    continue
+                sets = self._history_to_sets.pop(history_id, {})
+                for set_id in sets:
+                    mapping = self._set_history_map.get(set_id)
+                    if mapping and history_id in mapping:
+                        mapping.pop(history_id)
+                        if not mapping:
+                            self._set_history_map.pop(set_id, None)
+
+    async def delete_history_messages(
         self,
         *,
-        set_id: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
     ):
         async with self._lock:
-            start = start_time.timestamp() if start_time else float("-inf")
-            end = end_time.timestamp() if end_time else float("inf")
-            keep: list[_HistoryEntry] = []
-            for entry in self._history_by_set.get(set_id, []):
-                if start <= entry.timestamp <= end:
-                    self._history_by_id.pop(entry.id, None)
-                else:
-                    keep.append(entry)
-            if keep:
-                self._history_by_set[set_id] = keep
-            else:
-                self._history_by_set.pop(set_id, None)
+            to_delete: list[int] = []
+            for history_id, entry in self._history_by_id.items():
+                if start_time is not None and entry.created_at < start_time:
+                    continue
+                if end_time is not None and entry.created_at > end_time:
+                    continue
+                to_delete.append(history_id)
+
+            for history_id in to_delete:
+                entry = self._history_by_id.pop(history_id, None)
+                if entry is None:
+                    continue
+                sets = self._history_to_sets.pop(history_id, {})
+                for set_id in sets:
+                    mapping = self._set_history_map.get(set_id)
+                    if mapping and history_id in mapping:
+                        mapping.pop(history_id)
+                        if not mapping:
+                            self._set_history_map.pop(set_id, None)
 
     async def get_history_messages(
         self,
         *,
-        set_id: str,
-        k: int = 0,
-        is_ingested: bool = False,
-    ) -> list[Mapping[str, Any]]:
-        return await self._get_history_messages(
-            set_id=set_id,
-            k=k,
-            is_ingested=is_ingested,
-        )
-
-    async def get_uningested_history_messages_count(self) -> int:
+        set_id: Optional[str] = None,
+        k: Optional[int] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
+        is_ingested: Optional[bool] = None,
+    ) -> list[HistoryMessage]:
         async with self._lock:
-            return sum(
-                1 for entry in self._history_by_id.values() if not entry.ingested
+            entries = self._filter_history_entries(
+                set_id=set_id,
+                start_time=start_time,
+                end_time=end_time,
+                is_ingested=is_ingested,
             )
 
-    async def mark_messages_ingested(self, *, ids: list[int]) -> None:
-        if not ids:
-            return
-        async with self._lock:
-            for mid in ids:
-                entry = self._history_by_id.get(mid)
-                if entry is None:
-                    continue
-                entry.ingested = True
+            if k is not None:
+                entries = entries[:k]
 
-    async def get_history_by_date(
+            return [self._history_to_model(entry) for entry in entries]
+
+    async def get_history_messages_count(
+        self,
+        *,
+        set_id: Optional[str] = None,
+        k: Optional[int] = None,
+        start_time: Optional[AwareDatetime] = None,
+        end_time: Optional[AwareDatetime] = None,
+        is_ingested: Optional[bool] = None,
+    ) -> int:
+        async with self._lock:
+            entries = self._filter_history_entries(
+                set_id=set_id,
+                start_time=start_time,
+                end_time=end_time,
+                is_ingested=is_ingested,
+            )
+            if k is not None:
+                return len(entries[:k])
+            return len(entries)
+
+    async def add_history_to_set(
+        self,
+        set_id: str,
+        history_id: int,
+    ) -> None:
+        async with self._lock:
+            if history_id not in self._history_by_id:
+                raise ValueError(f"History id {history_id} not found")
+
+            set_map = self._set_history_map.setdefault(set_id, {})
+            history_map = self._history_to_sets.setdefault(history_id, {})
+
+            if history_id not in set_map:
+                set_map[history_id] = False
+            if set_id not in history_map:
+                history_map[set_id] = False
+
+    async def mark_messages_ingested(
         self,
         *,
         set_id: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-    ) -> list[str]:
-        async with self._lock:
-            start = start_time.timestamp() if start_time else float("-inf")
-            end = end_time.timestamp() if end_time else float("inf")
-            entries = [
-                entry
-                for entry in self._history_by_set.get(set_id, [])
-                if start <= entry.timestamp <= end
-            ]
-            entries.sort(key=lambda item: item.timestamp)
-            return [entry.content for entry in entries]
+        ids: list[int],
+    ) -> None:
+        if not ids:
+            raise ValueError("No ids provided")
 
-    async def get_ingested_history_messages(
+        async with self._lock:
+            set_map = self._set_history_map.get(set_id)
+            if set_map is None:
+                return
+
+            for history_id in ids:
+                if history_id in set_map:
+                    set_map[history_id] = True
+                    self._history_to_sets.setdefault(history_id, {})[set_id] = True
+
+    def _feature_to_model(
         self,
-        set_id: str,
-        k: int = 0,
-        is_ingested: bool = False,
-    ) -> list[Mapping[str, Any]]:
-        return await self._get_history_messages(
-            set_id=set_id,
-            k=k,
-            is_ingested=is_ingested,
+        entry: _FeatureEntry,
+        *,
+        load_citations: bool,
+    ) -> SemanticFeature:
+        citations: Optional[list[HistoryMessage]] = None
+        if load_citations:
+            citations = [
+                self._history_to_model(self._history_by_id[history_id])
+                for history_id in entry.citations
+                if history_id in self._history_by_id
+            ]
+
+        return SemanticFeature(
+            set_id=entry.set_id,
+            type=entry.semantic_type_id,
+            tag=entry.tag,
+            feature=entry.feature,
+            value=entry.value,
+            metadata=SemanticFeature.Metadata(
+                id=entry.id,
+                citations=citations,
+            ),
         )
 
-    def _history_entry_to_mapping(self, entry: _HistoryEntry) -> Mapping[str, Any]:
-        return {
-            "id": entry.id,
-            "set_id": entry.set_id,
-            "content": entry.content,
-            "metadata": dict(entry.metadata),
-        }
+    def _history_to_model(self, entry: _HistoryEntry) -> HistoryMessage:
+        return HistoryMessage(
+            content=entry.content,
+            created_at=entry.created_at,
+            metadata=HistoryMessage.Metadata(
+                id=entry.id,
+            ),
+        )
 
-    async def _get_history_messages(
+    def _filter_features(
         self,
         *,
-        set_id: str,
-        k: int,
-        is_ingested: bool,
-    ) -> list[Mapping[str, Any]]:
-        async with self._lock:
-            entries = [
-                entry
-                for entry in self._history_by_set.get(set_id, [])
-                if entry.ingested == is_ingested
-            ]
-            entries.sort(key=lambda item: item.timestamp)
-            if k > 0:
-                entries = entries[:k]
-            return [self._history_entry_to_mapping(entry) for entry in entries]
+        set_ids: Optional[list[str]],
+        type_names: Optional[list[str]],
+        feature_names: Optional[list[str]],
+        tags: Optional[list[str]],
+        k: Optional[int],
+        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts],
+        tag_threshold: Optional[int],
+    ) -> list[_FeatureEntry]:
+        entries: list[_FeatureEntry] = list(self._features_by_id.values())
+
+        if set_ids:
+            allowed = set(set_ids)
+            entries = [entry for entry in entries if entry.set_id in allowed]
+        if type_names:
+            allowed = set(type_names)
+            entries = [entry for entry in entries if entry.semantic_type_id in allowed]
+        if feature_names:
+            allowed = set(feature_names)
+            entries = [entry for entry in entries if entry.feature in allowed]
+        if tags:
+            allowed = set(tags)
+            entries = [entry for entry in entries if entry.tag in allowed]
+
+        if vector_search_opts is not None:
+            filtered: list[tuple[float, _FeatureEntry]] = []
+            for entry in entries:
+                similarity = _cosine_similarity(
+                    entry.embedding, vector_search_opts.query_embedding
+                )
+                # Treat None (zero-norm vectors) as having -infinity similarity
+                # so they appear last in results but are still included
+                if similarity is None:
+                    similarity = float('-inf')
+                min_cos = vector_search_opts.min_cos
+                if min_cos is not None and similarity < min_cos:
+                    continue
+                filtered.append((similarity, entry))
+
+            filtered.sort(key=lambda pair: pair[0], reverse=True)
+            entries = [entry for _, entry in filtered]
+        else:
+            # Only sort by creation time when not doing vector search
+            entries.sort(key=lambda e: (e.created_at, e.id))
+
+        if k is not None:
+            entries = entries[:k]
+
+        if tag_threshold is not None:
+            counts = Counter(entry.tag for entry in entries)
+            entries = [entry for entry in entries if counts[entry.tag] >= tag_threshold]
+
+        return entries
+
+    def _filter_history_entries(
+        self,
+        *,
+        set_id: Optional[str],
+        start_time: Optional[AwareDatetime],
+        end_time: Optional[AwareDatetime],
+        is_ingested: Optional[bool],
+    ) -> list[_HistoryEntry]:
+        entries: Iterable[_HistoryEntry]
+        entries = self._history_by_id.values()
+
+        if set_id is not None or is_ingested is not None:
+            filtered: list[_HistoryEntry] = []
+            for entry in entries:
+                set_status = self._history_to_sets.get(entry.id, {})
+
+                if set_id is not None:
+                    if set_id not in set_status:
+                        continue
+                    if is_ingested is not None and set_status[set_id] != is_ingested:
+                        continue
+                    filtered.append(entry)
+                    continue
+
+                # No set filter, but ingestion filter requested
+                if any(status == is_ingested for status in set_status.values()):
+                    filtered.append(entry)
+            entries = filtered
+
+        results: list[_HistoryEntry] = []
+        for entry in entries:
+            if start_time is not None and entry.created_at < start_time:
+                continue
+            if end_time is not None and entry.created_at > end_time:
+                continue
+            results.append(entry)
+
+        results.sort(key=lambda e: (e.created_at, e.id))
+        return results
