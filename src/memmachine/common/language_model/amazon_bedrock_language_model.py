@@ -267,10 +267,10 @@ class AmazonBedrockLanguageModel(LanguageModel):
 
     async def generate_parsed_response(
         self,
+        output_format: Any,
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         max_attempts: int = 1,
-        output_format: Any = None,
     ):
         client = instructor.from_bedrock(self._client, async_client=True)
 

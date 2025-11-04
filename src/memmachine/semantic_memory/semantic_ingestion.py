@@ -9,6 +9,7 @@ from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
 from memmachine.semantic_memory.semantic_llm import (
+    LLMReducedFeature,
     llm_consolidate_features,
     llm_feature_update,
 )
@@ -232,7 +233,7 @@ class IngestionService:
             [c.metadata.id for c in merged_citations]
         )
 
-        async def _add_feature(f: SemanticFeature):
+        async def _add_feature(f: LLMReducedFeature):
             value_embedding = (await resources.embedder.ingest_embed([f.value]))[0]
 
             f_id = await self._semantic_storage.add_feature(

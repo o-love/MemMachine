@@ -142,8 +142,8 @@ class OpenAICompatibleLanguageModel(LanguageModel):
             response = await self._client.with_options(
                 max_retries=max_attempts
             ).chat.completions.parse(
-                model=self._model,
-                messages=input_prompts,
+                model=self._model,  # type: ignore[arg-type]
+                messages=input_prompts,  # type: ignore[arg-type]
                 response_format=output_format,
             )
         except openai.OpenAIError as e:

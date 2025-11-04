@@ -144,8 +144,8 @@ class OpenAILanguageModel(LanguageModel):
             response = await self._client.with_options(
                 max_retries=max_attempts
             ).responses.parse(
-                model=self._model,
-                input=input_prompts,
+                model=self._model,  # type: ignore[arg-type]
+                input=input_prompts,  # type: ignore[arg-type]
                 text_format=output_format,
             )
         except openai.OpenAIError as e:

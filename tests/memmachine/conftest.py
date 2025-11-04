@@ -48,6 +48,9 @@ def mock_llm_embedder():
 @pytest.fixture
 def openai_integration_config():
     open_api_key = os.environ.get("OPENAI_API_KEY")
+    if not open_api_key:
+        pytest.skip("OPENAI_API_KEY environment variable not set")
+
     return {
         "api_key": open_api_key,
         "llm_model": "gpt-4o-mini",
@@ -78,6 +81,9 @@ def openai_llm_model(openai_integration_config):
 @pytest.fixture
 def openai_compatible_llm_config():
     ollama_host = os.environ.get("OLLAMA_HOST")
+    if not ollama_host:
+        pytest.skip("OLLAMA_HOST environment variable not set")
+
     return {
         "api_url": ollama_host,
         "api_key": "-",
@@ -100,6 +106,8 @@ def openai_compatible_llm_model(openai_compatible_llm_config):
 def bedrock_integration_config():
     aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    if not aws_access_key_id or not aws_secret_access_key:
+        pytest.skip("AWS credentials not set")
 
     return {
         "aws_access_key_id": aws_access_key_id,
@@ -117,3 +125,22 @@ def bedrock_llm_model(bedrock_integration_config):
             model_id=bedrock_integration_config["model"],
         )
     )
+
+
+@pytest.fixture(
+    params=[
+        pytest.param("bedrock", marks=pytest.mark.integration),
+        pytest.param("openai", marks=pytest.mark.integration),
+        pytest.param("openai_compatible", marks=pytest.mark.integration),
+    ]
+)
+def real_llm_model(request):
+    match request.param:
+        case "bedrock":
+            return request.getfixturevalue("bedrock_llm_model")
+        case "openai":
+            return request.getfixturevalue("openai_llm_model")
+        case "openai_compatible":
+            return request.getfixturevalue("openai_compatible_llm_model")
+        case _:
+            raise ValueError(f"Unknown LLM model type: {request.param}")

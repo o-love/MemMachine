@@ -66,14 +66,14 @@ async def llm_feature_update(
     return validated_output.commands
 
 
-class _ReducedFeature(BaseModel):
+class LLMReducedFeature(BaseModel):
     tag: str
     feature: str
     value: str
 
 
 class SemanticConsolidateMemoryRes(BaseModel):
-    consolidated_memories: list[_ReducedFeature]
+    consolidated_memories: list[LLMReducedFeature]
     keep_memories: list[int] | None
 
 
