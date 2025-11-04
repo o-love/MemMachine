@@ -1,4 +1,4 @@
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from pydantic import AwareDatetime, InstanceOf
 
@@ -9,12 +9,14 @@ from memmachine.semantic_memory.semantic_session_resource import (
     IsolationType,
     SessionData,
 )
-from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 class HistoryStorage(Protocol):
-    def add_history(
-        self, content: str, metadata: dict, created_at: Optional[AwareDatetime] = None
+    async def add_history(
+        self,
+        content: str,
+        metadata: dict[str, str] | None = None,
+        created_at: Optional[AwareDatetime] = None,
     ) -> int:
         raise NotImplementedError
 
@@ -26,7 +28,7 @@ class SemanticSessionManager:
         history_storage: InstanceOf[HistoryStorage],
     ):
         self._semantic_service: SemanticService = semantic_service
-        self._history_storage: SemanticStorageBase = history_storage
+        self._history_storage: InstanceOf[HistoryStorage] = history_storage
 
     async def add_message(
         self,
@@ -62,7 +64,15 @@ class SemanticSessionManager:
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
 
-        optionals_dft_args = {}
+        optionals_dft_args: dict[str, Any] = {
+            "set_ids": set_ids,
+            "query": message,
+            "type_names": type_names,
+            "tag_names": tag_names,
+            "feature_names": feature_names,
+            "load_citations": load_citations,
+        }
+
         if min_distance is not None:
             optionals_dft_args["min_distance"] = min_distance
 
@@ -70,12 +80,6 @@ class SemanticSessionManager:
             optionals_dft_args["k"] = k
 
         return await self._semantic_service.search(
-            set_ids=set_ids,
-            query=message,
-            type_names=type_names,
-            tag_names=tag_names,
-            feature_names=feature_names,
-            load_citations=load_citations,
             **optionals_dft_args,
         )
 
@@ -145,7 +149,7 @@ class SemanticSessionManager:
         )
 
     async def delete_features(self, feature_ids: list[int]):
-        await self._history_storage.delete_features(feature_ids)
+        await self._semantic_service.delete_features(feature_ids)
 
     async def get_set_features(
         self,
@@ -175,18 +179,18 @@ class SemanticSessionManager:
         type_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
-        thresh: Optional[int] = None,
         k: Optional[int] = None,
     ):
         set_ids = self._get_set_ids(session_data, memory_type)
 
-        return await self._history_storage.delete_feature_set(
-            set_ids=set_ids,
-            type_names=type_names,
-            feature_names=feature_names,
-            tags=tags,
-            thresh=thresh,
-            k=k,
+        return await self._semantic_service.delete_feature_set(
+            SemanticService.FeatureSearchOpts(
+                set_ids=set_ids,
+                type_names=type_names,
+                feature_names=feature_names,
+                tags=tags,
+                k=k,
+            )
         )
 
     @staticmethod

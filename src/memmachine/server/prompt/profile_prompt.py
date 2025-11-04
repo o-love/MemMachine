@@ -421,3 +421,5 @@ ProfilePromptType = SemanticType(
         consolidation_prompt=CONSOLIDATION_PROMPT,
     ),
 )
+
+SEMANTIC_TYPE = ProfilePromptType

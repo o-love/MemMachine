@@ -1,9 +1,11 @@
 import asyncio
 import itertools
 import logging
+from itertools import chain
+from typing import Optional
 
 import numpy as np
-from pydantic import BaseModel, InstanceOf
+from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
 from memmachine.semantic_memory.semantic_llm import (
@@ -11,6 +13,7 @@ from memmachine.semantic_memory.semantic_llm import (
     llm_feature_update,
 )
 from memmachine.semantic_memory.semantic_model import (
+    HistoryMessage,
     ResourceRetriever,
     Resources,
     SemanticCommand,
@@ -61,6 +64,11 @@ class IngestionService:
 
         async def process_semantic_type(semantic_type: InstanceOf[SemanticType]):
             for message in messages:
+                if message.metadata.id is None:
+                    raise ValueError(
+                        "Message ID is None for message %s", message.model_dump()
+                    )
+
                 features = await self._semantic_storage.get_feature_set(
                     set_ids=[set_id],
                     type_names=[semantic_type.name],
@@ -112,7 +120,7 @@ class IngestionService:
         commands: list[SemanticCommand],
         set_id: str,
         type_name: str,
-        citation_id: int,
+        citation_id: Optional[int],
         embedder: InstanceOf[Embedder],
     ):
         for command in commands:
@@ -129,7 +137,8 @@ class IngestionService:
                         embedding=np.array(value_embedding),
                     )
 
-                    await self._semantic_storage.add_citations(f_id, [citation_id])
+                    if citation_id is not None:
+                        await self._semantic_storage.add_citations(f_id, [citation_id])
 
                 case "delete":
                     await self._semantic_storage.delete_feature_set(
@@ -208,11 +217,18 @@ class IngestionService:
             and m.metadata.id not in consolidate_resp.keep_memories
         ]
         await self._semantic_storage.delete_features(
-            [m.metadata.id for m in memories_to_delete]
+            [m.metadata.id for m in memories_to_delete if m.metadata.id is not None]
         )
 
-        merged_citations = itertools.chain.from_iterable(
-            [m.metadata.citations for m in memories_to_delete]
+        merged_citations: chain[HistoryMessage] = itertools.chain.from_iterable(
+            [
+                m.metadata.citations
+                for m in memories_to_delete
+                if m.metadata.citations is not None
+            ]
+        )
+        citation_ids = TypeAdapter(list[int]).validate_python(
+            [c.metadata.id for c in merged_citations]
         )
 
         async def _add_feature(f: SemanticFeature):
@@ -226,7 +242,8 @@ class IngestionService:
                 value=f.value,
                 embedding=np.array(value_embedding),
             )
-            await self._semantic_storage.add_citations(f_id, merged_citations)
+
+            await self._semantic_storage.add_citations(f_id, citation_ids)
 
         await asyncio.gather(
             *[

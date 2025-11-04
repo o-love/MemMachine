@@ -42,8 +42,16 @@ from memmachine.episodic_memory.episodic_memory import (
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-from memmachine.semantic_memory.semantic_model import SemanticPrompt
+from memmachine.semantic_memory.semantic_memory import SemanticService
+from memmachine.semantic_memory.semantic_model import (
+    Resources,
+)
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
+from memmachine.semantic_memory.semantic_session_resource import (
+    IsolationType,
+    SessionIdManager,
+    SessionResourceRetriever,
+)
 from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
     SqlAlchemyPgVectorSemanticStorage,
 )
@@ -481,6 +489,7 @@ class DeleteDataRequest(RequestWithSession):
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
 semantic_session_manager: SemanticSessionManager | None = None
+session_id_manager: SessionIdManager | None = None
 episodic_memory: EpisodicMemoryManager | None = None
 
 
@@ -489,17 +498,18 @@ episodic_memory: EpisodicMemoryManager | None = None
 
 async def initialize_resource(
     config_file: str,
-) -> tuple[EpisodicMemoryManager, SemanticSessionManager]:
+) -> tuple[EpisodicMemoryManager, SemanticSessionManager, SessionIdManager]:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
-    Initializes the ProfileMemory and EpisodicMemoryManager instances,
+    Initializes the SemanticSessionManager and EpisodicMemoryManager instances,
     and establishes necessary connections (e.g., to the database).
     These resources are cleaned up on shutdown.
     Args:
         config_file: The path to the configuration file.
     Returns:
-        A tuple containing the EpisodicMemoryManager and ProfileMemory instances.
+        A tuple containing the EpisodicMemoryManager, SemanticSessionManager,
+        and SessionIdManager instances.
     """
 
     try:
@@ -578,7 +588,13 @@ async def initialize_resource(
 
     prompt_file = profile_config.get("prompt", "profile_prompt")
     prompt_module = import_module(f".prompt.{prompt_file}", __package__)
-    profile_prompt = SemanticPrompt.load_from_module(prompt_module)
+
+    # Load semantic types from the prompt module
+    semantic_types = []
+    if hasattr(prompt_module, "SEMANTIC_TYPE"):
+        semantic_types.append(prompt_module.SEMANTIC_TYPE)
+    else:
+        raise ValueError(f"Can not find semantic type in prompt module {prompt_file}")
 
     pg_server = {
         "host": db_config.get("host", "localhost"),
@@ -592,23 +608,47 @@ async def initialize_resource(
     )
     semantic_storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
 
-    semantic_memory_service = SemanticService(
-        SemanticMemoryManagerParams(
-            model=llm_model,
-            embeddings=embeddings,
+    # Create session ID manager for semantic memory
+    session_id_mgr = SessionIdManager()
+
+    # Create resource retriever for semantic service
+    default_resources = {
+        IsolationType.PROFILE: Resources(
+            embedder=embeddings,
+            language_model=llm_model,
+            semantic_types=semantic_types,
+        ),
+        IsolationType.SESSION: Resources(
+            embedder=embeddings,
+            language_model=llm_model,
+            semantic_types=[],
+        ),
+    }
+    resource_retriever = SessionResourceRetriever(session_id_mgr, default_resources)
+
+    # Create semantic service
+    semantic_service = SemanticService(
+        SemanticService.Params(
             semantic_storage=semantic_storage,
-            prompt=profile_prompt,
+            resource_retriever=resource_retriever,
         )
     )
+
+    # Create semantic session manager
+    semantic_session_mgr = SemanticSessionManager(
+        semantic_service=semantic_service,
+        history_storage=semantic_storage,
+    )
+
     episodic_memory = EpisodicMemoryManager.create_episodic_memory_manager(config_file)
-    return episodic_memory, semantic_memory
+    return episodic_memory, semantic_session_mgr, session_id_mgr
 
 
 @asynccontextmanager
 async def http_app_lifespan(application: FastAPI):
     """Handles application startup and shutdown events.
 
-    Initializes the ProfileMemory and EpisodicMemoryManager instances,
+    Initializes the SemanticSessionManager and EpisodicMemoryManager instances,
     and establishes necessary connections (e.g., to the database).
     These resources are cleaned up on shutdown.
 
@@ -618,10 +658,16 @@ async def http_app_lifespan(application: FastAPI):
     config_file = os.getenv("MEMORY_CONFIG", "cfg.yml")
 
     global episodic_memory
-    global semantic_memory
-    episodic_memory, semantic_memory = await initialize_resource(config_file)
+    global semantic_session_manager
+    global session_id_manager
+    (
+        episodic_memory,
+        semantic_session_manager,
+        session_id_manager,
+    ) = await initialize_resource(config_file)
+    await semantic_session_manager._semantic_service.start()
     yield
-    await semantic_memory.stop()
+    await semantic_session_manager._semantic_service.stop()
     await episodic_memory.shut_down()
 
 
@@ -933,11 +979,8 @@ async def _add_memory(episode: NewEpisode):
                         or {session.agent_id}""",
             )
 
-        await cast(SemanticService, semantic_memory).add_persona_message(
-            content=str(episode.episode_content),
-            metadata=episode.metadata if episode.metadata is not None else {},
-            set_id=episode.producer,
-        )
+        # Add to semantic memory using session manager
+    await _add_semantic_memory(episode)
 
 
 @app.post("/v1/memories/episodic")
@@ -1038,12 +1081,18 @@ async def _add_semantic_memory(episode: NewEpisode):
 
     See the docstring for add_profile_memory() for details.
     """
-    _ = episode.get_session()
+    session = episode.get_session()
 
-    await cast(SemanticService, semantic_memory).add_persona_message(
-        content=str(episode.episode_content),
-        metadata=episode.metadata if episode.metadata is not None else {},
-        set_id=episode.producer,
+    semantic_session_data = cast(
+        SessionIdManager, session_id_manager
+    ).generate_session_data(
+        profile_id=episode.producer,
+        session_id=session.session_id,
+    )
+
+    await cast(SemanticSessionManager, semantic_session_manager).add_message(
+        message=str(episode.episode_content),
+        session_data=semantic_session_data,
     )
 
 
@@ -1091,14 +1140,10 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
     if inst is None:
         raise q.new_404_not_found_error("unable to find episodic memory")
     async with AsyncEpisodicMemory(inst) as inst:
-        user_id = session.from_user_id_or("unknown")
+        # Search semantic memory using session manager
+
         res = await asyncio.gather(
-            inst.query_memory(q.query, q.limit, q.filter),
-            cast(SemanticService, semantic_memory).semantic_search(
-                query=q.query,
-                k=q.limit if q.limit is not None else 5,
-                set_id=user_id,
-            ),
+            inst.query_memory(q.query, q.limit, q.filter), _search_semantic_memory(q)
         )
         return SearchResult(
             content={"episodic_memory": res[0], "profile_memory": res[1]}
@@ -1181,12 +1226,18 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     See the docstring for search_profile_memory() for details.
     """
     session = q.get_session()
-    user_id = session.from_user_id_or("unknown")
 
-    res = await cast(SemanticService, semantic_memory).semantic_search(
-        query=q.query,
+    # Search semantic memory using session manager
+    semantic_session_data = cast(
+        SessionIdManager, session_id_manager
+    ).generate_session_data(
+        profile_id=session.first_user_id(),
+        session_id=session.session_id,
+    )
+    res = await cast(SemanticSessionManager, semantic_session_manager).search(
+        message=q.query,
+        session_data=semantic_session_data,
         k=q.limit if q.limit is not None else 5,
-        set_id=user_id,
     )
     return SearchResult(content={"profile_memory": res})
 
@@ -1316,7 +1367,7 @@ async def health_check():
     """Health check endpoint for container orchestration."""
     try:
         # Check if memory managers are initialized
-        if semantic_memory is None or episodic_memory is None:
+        if semantic_session_manager is None or episodic_memory is None:
             raise HTTPException(
                 status_code=503, detail="Memory managers not initialized"
             )
@@ -1327,7 +1378,7 @@ async def health_check():
             "service": "memmachine",
             "version": "1.0.0",
             "memory_managers": {
-                "profile_memory": semantic_memory is not None,
+                "semantic_memory": semantic_session_manager is not None,
                 "episodic_memory": episodic_memory is not None,
             },
         }
@@ -1371,17 +1422,19 @@ def main():
 
         async def run_mcp_server():
             """Initialize resources and run MCP server in the same event loop."""
-            global episodic_memory, semantic_memory
+            global episodic_memory, semantic_session_manager, session_id_manager
             try:
-                episodic_memory, semantic_memory = await initialize_resource(
-                    config_file
-                )
-                await semantic_memory.startup()
+                (
+                    episodic_memory,
+                    semantic_session_manager,
+                    session_id_manager,
+                ) = await initialize_resource(config_file)
+                await semantic_session_manager._semantic_service.start()
                 await mcp.run_stdio_async()
             finally:
                 # Clean up resources when server stops
-                if semantic_memory:
-                    await semantic_memory.stop()
+                if semantic_session_manager:
+                    await semantic_session_manager._semantic_service.stop()
 
         asyncio.run(run_mcp_server())
     else:

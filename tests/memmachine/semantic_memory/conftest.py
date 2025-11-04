@@ -19,6 +19,17 @@ async def in_memory_profile_storage():
     await store.cleanup()
 
 
+# @pytest_asyncio.fixture
+# async def unbacked_in_memory_profile_storage():
+#     base = InMemorySemanticStorage()
+#     storage = UnBackedCachedSemanticStorage(base)
+#
+#     await storage.startup()
+#     yield storage
+#     await storage.delete_all()
+#     await storage.cleanup()
+
+
 @pytest.fixture(scope="session")
 def pg_container():
     with PostgresContainer("pgvector/pgvector:pg16") as container:
@@ -42,13 +53,29 @@ async def pg_server(pg_container):
     }
 
 
-@pytest_asyncio.fixture
-async def sqlalchemy_profile_storage(pg_server):
+@pytest.fixture
+def sqlalchemy_pg_engine(pg_server):
     sqlalchemy_engine = sqlalchemy.create_engine(
         f"postgresql://{pg_server['user']}:{pg_server['password']}@{pg_server['host']}:{pg_server['port']}/{pg_server['database']}"
     )
-    storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
+    return sqlalchemy_engine
+
+
+@pytest_asyncio.fixture
+async def sqlalchemy_profile_storage(sqlalchemy_pg_engine):
+    storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_pg_engine)
     await storage.startup()
     yield storage
     await storage.delete_all()
     await storage.cleanup()
+
+
+# @pytest_asyncio.fixture
+# async def unbacked_sqlalchemy_profile_storage(sqlalchemy_pg_engine):
+#     base = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_pg_engine)
+#     storage = UnBackedCachedSemanticStorage(base)
+#
+#     await storage.startup()
+#     yield storage
+#     await storage.delete_all()
+#     await storage.cleanup()

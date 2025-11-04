@@ -94,9 +94,9 @@ class TestSessionIdManager:
             session_id="",
         )
 
-        # Should create session data with empty suffix
-        assert session_data.profile_id() == "mem_profile_"
-        assert session_data.session_id() == "mem_session_"
+        # Should return None
+        assert session_data.profile_id() is None
+        assert session_data.session_id() is None
 
     def test_is_session_id_recognizes_session_prefix(self):
         manager = SessionIdManager()
@@ -137,10 +137,10 @@ class TestSessionIdManager:
             manager.set_id_isolation_type("invalid_id")
 
     def test_session_id_prefix_constant(self):
-        assert SessionIdManager.SESSION_ID_PREFIX == "mem_session_"
+        assert SessionIdManager._SESSION_ID_PREFIX == "mem_session_"
 
     def test_profile_id_prefix_constant(self):
-        assert SessionIdManager.PROFILE_ID_PREFIX == "mem_profile_"
+        assert SessionIdManager._PROFILE_ID_PREFIX == "mem_profile_"
 
 
 class TestSessionResourceRetriever:

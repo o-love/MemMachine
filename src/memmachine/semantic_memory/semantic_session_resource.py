@@ -31,8 +31,8 @@ class SessionIdManager:
     def __init__(self):
         pass
 
-    SESSION_ID_PREFIX: Final[str] = "mem_session_"
-    PROFILE_ID_PREFIX: Final[str] = "mem_profile_"
+    _SESSION_ID_PREFIX: Final[str] = "mem_session_"
+    _PROFILE_ID_PREFIX: Final[str] = "mem_profile_"
 
     def generate_session_data(
         self,
@@ -52,8 +52,8 @@ class SessionIdManager:
                 return self._session_id
 
         return _SessionDataImpl(
-            self.PROFILE_ID_PREFIX + profile_id,
-            self.SESSION_ID_PREFIX + session_id,
+            self._PROFILE_ID_PREFIX + profile_id if profile_id else None,
+            self._SESSION_ID_PREFIX + session_id if session_id else None,
         )
 
     def set_id_isolation_type(self, _id: str) -> IsolationType:
@@ -65,10 +65,10 @@ class SessionIdManager:
             raise ValueError(f"Invalid id: {_id}")
 
     def is_session_id(self, _id: str) -> bool:
-        return _id.startswith(self.SESSION_ID_PREFIX)
+        return _id.startswith(self._SESSION_ID_PREFIX)
 
     def is_producer_id(self, _id: str) -> bool:
-        return _id.startswith(self.PROFILE_ID_PREFIX)
+        return _id.startswith(self._PROFILE_ID_PREFIX)
 
 
 class SessionResourceRetriever:

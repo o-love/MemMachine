@@ -83,7 +83,7 @@ async def _llm_think(
 def _features_to_llm_format(
     features: list[SemanticFeature],
 ) -> dict[str, dict[str, str]]:
-    structured_features = {}
+    structured_features: dict[str, dict[str, str]] = {}
 
     for feature in features:
         if feature.tag not in structured_features:

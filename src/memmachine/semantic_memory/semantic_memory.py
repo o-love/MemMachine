@@ -215,9 +215,18 @@ class SemanticService:
         tag: Optional[str] = None,
         metadata: dict[str, str] | None = None,
     ):
-        resources = self._resource_retriever.get_resources(set_id)
-
         if value is not None:
+            if set_id is None:
+                original_feature = await self._semantic_storage.get_feature(feature_id)
+                if original_feature is None or original_feature.set_id is None:
+                    raise ValueError(
+                        "Unable to deduce set_id, the feature_id may be incorrect. "
+                        "set_id is required to update a feature"
+                    )
+                set_id = original_feature.set_id
+
+            resources = self._resource_retriever.get_resources(set_id)
+
             embedding = (await resources.embedder.ingest_embed([value]))[0]
         else:
             embedding = None
