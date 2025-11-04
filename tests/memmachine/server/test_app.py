@@ -30,6 +30,7 @@ def mock_dependencies(monkeypatch):
     mock_semantic_session_manager = MagicMock(spec=SemanticSessionManager)
     mock_episodic_manager = MagicMock(spec=EpisodicMemoryManager)
     mock_import_module = MagicMock()
+    mock_import_module.SEMANTIC_TYPE = MagicMock(spec=SemanticType)
     mock_sqlalchemy_engine = MagicMock()
     mock_semantic_storage = MagicMock()
 
