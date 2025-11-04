@@ -1,7 +1,7 @@
 import pytest
 
 from memmachine.semantic_memory.semantic_llm import llm_feature_update
-from memmachine.server.prompt.profile_prompt import ProfilePromptType
+from memmachine.server.prompt.profile_prompt import UserProfileSemanticType
 
 pytestmark = pytest.mark.integration
 
@@ -13,7 +13,7 @@ def llm_model(openai_llm_model):
 
 @pytest.fixture
 def semantic_prompt():
-    return ProfilePromptType.prompt
+    return UserProfileSemanticType.prompt
 
 
 @pytest.fixture

@@ -6,6 +6,8 @@ Handles financial profiles with direct feature/value pairs (no tags)
 import zoneinfo
 from datetime import datetime
 
+from memmachine.semantic_memory.semantic_model import SemanticPrompt, SemanticType
+
 # --- Canonical enumerations ---
 INVESTMENT_TYPES = [
     "Stocks",
@@ -525,3 +527,14 @@ The financial profile is: {profile}.
 The conversation history is: {context}.
 The query prompt is: {query}.
 """
+
+FinancialAnalystSemanticType = SemanticType(
+    name="financial_analyst_prompt",
+    tags=set(),
+    prompt=SemanticPrompt(
+        update_prompt=UPDATE_PROMPT,
+        consolidation_prompt=CONSOLIDATION_PROMPT,
+    ),
+)
+
+SEMANTIC_TYPE = FinancialAnalystSemanticType

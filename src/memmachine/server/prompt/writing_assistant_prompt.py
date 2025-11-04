@@ -3,6 +3,8 @@ Writing Assistant prompt for MemMachine
 Handles writing style analysis and content generation using persona-based approach
 """
 
+from memmachine.semantic_memory.semantic_model import SemanticPrompt, SemanticType
+
 # -----------------------
 # WRITING STYLE FEATURES
 # -----------------------
@@ -458,3 +460,15 @@ def get_writing_style_features():
 def get_consolidation_prompt():
     """Get the consolidation prompt"""
     return CONSOLIDATION_PROMPT
+
+
+WritingAssistantSemanticType = SemanticType(
+    name="writing_assistant",
+    tags=set(),
+    prompt=SemanticPrompt(
+        update_prompt=get_update_prompt(),
+        consolidation_prompt=get_consolidation_prompt(),
+    ),
+)
+
+SEMANTIC_TYPE = WritingAssistantSemanticType

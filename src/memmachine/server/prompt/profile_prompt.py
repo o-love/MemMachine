@@ -413,7 +413,7 @@ The final output schema is:
 }
 """
 
-ProfilePromptType = SemanticType(
+UserProfileSemanticType = SemanticType(
     name="profile",
     tags=set(),
     prompt=SemanticPrompt(
@@ -422,4 +422,4 @@ ProfilePromptType = SemanticType(
     ),
 )
 
-SEMANTIC_TYPE = ProfilePromptType
+SEMANTIC_TYPE = UserProfileSemanticType
