@@ -30,7 +30,6 @@ def mock_dependencies(monkeypatch):
     mock_semantic_session_manager = MagicMock(spec=SemanticSessionManager)
     mock_episodic_manager = MagicMock(spec=EpisodicMemoryManager)
     mock_import_module = MagicMock()
-    mock_import_module.SEMANTIC_TYPE = MagicMock(spec=SemanticType)
     mock_sqlalchemy_engine = MagicMock()
     mock_semantic_storage = MagicMock()
 
@@ -70,11 +69,11 @@ def mock_dependencies(monkeypatch):
         mock_episodic_manager
     )
 
-    # Mock the prompt module with ProfilePromptType
+    # Mock the prompt module with SEMANTIC_TYPE
     mock_prompt_module = MagicMock()
     mock_prompt_module.UPDATE_PROMPT = "test update prompt"
     mock_prompt_module.CONSOLIDATION_PROMPT = "test consolidation prompt"
-    mock_prompt_module.ProfilePromptType = SemanticType(
+    mock_prompt_module.SEMANTIC_TYPE = SemanticType(
         name="profile",
         tags=set(),
         prompt=SemanticPrompt(
