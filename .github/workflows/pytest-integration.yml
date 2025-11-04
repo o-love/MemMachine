@@ -3,7 +3,6 @@ on:
   push:
     branches: [ main ]
   pull_request_target:
-    branches: [ main ]
 
   # Run integration tests on pull requests if the workflow file has changed.
   # This will force the user to set up the secrets for the integration tests when adding integration tests.
