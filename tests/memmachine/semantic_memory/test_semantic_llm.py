@@ -1,12 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic import ValidationError
 
 from memmachine.common.language_model import LanguageModel
 from memmachine.semantic_memory.semantic_llm import (
-    LLMReducedFeature,
-    SemanticConsolidateMemoryRes,
     llm_consolidate_features,
     llm_feature_update,
 )

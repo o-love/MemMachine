@@ -4,6 +4,7 @@ from memmachine.semantic_memory.semantic_llm import (
     llm_consolidate_features,
     llm_feature_update,
 )
+from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.server.prompt.profile_prompt import UserProfileSemanticType
 
 pytestmark = pytest.mark.integration
@@ -45,12 +46,16 @@ async def test_semantic_llm_update_with_empty_profile(
 
 
 @pytest.mark.asyncio
-async def test_semantic_llm_consolidate_with_empty_profile(
+async def test_semantic_llm_consolidate_with_basic_profile(
     real_llm_model,
     consolidation_prompt,
 ):
     result = await llm_consolidate_features(
-        features=[],
+        features=[
+            SemanticFeature(
+                feature="favorite_pizza", value="pepperoni", tag="food", type="Profile"
+            ),
+        ],
         consolidate_prompt=consolidation_prompt,
         model=real_llm_model,
     )
