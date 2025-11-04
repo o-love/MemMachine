@@ -8,7 +8,10 @@ import pytest
 import pytest_asyncio
 
 from memmachine.semantic_memory.semantic_ingestion import IngestionService
-from memmachine.semantic_memory.semantic_llm import SemanticConsolidateMemoryRes
+from memmachine.semantic_memory.semantic_llm import (
+    LLMReducedFeature,
+    SemanticConsolidateMemoryRes,
+)
 from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
     Resources,
@@ -290,8 +293,7 @@ async def test_deduplicate_features_merges_and_relabels(
         load_citations=True,
     )
 
-    consolidated_feature = SemanticFeature(
-        type=semantic_type.name,
+    consolidated_feature = LLMReducedFeature(
         tag="food",
         feature="pizza",
         value="consolidated pizza",
