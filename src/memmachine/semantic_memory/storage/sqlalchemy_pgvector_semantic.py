@@ -66,7 +66,7 @@ class Feature(BaseSemanticStorage):
     value = mapped_column(String)
 
     # metadata
-    created_a = mapped_column(
+    created_at = mapped_column(
         TIMESTAMP,
         server_default=func.now(),
     )

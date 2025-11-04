@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from types import ModuleType
 from typing import Any, Optional, Protocol, Tuple, runtime_checkable
 
@@ -9,8 +10,13 @@ from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
 
 
+class SemanticCommandType(Enum):
+    ADD = "add"
+    DELETE = "delete"
+
+
 class SemanticCommand(BaseModel):
-    command: str
+    command: SemanticCommandType
     feature: str
     tag: str
     value: str

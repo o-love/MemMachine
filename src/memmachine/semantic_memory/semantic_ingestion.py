@@ -17,6 +17,7 @@ from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
     Resources,
     SemanticCommand,
+    SemanticCommandType,
     SemanticFeature,
     SemanticType,
 )
@@ -125,7 +126,7 @@ class IngestionService:
     ):
         for command in commands:
             match command.command:
-                case "add":
+                case SemanticCommandType.ADD:
                     value_embedding = (await embedder.ingest_embed([command.value]))[0]
 
                     f_id = await self._semantic_storage.add_feature(
@@ -140,7 +141,7 @@ class IngestionService:
                     if citation_id is not None:
                         await self._semantic_storage.add_citations(f_id, [citation_id])
 
-                case "delete":
+                case SemanticCommandType.DELETE:
                     await self._semantic_storage.delete_feature_set(
                         set_ids=[set_id],
                         type_names=[type_name],

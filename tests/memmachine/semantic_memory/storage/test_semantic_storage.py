@@ -361,7 +361,7 @@ async def test_get_history_message_at_end_time(
 
 
 @pytest.mark.asyncio
-async def test_get_history_messaage_at_range_time(
+async def test_get_history_message_at_range_time(
     storage: SemanticStorageBase,
     time_history_message,
 ):
@@ -493,7 +493,7 @@ async def test_delete_history_with_citations(
 
 
 @pytest.mark.asyncio
-async def test_get_history_messsage_count_set_id(
+async def test_get_history_message_count_set_id(
     storage: SemanticStorageBase,
 ):
     h1_id = await storage.add_history(

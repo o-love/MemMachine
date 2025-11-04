@@ -31,9 +31,20 @@ def embedder(openai_embedder):
     return openai_embedder
 
 
-@pytest.fixture
-def llm_model(openai_llm_model):
-    return openai_llm_model
+@pytest.fixture(
+    params=[
+        pytest.param("bedrock", marks=pytest.mark.integration),
+        pytest.param("openai", marks=pytest.mark.integration),
+    ]
+)
+def llm_model(request):
+    match request.param:
+        case "bedrock":
+            return request.getfixturevalue("bedrock_llm_model")
+        case "openai":
+            return request.getfixturevalue("openai_llm_model")
+        case _:
+            raise ValueError(f"Unknown LLM model type: {request.param}")
 
 
 @pytest.fixture
@@ -182,7 +193,7 @@ class TestLongMemEvalIngestion:
 
         system_prompt = (
             "You are an AI assistant who answers questions based on provided information. "
-            "I will give you the user's features and a conversation between a user and an assistnat. "
+            "I will give you the user's features and a conversation between a user and an assistant. "
             "Please answer the question based on the relevant history context and user's information. "
             "If relevant information is not found, please say that you don't know with the exact format: "
             "'The relevant information is not found in the provided context.'."

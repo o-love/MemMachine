@@ -12,6 +12,44 @@ class LanguageModel(ABC):
     """
 
     @abstractmethod
+    async def generate_parsed_response(
+        self,
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        max_attempts: int = 1,
+        output_format: Any = None,
+    ):
+        """
+        Generate a response with structured output parsing.
+
+        Args:
+            system_prompt (str | None, optional):
+                The system prompt to guide the model's behavior
+                (default: None).
+            user_prompt (str | None, optional):
+                The user prompt containing the main input
+                (default: None).
+            max_attempts (int, optional):
+                The maximum number of attempts to make before giving up
+                (default: 1).
+            output_format (Any, optional):
+                The expected output format or schema for parsing the response.
+                Implementation-specific (e.g., Pydantic model, JSON schema)
+                (default: None).
+
+        Returns:
+            Any:
+                The parsed response conforming to the specified output_format.
+
+        Raises:
+            ExternalServiceAPIError:
+                Errors from the underlying language model API.
+            ValueError:
+                Invalid input or max_attempts.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def generate_response(
         self,
         system_prompt: str | None = None,
