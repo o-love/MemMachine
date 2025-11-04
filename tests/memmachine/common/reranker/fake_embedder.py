@@ -1,17 +1,24 @@
+from typing import Any
+
 from memmachine.common.embedder import Embedder, SimilarityMetric
 
 
 class FakeEmbedder(Embedder):
+    def __init__(self, similarity_metric=SimilarityMetric.COSINE):
+        super().__init__()
+
+        self._similarity_metric = similarity_metric
+
     async def ingest_embed(
         self,
-        inputs: list[str],
+        inputs: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
-        return [[float(len(input)), -float(len(input))] for input in inputs]
+        return [[float(len(_input)), -float(len(_input))] for _input in inputs]
 
     async def search_embed(
         self,
-        queries: list[str],
+        queries: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
         return [[float(len(query)), -float(len(query))] for query in queries]
@@ -26,4 +33,4 @@ class FakeEmbedder(Embedder):
 
     @property
     def similarity_metric(self) -> SimilarityMetric:
-        return SimilarityMetric.COSINE
+        return self._similarity_metric

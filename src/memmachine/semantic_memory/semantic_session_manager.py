@@ -183,13 +183,19 @@ class SemanticSessionManager:
     ):
         set_ids = self._get_set_ids(session_data, memory_type)
 
+        search_opts: dict[str, Any] = {
+            "set_ids": set_ids,
+            "type_names": type_names,
+            "feature_names": feature_names,
+            "tags": tags,
+        }
+
+        if k is not None:
+            search_opts["k"] = k
+
         return await self._semantic_service.delete_feature_set(
             SemanticService.FeatureSearchOpts(
-                set_ids=set_ids,
-                type_names=type_names,
-                feature_names=feature_names,
-                tags=tags,
-                k=k,
+                **search_opts,
             )
         )
 
