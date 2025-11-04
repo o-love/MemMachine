@@ -37,6 +37,7 @@ def mock_llm_model():
 def mock_llm_embedder():
     return FakeEmbedder()
 
+
 @pytest.fixture
 def openai_integration_config():
     open_api_key = os.environ.get("OPENAI_API_KEY")
@@ -50,12 +51,18 @@ def openai_integration_config():
 @pytest.fixture
 def openai_embedder(openai_integration_config):
     return OpenAIEmbedder(
-        {"api_key": openai_integration_config["api_key"], "model": openai_integration_config["embedding_model"]}
+        {
+            "api_key": openai_integration_config["api_key"],
+            "model": openai_integration_config["embedding_model"],
+        }
     )
+
 
 @pytest.fixture
 def openai_llm_model(openai_integration_config):
     return OpenAILanguageModel(
-        {"api_key": openai_integration_config["api_key"], "model": openai_integration_config["llm_model"]}
+        {
+            "api_key": openai_integration_config["api_key"],
+            "model": openai_integration_config["llm_model"],
+        }
     )
-

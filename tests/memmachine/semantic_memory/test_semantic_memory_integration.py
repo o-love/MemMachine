@@ -1,31 +1,27 @@
 import asyncio
-import inspect
 import json
-import os
 from importlib import import_module
-from typing import Protocol
 
 import pytest
 import pytest_asyncio
 
-from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from memmachine.semantic_memory.semantic_memory import (
     SemanticService,
 )
 from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
-    SemanticType,
-    SemanticPrompt,
     Resources,
+    SemanticPrompt,
+    SemanticType,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
-    SessionIdManager,
-    SessionIdTypeChecker,
     IsolationType,
-    SessionResourceRetriever,
     SessionData,
+    SessionIdIsolationTypeChecker,
+    SessionIdManager,
+    SessionResourceRetriever,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -33,6 +29,7 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 @pytest.fixture
 def embedder(openai_embedder):
     return openai_embedder
+
 
 @pytest.fixture
 def llm_model(openai_llm_model):
@@ -65,7 +62,7 @@ def load_types_from_modules(module_names):
 def session_types(openai_integration_config):
     module_names = [
         # "crm_prompt",
-        "financial_analyst_prompt",
+        # "financial_analyst_prompt",
     ]
 
     return load_types_from_modules(module_names)
@@ -110,7 +107,7 @@ def default_session_resources(
 
 @pytest.fixture
 def resource_retriever(
-    session_id_manager: SessionIdTypeChecker,
+    session_id_manager: SessionIdIsolationTypeChecker,
     default_session_resources: dict[IsolationType, Resources],
 ):
     r = SessionResourceRetriever(
@@ -152,7 +149,7 @@ async def semantic_memory(
 ):
     return SemanticSessionManager(
         semantic_service=semantic_service,
-        semantic_storage=storage,
+        history_storage=storage,
     )
 
 

@@ -131,11 +131,6 @@ async def llm_feature_update(
         },
     )
 
-    # This should probably just be a list of commands
-    # instead of a dictionary mapping
-    # from integers in strings (not even bare ints!)
-    # to commands.
-    # TODO: Consider improving this design in a breaking change.
     if not isinstance(raw_commands, dict):
         logger.warning(
             "AI response format incorrect: expected dict, got %s %s",

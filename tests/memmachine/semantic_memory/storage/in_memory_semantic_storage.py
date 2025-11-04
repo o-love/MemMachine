@@ -481,7 +481,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 # so they appear last in results but are still included
                 if similarity is None:
                     similarity = float("-inf")
-                min_cos = vector_search_opts.min_cos
+                min_cos = vector_search_opts.min_distance
                 if min_cos is not None and similarity < min_cos:
                     continue
                 filtered.append((similarity, entry))

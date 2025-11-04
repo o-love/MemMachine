@@ -11,11 +11,10 @@ import logging
 from typing import Any, Optional
 
 import numpy as np
-from pydantic import BaseModel, InstanceOf, field_validator
+from pydantic import BaseModel, InstanceOf
 
 from .semantic_ingestion import IngestionService
 from .semantic_model import ResourceRetriever, SemanticFeature
-from .semantic_set_config import ConfigManager
 from .semantic_tracker import SemanticUpdateTrackerManager
 from .storage.storage_base import SemanticStorageBase
 
@@ -90,7 +89,7 @@ class SemanticService:
         set_ids: list[str],
         query: str,
         *,
-        min_cos: float = 0.7,
+        min_distance: float = 0.7,
         type_names: Optional[list[str]] = None,
         tag_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
@@ -104,7 +103,7 @@ class SemanticService:
             set_ids=set_ids,
             vector_search_opts=SemanticStorageBase.VectorSearchOpts(
                 query_embedding=np.array(query_embedding),
-                min_cos=min_cos,
+                min_distance=min_distance,
             ),
             type_names=type_names,
             tags=tag_names,
@@ -152,7 +151,7 @@ class SemanticService:
         self,
         *,
         set_id: str,
-        type_id: str,
+        type_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -164,7 +163,7 @@ class SemanticService:
 
         f_id = await self._semantic_storage.add_feature(
             set_id=set_id,
-            type_name=type_id,
+            type_name=type_name,
             feature=feature,
             value=value,
             tag=tag,

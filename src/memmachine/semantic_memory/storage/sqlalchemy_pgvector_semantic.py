@@ -545,8 +545,8 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
                 _stmt = _stmt.limit(k)
 
             if vector_search_opts is not None:
-                if vector_search_opts.min_cos is not None:
-                    threshold = 1 - vector_search_opts.min_cos
+                if vector_search_opts.min_distance is not None:
+                    threshold = 1 - vector_search_opts.min_distance
                     _stmt = _stmt.where(
                         Feature.embedding.cosine_distance(
                             vector_search_opts.query_embedding

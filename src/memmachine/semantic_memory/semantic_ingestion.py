@@ -12,10 +12,10 @@ from memmachine.semantic_memory.semantic_llm import (
 )
 from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
+    Resources,
     SemanticCommand,
     SemanticFeature,
     SemanticType,
-    Resources,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 

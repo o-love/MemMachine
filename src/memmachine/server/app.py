@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from importlib import import_module
 from typing import Any, Self, cast
 
+import sqlalchemy
 import uvicorn
 import yaml
 from dotenv import load_dotenv
@@ -41,12 +42,11 @@ from memmachine.episodic_memory.episodic_memory import (
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemoryManagerParams,
-    SemanticService,
+from memmachine.semantic_memory.semantic_model import SemanticPrompt
+from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
+from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
+    SqlAlchemyPgVectorSemanticStorage,
 )
-from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
-from memmachine.semantic_memory.storage.asyncpg_profile import AsyncPgSemanticStorage
 
 logger = logging.getLogger(__name__)
 
@@ -480,7 +480,7 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-semantic_memory: SemanticService | None = None
+semantic_session_manager: SemanticSessionManager | None = None
 episodic_memory: EpisodicMemoryManager | None = None
 
 
@@ -489,7 +489,7 @@ episodic_memory: EpisodicMemoryManager | None = None
 
 async def initialize_resource(
     config_file: str,
-) -> tuple[EpisodicMemoryManager, SemanticService]:
+) -> tuple[EpisodicMemoryManager, SemanticSessionManager]:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -580,17 +580,19 @@ async def initialize_resource(
     prompt_module = import_module(f".prompt.{prompt_file}", __package__)
     profile_prompt = SemanticPrompt.load_from_module(prompt_module)
 
-    semantic_storage = AsyncPgSemanticStorage.build_config(
-        {
-            "host": db_config.get("host", "localhost"),
-            "port": db_config.get("port", 0),
-            "user": db_config.get("user", ""),
-            "password": db_config.get("password", ""),
-            "database": db_config.get("database", ""),
-        }
+    pg_server = {
+        "host": db_config.get("host", "localhost"),
+        "port": db_config.get("port", 0),
+        "user": db_config.get("user", ""),
+        "password": db_config.get("password", ""),
+        "database": db_config.get("database", ""),
+    }
+    sqlalchemy_engine = sqlalchemy.create_engine(
+        f"postgresql://{pg_server['user']}:{pg_server['password']}@{pg_server['host']}:{pg_server['port']}/{pg_server['database']}"
     )
+    semantic_storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
 
-    semantic_memory = SemanticService(
+    semantic_memory_service = SemanticService(
         SemanticMemoryManagerParams(
             model=llm_model,
             embeddings=embeddings,

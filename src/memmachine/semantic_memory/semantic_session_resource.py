@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import runtime_checkable, Protocol, Final, Optional
+from typing import Final, Optional, Protocol, runtime_checkable
 
-from memmachine.semantic_memory.semantic_model import ResourceRetriever, Resources
+from memmachine.semantic_memory.semantic_model import Resources
 
 
 class IsolationType(Enum):
@@ -22,8 +22,8 @@ class SessionData(Protocol):
 
 
 @runtime_checkable
-class SessionIdTypeChecker(Protocol):
-    def set_id_type(self, _id: str) -> IsolationType:
+class SessionIdIsolationTypeChecker(Protocol):
+    def set_id_isolation_type(self, _id: str) -> IsolationType:
         raise NotImplementedError
 
 
@@ -56,7 +56,7 @@ class SessionIdManager:
             self.SESSION_ID_PREFIX + session_id,
         )
 
-    def set_id_type(self, _id: str) -> IsolationType:
+    def set_id_isolation_type(self, _id: str) -> IsolationType:
         if self.is_session_id(_id):
             return IsolationType.SESSION
         elif self.is_producer_id(_id):
@@ -74,7 +74,7 @@ class SessionIdManager:
 class SessionResourceRetriever:
     def __init__(
         self,
-        session_id_manager: SessionIdTypeChecker,
+        session_id_manager: SessionIdIsolationTypeChecker,
         default_resources: dict[IsolationType, Resources],
     ):
         self._session_id_manager = session_id_manager
@@ -85,7 +85,7 @@ class SessionResourceRetriever:
         if custom_resources is not None:
             return custom_resources
 
-        set_id_type = self._session_id_manager.set_id_type(set_id)
+        set_id_type = self._session_id_manager.set_id_isolation_type(set_id)
 
         return self._default_resources[set_id_type]
 

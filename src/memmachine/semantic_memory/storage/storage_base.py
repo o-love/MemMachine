@@ -84,7 +84,7 @@ class SemanticStorageBase(ABC):
     @dataclass
     class VectorSearchOpts:
         query_embedding: InstanceOf[np.ndarray]
-        min_cos: Optional[float] = 0.7
+        min_distance: Optional[float] = 0.7
 
     @abstractmethod
     async def get_feature_set(

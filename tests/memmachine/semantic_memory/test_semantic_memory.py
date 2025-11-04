@@ -1,326 +1,351 @@
-"""Unit tests for the profile_memory module."""
-
-import asyncio
+"""Unit tests for the SemanticService using an in-memory storage backend."""
 
 import pytest
 import pytest_asyncio
-from memmachine.semantic_memory.semantic_prompt import SemanticPrompt
 
-from memmachine.common.embedder import Embedder
-from memmachine.common.language_model import LanguageModel
-from memmachine.semantic_memory.semantic_memory import (
-    SemanticMemoryManagerParams,
-    SemanticService,
+from memmachine.common.embedder import Embedder, SimilarityMetric
+from memmachine.semantic_memory.semantic_memory import SemanticService
+from memmachine.semantic_memory.semantic_model import (
+    Resources,
+    SemanticPrompt,
+    SemanticType,
 )
-from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
+from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
+    MockResourceRetriever,
+)
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
     InMemorySemanticStorage,
 )
 
-# Mark all tests in this file as asyncio
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture
-def llm_embedder(mock_llm_embedder):
-    return mock_llm_embedder
+class SpyEmbedder(Embedder):
+    """Test double that records calls and produces deterministic embeddings."""
+
+    def __init__(self) -> None:
+        self.ingest_calls: list[list[str]] = []
+        self.search_calls: list[list[str]] = []
+
+    async def ingest_embed(
+        self,
+        inputs: list[str],
+        max_attempts: int = 1,
+    ) -> list[list[float]]:
+        self.ingest_calls.append(list(inputs))
+        return [self._vector(text) for text in inputs]
+
+    async def search_embed(
+        self,
+        queries: list[str],
+        max_attempts: int = 1,
+    ) -> list[list[float]]:
+        self.search_calls.append(list(queries))
+        return [self._vector(text) for text in queries]
+
+    @property
+    def model_id(self) -> str:
+        return "spy-embedder"
+
+    @property
+    def dimensions(self) -> int:
+        return 2
+
+    @property
+    def similarity_metric(self) -> SimilarityMetric:
+        return SimilarityMetric.COSINE
+
+    @staticmethod
+    def _vector(text: str) -> list[float]:
+        lowered = text.lower()
+        score_alpha = 1.0 if "alpha" in lowered else -1.0
+        score_beta = 1.0 if "beta" in lowered else -1.0
+        return [score_alpha, score_beta]
 
 
 @pytest.fixture
-def llm_model(mock_llm_model):
-    return mock_llm_model
+def spy_embedder() -> SpyEmbedder:
+    return SpyEmbedder()
 
 
 @pytest.fixture
-def mock_prompt():
-    prompt = SemanticPrompt(
-        update_prompt="mock_update_prompt",
-        consolidation_prompt="mock_consolidation_prompt",
+def semantic_prompt() -> SemanticPrompt:
+    return SemanticPrompt(
+        update_prompt="update-semantic-memory",
+        consolidation_prompt="consolidate-semantic-memory",
     )
-    yield prompt
 
 
-@pytest.fixture(
-    params=[pytest.param("postgres", marks=pytest.mark.integration), "inmemory"]
-)
-def storage():
-    storage = InMemorySemanticStorage()
-    yield storage
+@pytest.fixture
+def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
+    return SemanticType(
+        name="Profile",
+        tags={"general"},
+        prompt=semantic_prompt,
+    )
+
+
+@pytest.fixture
+def resources(spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticType):
+    return Resources(
+        embedder=spy_embedder,
+        language_model=mock_llm_model,
+        semantic_types=[semantic_type],
+    )
+
+
+@pytest.fixture
+def resource_retriever(resources: Resources) -> MockResourceRetriever:
+    return MockResourceRetriever(resources)
 
 
 @pytest_asyncio.fixture
-async def semantic_memory(
-    llm_embedder: Embedder,
-    llm_model: LanguageModel,
-    mock_prompt: SemanticPrompt,
-    storage: SemanticStorageBase,
-):
-    params = SemanticMemoryManagerParams(
-        model=llm_model,
-        embeddings=llm_embedder,
-        prompt=mock_prompt,
+async def storage():
+    store = InMemorySemanticStorage()
+    await store.startup()
+    yield store
+    await store.delete_all()
+    await store.cleanup()
+
+
+@pytest_asyncio.fixture
+async def semantic_service(
+    storage: InMemorySemanticStorage,
+    resource_retriever: MockResourceRetriever,
+) -> SemanticService:
+    params = SemanticService.Params(
         semantic_storage=storage,
-        feature_update_interval_sec=0.1,
-        feature_update_message_limit=1,
-        feature_update_time_limit_sec=0.1,
+        resource_retriever=resource_retriever,
+        feature_update_interval_sec=0.05,
+        feature_update_message_limit=10,
+        feature_update_time_limit_sec=0.05,
     )
-    pm = SemanticService(params=params)
-    yield pm
-    await pm.delete_all()
-    await pm.stop()
+    service = SemanticService(params)
+    yield service
+    await service.stop()
 
 
-@pytest_asyncio.fixture
-async def single_feature_profile_response(semantic_memory):
-    await semantic_memory.add_new_feature(
-        set_id="test_user",
-        feature="test_feature",
-        value="test_value",
-        tag="test_tag",
-        metadata={"test_metadata": "test_metadata_value"},
-    )
-
-    yield {
-        "test_tag": {
-            "test_feature": {
-                "metadata": {"test_metadata": "test_metadata_value"},
-                "value": "test_value",
-            }
-        }
-    }
-
-    await semantic_memory.delete_set_feature(
-        set_id="test_user",
-        feature="test_feature",
-        tag="test_tag",
-    )
-
-
-async def test_store_and_get_profile(
-    semantic_memory: SemanticService, single_feature_profile_response
+async def test_add_new_feature_stores_entry(
+    semantic_service: SemanticService,
+    resource_retriever: MockResourceRetriever,
+    spy_embedder: SpyEmbedder,
 ):
-    # Given a profile with a single user
-    # When we retrieve the profile
-    profile = await semantic_memory.get_set_features(
-        set_id="test_user",
+    # Given a fresh semantic service
+    feature_id = await semantic_service.add_new_feature(
+        set_id="user-123",
+        type_name="Profile",
+        feature="tone",
+        value="Alpha voice",
+        tag="writing_style",
+        metadata={"source": "test"},
     )
 
-    # Expect the profile to contain the feature
-    assert profile == single_feature_profile_response
-
-
-@pytest_asyncio.fixture
-async def multiple_feature_profile_response(semantic_memory: SemanticService):
-    await semantic_memory.add_new_feature(
-        set_id="test_user",
-        feature="test_feature_a",
-        value="test_value_a",
-        tag="test_tag_a",
-    )
-    await semantic_memory.add_new_feature(
-        set_id="test_user",
-        feature="test_feature_b",
-        value="test_value_b",
-        tag="test_tag_b",
+    # When retrieving the stored features
+    features = await semantic_service.get_set_features(
+        SemanticService.FeatureSearchOpts(set_ids=["user-123"])
     )
 
-    yield {
-        "test_tag_a": {
-            "test_feature_a": {
-                "value": "test_value_a",
-            }
-        },
-        "test_tag_b": {
-            "test_feature_b": {
-                "value": "test_value_b",
-            }
-        },
-    }
-
-    await semantic_memory.delete_set_feature(
-        set_id="test_user",
-        feature="test_feature_a",
-        tag="test_tag_a",
-    )
-    await semantic_memory.delete_set_feature(
-        set_id="test_user",
-        feature="test_feature_b",
-        tag="test_tag_b",
-    )
+    # Then the feature is persisted with embeddings recorded
+    assert resource_retriever.seen_ids == ["user-123"]
+    assert spy_embedder.ingest_calls == [["Alpha voice"]]
+    assert len(features) == 1
+    feature = features[0]
+    assert feature.metadata.id == feature_id
+    assert feature.set_id == "user-123"
+    assert feature.feature == "tone"
+    assert feature.value == "Alpha voice"
+    assert feature.tag == "writing_style"
 
 
-async def test_multiple_features(
-    semantic_memory: SemanticService, multiple_feature_profile_response
+async def test_get_set_features_filters_by_tag(
+    semantic_service: SemanticService,
 ):
-    # Given a profile with two features
-    # When we retrieve the profile
-    profile = await semantic_memory.get_set_features(
-        set_id="test_user",
+    # Given multiple features under a single set
+    await semantic_service.add_new_feature(
+        set_id="user-42",
+        type_name="Profile",
+        feature="tone",
+        value="Alpha friendly",
+        tag="writing_style",
+    )
+    await semantic_service.add_new_feature(
+        set_id="user-42",
+        type_name="Profile",
+        feature="favorite_color",
+        value="Blue",
+        tag="personal_info",
     )
 
-    # Expect the profile to contain both features
-    assert profile == multiple_feature_profile_response
+    # When filtering on a specific tag
+    filtered = await semantic_service.get_set_features(
+        SemanticService.FeatureSearchOpts(
+            set_ids=["user-42"],
+            tags=["writing_style"],
+        )
+    )
+
+    # Then only matching features are returned
+    assert len(filtered) == 1
+    assert filtered[0].feature == "tone"
+    assert filtered[0].tag == "writing_style"
 
 
-async def test_delete_feature(
-    semantic_memory: SemanticService, multiple_feature_profile_response
+async def test_update_feature_changes_value_and_embedding(
+    semantic_service: SemanticService,
+    spy_embedder: SpyEmbedder,
 ):
-    # Given a user profile with feature 'a' and 'b'
-    profile = await semantic_memory.get_set_features(
-        set_id="test_user",
-    )
-    assert profile == multiple_feature_profile_response
-    assert "test_tag_a" in profile
-    assert "test_tag_b" in profile
-
-    # When deleting feature 'a'
-    await semantic_memory.delete_set_feature(
-        set_id="test_user",
-        feature="test_feature_a",
-        tag="test_tag_a",
+    # Given an existing feature
+    feature_id = await semantic_service.add_new_feature(
+        set_id="user-7",
+        type_name="Profile",
+        feature="tone",
+        value="Alpha calm",
+        tag="writing_style",
     )
 
-    # Expect feature 'a' to no longer exist. While feature 'b' still exists.
-    profile = await semantic_memory.get_set_features(
-        set_id="test_user",
-    )
-    assert "test_tag_a" not in profile
-    assert "test_tag_b" in profile
-
-    del multiple_feature_profile_response["test_tag_a"]
-    assert profile == multiple_feature_profile_response
-
-
-async def test_delete_profile(semantic_memory, single_feature_profile_response):
-    # Given a profile
-    profile = await semantic_memory.get_set_features(
-        set_id="test_user",
-    )
-    assert profile == single_feature_profile_response
-
-    # When we delete the profile
-    await semantic_memory.delete_set_features(
-        set_id="test_user",
+    # When updating the value
+    await semantic_service.update_feature(
+        feature_id,
+        set_id="user-7",
+        type_id="Profile",
+        value="Alpha energetic",
+        tag="writing_style",
     )
 
-    # Then the profile should no longer exist
-    profile = await semantic_memory.get_set_features(
-        set_id="test_user",
-    )
-    assert profile == {}
+    # Then the feature reflects the new value and re-embeds
+    feature = await semantic_service.get_feature(feature_id, load_citations=False)
+    assert feature is not None
+    assert feature.value == "Alpha energetic"
+    assert spy_embedder.ingest_calls == [["Alpha calm"], ["Alpha energetic"]]
 
 
-async def test_add_persona_message_with_speaker_metadata(semantic_memory):
-    """Ensure persona messages store speaker metadata and trigger updates."""
-    await semantic_memory.add_persona_message(
-        content="My dog is pretty",
-        set_id="test_user",
-        metadata={"speaker": "User"},
-    )
-
-    history = await semantic_memory._semantic_storage.get_ingested_history_messages(
-        set_id="test_user",
-        k=1,
-    )
-
-    assert history
-    assert history[0]["content"] == "User sends 'My dog is pretty'"
-
-
-@pytest_asyncio.fixture
-async def mock_persona_think_response(llm_model, semantic_memory: SemanticService):
-    llm_model.generate_response.return_value = (
-        """{
-      "1": {
-        "command": "add",
-        "feature": "tone",
-        "value": "casual and friendly, with conversational elements",
-        "tag": "writing_style_general",
-        "author": null
-      },
-      "2": {
-        "command": "add",
-        "feature": "register",
-        "value": "casual, suitable for informal conversation among peers",
-        "tag": "writing_style_general",
-        "author": null
-      },
-      "3": {
-        "command": "add",
-        "feature": "voice",
-        "value": "personal and approachable, with a relatable perspective",
-        "tag": "writing_style_general",
-        "author": null
-      },
-      "4": {
-        "command": "add",
-        "feature": "sentence_structure",
-        "value": "simple and compound sentences, with an informal structure",
-        "tag": "writing_style_general",
-        "author": null
-      },
-      "5": {
-        "command": "add",
-        "feature": "clarity",
-        "value": "direct and easy to understand, with clear references to experiences",
-        "tag": "writing_style_general",
-        "author": null
-      },
-      "6": {
-        "command": "add",
-        "feature": "self_reference",
-        "value": "frequent use of first-person references and personal experiences",
-        "tag": "writing_style_general",
-        "author": null
-      }
-    }""",
-        [],
-    )
-
-    await semantic_memory.add_persona_message(
-        content="test_content",
-        set_id="test_user",
-        metadata={"speaker": "User"},
-    )
-
-    yield {
-        "writing_style_general": {
-            "tone": {
-                "value": "casual and friendly, with conversational elements",
-            },
-            "register": {
-                "value": "casual, suitable for informal conversation among peers",
-            },
-            "voice": {
-                "value": "personal and approachable, with a relatable perspective",
-            },
-            "sentence_structure": {
-                "value": "simple and compound sentences, with an informal structure",
-            },
-            "clarity": {
-                "value": "direct and easy to understand, with clear references to experiences",
-            },
-            "self_reference": {
-                "value": "frequent use of first-person references and personal experiences",
-            },
-        }
-    }
-
-
-async def test_persona_think_updates_features(
-    semantic_memory, mock_persona_think_response
+async def test_delete_features_removes_selected_entries(
+    semantic_service: SemanticService,
 ):
-    count = -1
-    for i in range(10):
-        count = await semantic_memory.uningested_message_count()
-        if count == 0:
-            break
-        await asyncio.sleep(0.1)
-    if count != 0:
-        pytest.fail("Messages are not ingested")
-
-    features = await semantic_memory.get_set_features(
-        set_id="test_user",
+    # Given two stored features
+    to_remove = await semantic_service.add_new_feature(
+        set_id="user-55",
+        type_name="Profile",
+        feature="tone",
+        value="Alpha calm",
+        tag="writing_style",
+    )
+    to_keep = await semantic_service.add_new_feature(
+        set_id="user-55",
+        type_name="Profile",
+        feature="hobby",
+        value="Gardening",
+        tag="personal_info",
     )
 
-    assert features == mock_persona_think_response
+    # When deleting one feature by id
+    await semantic_service.delete_features([to_remove])
+
+    # Then the targeted feature is gone and the other remains
+    assert await semantic_service.get_feature(to_remove, load_citations=False) is None
+    assert await semantic_service.get_feature(to_keep, load_citations=False) is not None
+
+
+async def test_delete_feature_set_applies_filters(
+    semantic_service: SemanticService,
+):
+    # Given two features with different tags
+    await semantic_service.add_new_feature(
+        set_id="user-88",
+        type_name="Profile",
+        feature="tone",
+        value="Alpha calm",
+        tag="writing_style",
+    )
+    await semantic_service.add_new_feature(
+        set_id="user-88",
+        type_name="Profile",
+        feature="favorite_color",
+        value="Blue",
+        tag="personal_info",
+    )
+
+    # When deleting by tag filter
+    await semantic_service.delete_feature_set(
+        SemanticService.FeatureSearchOpts(
+            set_ids=["user-88"],
+            tags=["writing_style"],
+        )
+    )
+
+    # Then only the non-matching feature remains
+    remaining = await semantic_service.get_set_features(
+        SemanticService.FeatureSearchOpts(set_ids=["user-88"])
+    )
+    assert len(remaining) == 1
+    assert remaining[0].feature == "favorite_color"
+
+
+async def test_add_messages_tracks_uningested_counts(
+    semantic_service: SemanticService,
+    storage: InMemorySemanticStorage,
+):
+    # Given a stored history message
+    history_id = await storage.add_history(content="Alpha memory")
+
+    # When associating the message to a set
+    await semantic_service.add_messages(set_id="user-21", history_ids=[history_id])
+
+    # Then the set reports one uningested message
+    assert await semantic_service.number_of_uningested(["user-21"]) == 1
+
+    # When the message is marked ingested
+    await storage.mark_messages_ingested(set_id="user-21", ids=[history_id])
+
+    # Then the uningested count drops to zero
+    assert await semantic_service.number_of_uningested(["user-21"]) == 0
+
+
+async def test_add_message_to_sets_supports_multiple_targets(
+    semantic_service: SemanticService,
+    storage: InMemorySemanticStorage,
+):
+    # Given a history entry
+    history_id = await storage.add_history(content="Alpha shared memory")
+
+    # When linking the message to multiple sets
+    await semantic_service.add_message_to_sets(
+        history_id=history_id,
+        set_ids=["user-a", "user-b"],
+    )
+
+    # Then all sets report the pending ingestion
+    assert await semantic_service.number_of_uningested(["user-a"]) == 1
+    assert await semantic_service.number_of_uningested(["user-b"]) == 1
+
+
+async def test_search_returns_matching_features(
+    semantic_service: SemanticService,
+    spy_embedder: SpyEmbedder,
+):
+    # Given a set with two features
+    await semantic_service.add_new_feature(
+        set_id="user-search",
+        type_name="Profile",
+        feature="alpha_fact",
+        value="Alpha prefers calm conversations.",
+        tag="facts",
+    )
+    await semantic_service.add_new_feature(
+        set_id="user-search",
+        type_name="Profile",
+        feature="beta_fact",
+        value="Beta enjoys debates.",
+        tag="facts",
+    )
+
+    # When searching with an alpha-focused query
+    results = await semantic_service.search(
+        set_ids=["user-search"],
+        query="Why does alpha prefer quiet chats?",
+    )
+
+    # Then only the matching feature is returned using the query embedding
+    assert spy_embedder.search_calls == [["Why does alpha prefer quiet chats?"]]
+    assert len(results) == 1
+    assert results[0].feature == "alpha_fact"

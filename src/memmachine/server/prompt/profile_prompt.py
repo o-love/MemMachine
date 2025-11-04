@@ -1,4 +1,4 @@
-from memmachine.semantic_memory.semantic_model import SemanticType, SemanticPrompt
+from memmachine.semantic_memory.semantic_model import SemanticPrompt, SemanticType
 
 UPDATE_PROMPT = """
     Your job is to handle memory extraction for a personalized memory system, one which takes the form of a user profile recording details relevant to personalizing chat engine responses.
@@ -419,5 +419,5 @@ ProfilePromptType = SemanticType(
     prompt=SemanticPrompt(
         update_prompt=UPDATE_PROMPT,
         consolidation_prompt=CONSOLIDATION_PROMPT,
-    )
+    ),
 )
