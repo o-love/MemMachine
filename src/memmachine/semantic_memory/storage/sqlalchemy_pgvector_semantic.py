@@ -33,6 +33,8 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 class BaseSemanticStorage(DeclarativeBase):
+    """Declarative base for semantic memory SQLAlchemy models."""
+
     pass
 
 
@@ -55,6 +57,8 @@ citation_association_table = Table(
 
 
 class Feature(BaseSemanticStorage):
+    """SQLAlchemy mapping for persisted semantic features."""
+
     __tablename__ = "feature"
     id = mapped_column(Integer, primary_key=True)
 
@@ -117,6 +121,8 @@ class Feature(BaseSemanticStorage):
 
 
 class History(BaseSemanticStorage):
+    """SQLAlchemy mapping for stored conversation messages."""
+
     __tablename__ = "history"
     id = mapped_column(Integer, primary_key=True)
 
@@ -139,6 +145,8 @@ class History(BaseSemanticStorage):
 
 
 class SetIngestedHistory(BaseSemanticStorage):
+    """Tracks which history messages have been processed for a set."""
+
     __tablename__ = "set_ingested_history"
     set_id = mapped_column(String, primary_key=True)
     history_id = mapped_column(
@@ -150,6 +158,8 @@ class SetIngestedHistory(BaseSemanticStorage):
 
 
 class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
+    """Concrete SemanticStorageBase backed by PostgreSQL with pgvector."""
+
     def __init__(self, sqlalchemy_engine: Engine):
         self._engine = sqlalchemy_engine
 

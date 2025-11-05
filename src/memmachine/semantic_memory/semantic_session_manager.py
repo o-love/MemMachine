@@ -12,6 +12,11 @@ from memmachine.semantic_memory.semantic_session_resource import (
 
 
 class HistoryStorage(Protocol):
+    """Async history backend used by `SemanticSessionManager` to persist messages.
+
+    Implementations store raw conversation messages and return the created history_id.
+    """
+
     async def add_history(
         self,
         content: str,
@@ -22,6 +27,12 @@ class HistoryStorage(Protocol):
 
 
 class SemanticSessionManager:
+    """Maps high-level session operations onto set_ids managed by `SemanticService`.
+
+    The manager persists conversation history, resolves the relevant set_ids from
+    `SessionData`, and dispatches calls to `SemanticService`.
+    """
+
     def __init__(
         self,
         semantic_service: SemanticService,
@@ -39,7 +50,6 @@ class SemanticSessionManager:
     ) -> int:
         h_id = await self._history_storage.add_history(
             content=message,
-            metadata=session_data.__dict__,
             created_at=created_at,
         )
 
@@ -210,9 +220,14 @@ class SemanticSessionManager:
             if session_id is not None:
                 s.append(session_id)
 
-        if IsolationType.PROFILE in isolation_level:
-            profile_id = session_data.profile_id()
-            if profile_id is not None:
-                s.append(profile_id)
+        if IsolationType.USER in isolation_level:
+            user_id = session_data.user_profile_id()
+            if user_id is not None:
+                s.append(user_id)
+
+        if IsolationType.ROLE in isolation_level:
+            role_id = session_data.role_profile_id()
+            if role_id is not None:
+                s.append(role_id)
 
         return s

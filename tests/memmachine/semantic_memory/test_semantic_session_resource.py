@@ -79,23 +79,25 @@ class TestSessionIdManager:
         manager = SessionIdManager()
 
         session_data = manager.generate_session_data(
-            profile_id="user123",
+            user_profile_id="user123",
             session_id="session456",
+            role_profile_id="role789",
         )
 
-        assert session_data.profile_id() == "mem_profile_user123"
+        assert session_data.user_profile_id() == "mem_user_user123"
         assert session_data.session_id() == "mem_session_session456"
+        assert session_data.role_profile_id() == "mem_role_role789"
 
     def test_generate_session_data_with_empty_strings(self):
         manager = SessionIdManager()
 
         session_data = manager.generate_session_data(
-            profile_id="",
+            user_profile_id="",
             session_id="",
         )
 
         # Should return None
-        assert session_data.profile_id() is None
+        assert session_data.user_profile_id() is None
         assert session_data.session_id() is None
 
     def test_is_session_id_recognizes_session_prefix(self):
@@ -103,15 +105,15 @@ class TestSessionIdManager:
 
         assert manager.is_session_id("mem_session_abc123")
         assert manager.is_session_id("mem_session_")
-        assert not manager.is_session_id("mem_profile_abc123")
+        assert not manager.is_session_id("mem_user_abc123")
         assert not manager.is_session_id("random_id")
         assert not manager.is_session_id("")
 
-    def test_is_producer_id_recognizes_profile_prefix(self):
+    def test_is_producer_id_recognizes_user_prefix(self):
         manager = SessionIdManager()
 
-        assert manager.is_producer_id("mem_profile_user456")
-        assert manager.is_producer_id("mem_profile_")
+        assert manager.is_producer_id("mem_user_user456")
+        assert manager.is_producer_id("mem_user_")
         assert not manager.is_producer_id("mem_session_session789")
         assert not manager.is_producer_id("random_id")
         assert not manager.is_producer_id("")
@@ -123,24 +125,25 @@ class TestSessionIdManager:
 
         assert isolation_type == IsolationType.SESSION
 
-    def test_set_id_isolation_type_returns_profile(self):
+    def test_set_id_isolation_type_returns_user(self):
         manager = SessionIdManager()
 
-        isolation_type = manager.set_id_isolation_type("mem_profile_xyz")
+        isolation_type = manager.set_id_isolation_type("mem_user_xyz")
 
-        assert isolation_type == IsolationType.PROFILE
+        assert isolation_type == IsolationType.USER
+
+    def test_set_id_isolation_type_returns_role(self):
+        manager = SessionIdManager()
+
+        isolation_type = manager.set_id_isolation_type("mem_role_xyz")
+
+        assert isolation_type == IsolationType.ROLE
 
     def test_set_id_isolation_type_raises_on_invalid_id(self):
         manager = SessionIdManager()
 
         with pytest.raises(ValueError, match="Invalid id"):
             manager.set_id_isolation_type("invalid_id")
-
-    def test_session_id_prefix_constant(self):
-        assert SessionIdManager._SESSION_ID_PREFIX == "mem_session_"
-
-    def test_profile_id_prefix_constant(self):
-        assert SessionIdManager._PROFILE_ID_PREFIX == "mem_profile_"
 
 
 class TestSessionResourceRetriever:
@@ -155,7 +158,7 @@ class TestSessionResourceRetriever:
         retriever = SessionResourceRetriever(
             session_id_manager=manager,
             default_resources={
-                IsolationType.PROFILE: profile_resources,
+                IsolationType.USER: profile_resources,
                 IsolationType.SESSION: session_resources,
             },
         )
@@ -174,12 +177,12 @@ class TestSessionResourceRetriever:
         retriever = SessionResourceRetriever(
             session_id_manager=manager,
             default_resources={
-                IsolationType.PROFILE: profile_resources,
+                IsolationType.USER: profile_resources,
                 IsolationType.SESSION: session_resources,
             },
         )
 
-        resources = retriever.get_resources("mem_profile_test456")
+        resources = retriever.get_resources("mem_user_test456")
 
         assert resources == profile_resources
         assert resources.semantic_types[0].name == "Profile"
@@ -193,7 +196,7 @@ class TestSessionResourceRetriever:
         retriever = SessionResourceRetriever(
             session_id_manager=manager,
             default_resources={
-                IsolationType.PROFILE: profile_resources,
+                IsolationType.USER: profile_resources,
                 IsolationType.SESSION: session_resources,
             },
         )
@@ -210,12 +213,12 @@ class TestSessionResourceRetriever:
         retriever = SessionResourceRetriever(
             session_id_manager=manager,
             default_resources={
-                IsolationType.PROFILE: profile_resources,
+                IsolationType.USER: profile_resources,
                 IsolationType.SESSION: session_resources,
             },
         )
 
-        profile_res = retriever.get_resources("mem_profile_user1")
+        profile_res = retriever.get_resources("mem_user_user1")
         session_res = retriever.get_resources("mem_session_session1")
 
         assert profile_res != session_res
@@ -232,7 +235,7 @@ class TestSessionResourceRetriever:
         retriever = SessionResourceRetriever(
             session_id_manager=manager,
             default_resources={
-                IsolationType.PROFILE: profile_resources,
+                IsolationType.USER: profile_resources,
                 IsolationType.SESSION: session_resources,
             },
         )
@@ -246,11 +249,13 @@ class TestIsolationType:
     """Tests for IsolationType enum."""
 
     def test_isolation_type_values(self):
-        assert IsolationType.PROFILE.value == "profile"
+        assert IsolationType.USER.value == "user_profile"
+        assert IsolationType.ROLE.value == "role_profile"
         assert IsolationType.SESSION.value == "session"
 
     def test_isolation_type_enum_members(self):
         isolation_types = [m for m in IsolationType]
-        assert len(isolation_types) == 2
-        assert IsolationType.PROFILE in isolation_types
+        assert len(isolation_types) == 3
+        assert IsolationType.USER in isolation_types
+        assert IsolationType.ROLE in isolation_types
         assert IsolationType.SESSION in isolation_types

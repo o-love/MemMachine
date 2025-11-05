@@ -99,7 +99,12 @@ def default_session_resources(
             language_model=llm_model,
             semantic_types=session_types,
         ),
-        IsolationType.PROFILE: Resources(
+        IsolationType.ROLE: Resources(
+            embedder=embedder,
+            language_model=llm_model,
+            semantic_types=[],
+        ),
+        IsolationType.USER: Resources(
             embedder=embedder,
             language_model=llm_model,
             semantic_types=profile_types,
@@ -123,7 +128,7 @@ def resource_retriever(
 @pytest.fixture
 def basic_session_data(session_id_manager: SessionIdManager):
     return session_id_manager.generate_session_data(
-        profile_id="test_user",
+        user_profile_id="test_user",
         session_id="test_session",
     )
 

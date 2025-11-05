@@ -616,10 +616,15 @@ async def initialize_resource(
 
     # Create resource retriever for semantic service
     default_resources = {
-        IsolationType.PROFILE: Resources(
+        IsolationType.USER: Resources(
             embedder=embeddings,
             language_model=llm_model,
             semantic_types=semantic_types,
+        ),
+        IsolationType.ROLE: Resources(
+            embedder=embeddings,
+            language_model=llm_model,
+            semantic_types=[],
         ),
         IsolationType.SESSION: Resources(
             embedder=embeddings,
@@ -1128,7 +1133,7 @@ async def _add_semantic_memory(episode: NewEpisode):
     semantic_session_data = cast(
         SessionIdManager, session_id_manager
     ).generate_session_data(
-        profile_id=episode.producer,
+        user_profile_id=episode.producer,
         session_id=session.session_id,
     )
 
@@ -1273,7 +1278,7 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     semantic_session_data = cast(
         SessionIdManager, session_id_manager
     ).generate_session_data(
-        profile_id=session.first_user_id(),
+        user_profile_id=session.first_user_id(),
         session_id=session.session_id,
     )
     res = await cast(SemanticSessionManager, semantic_session_manager).search(

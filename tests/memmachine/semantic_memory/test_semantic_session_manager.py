@@ -146,7 +146,7 @@ def session_id_manager() -> SessionIdManager:
 @pytest.fixture
 def session_data(session_id_manager: SessionIdManager):
     return session_id_manager.generate_session_data(
-        profile_id="user-123",
+        user_profile_id="user-123",
         session_id="session-abc",
     )
 
@@ -199,7 +199,7 @@ async def test_add_message_records_history_and_uningested_counts(
     )
 
     # When inspecting storage for each isolation level
-    profile_id = session_data.profile_id()
+    profile_id = session_data.user_profile_id()
     session_id = session_data.session_id()
     profile_messages = await storage.get_history_messages(
         set_ids=[profile_id],
@@ -225,7 +225,7 @@ async def test_search_returns_relevant_features(
     session_data,
 ):
     # Given semantic features stored for both profile and session
-    profile_id = session_data.profile_id()
+    profile_id = session_data.user_profile_id()
     session_id = session_data.session_id()
     await semantic_service.add_new_feature(
         set_id=profile_id,
@@ -264,7 +264,7 @@ async def test_add_feature_applies_requested_isolation(
     # Given a profile-scoped feature request
     feature_id = await session_manager.add_feature(
         session_data=session_data,
-        memory_type=IsolationType.PROFILE,
+        memory_type=IsolationType.USER,
         type_id="Profile",
         feature="tone",
         value="Alpha casual",
@@ -272,7 +272,7 @@ async def test_add_feature_applies_requested_isolation(
     )
 
     # When retrieving features for each set id
-    profile_id = session_data.profile_id()
+    profile_id = session_data.user_profile_id()
     session_id = session_data.session_id()
     profile_features = await storage.get_feature_set(set_ids=[profile_id])
     session_features = await storage.get_feature_set(set_ids=[session_id])
@@ -292,7 +292,7 @@ async def test_delete_feature_set_removes_filtered_entries(
     session_data,
 ):
     # Given profile and session features with distinct tags
-    profile_id = session_data.profile_id()
+    profile_id = session_data.user_profile_id()
     session_id = session_data.session_id()
     await semantic_service.add_new_feature(
         set_id=profile_id,
@@ -312,7 +312,7 @@ async def test_delete_feature_set_removes_filtered_entries(
     # When deleting only the profile-tagged features
     await session_manager.delete_feature_set(
         session_data=session_data,
-        memory_type=[IsolationType.PROFILE],
+        memory_type=[IsolationType.USER],
         tags=["profile_tag"],
     )
 
@@ -337,7 +337,7 @@ async def test_add_message_uses_all_isolations(
 
     mock_semantic_service.add_message_to_sets.assert_awaited_once_with(
         history_id,
-        [session_data.session_id(), session_data.profile_id()],
+        [session_data.session_id(), session_data.user_profile_id()],
     )
 
 
@@ -368,7 +368,7 @@ async def test_search_passes_set_ids_and_filters(
     result = await mock_session_manager.search(
         message="Find alpha info",
         session_data=session_data,
-        memory_type=[IsolationType.PROFILE],
+        memory_type=[IsolationType.USER],
         tag_names=["facts"],
         feature_names=["alpha_fact"],
         k=5,
@@ -377,7 +377,7 @@ async def test_search_passes_set_ids_and_filters(
 
     mock_semantic_service.search.assert_awaited_once()
     kwargs = mock_semantic_service.search.await_args.kwargs
-    assert kwargs["set_ids"] == [session_data.profile_id()]
+    assert kwargs["set_ids"] == [session_data.user_profile_id()]
     assert kwargs["tag_names"] == ["facts"]
     assert kwargs["feature_names"] == ["alpha_fact"]
     assert kwargs["k"] == 5
@@ -410,7 +410,7 @@ async def test_add_feature_translates_to_single_set(
 ):
     feature_id = await mock_session_manager.add_feature(
         session_data=session_data,
-        memory_type=IsolationType.PROFILE,
+        memory_type=IsolationType.USER,
         type_id="Profile",
         feature="tone",
         value="Alpha calm",
@@ -420,7 +420,7 @@ async def test_add_feature_translates_to_single_set(
     )
 
     mock_semantic_service.add_new_feature.assert_awaited_once_with(
-        set_id=session_data.profile_id(),
+        set_id=session_data.user_profile_id(),
         type_name="Profile",
         feature="tone",
         value="Alpha calm",
@@ -471,7 +471,7 @@ async def test_get_set_features_wraps_opts(
 ):
     result = await mock_session_manager.get_set_features(
         session_data=session_data,
-        memory_type=[IsolationType.PROFILE],
+        memory_type=[IsolationType.USER],
         type_names=["Profile"],
         tag_names=["facts"],
         feature_names=["alpha_fact"],
@@ -479,7 +479,7 @@ async def test_get_set_features_wraps_opts(
 
     mock_semantic_service.get_set_features.assert_awaited_once()
     opts = mock_semantic_service.get_set_features.await_args.args[0]
-    assert opts.set_ids == [session_data.profile_id()]
+    assert opts.set_ids == [session_data.user_profile_id()]
     assert opts.type_names == ["Profile"]
     assert opts.tags == ["facts"]
     assert opts.feature_names == ["alpha_fact"]

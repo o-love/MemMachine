@@ -28,7 +28,15 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionService:
+    """Processes un-ingested history for each set_id and updates semantic features.
+
+    The service pulls pending messages, invokes the LLM to generate mutation commands,
+    applies the resulting changes, and optionally consolidates redundant memories.
+    """
+
     class Params(BaseModel):
+        """Dependencies and tuning knobs for the ingestion workflow."""
+
         semantic_storage: InstanceOf[SemanticStorageBase]
         resource_retriever: InstanceOf[ResourceRetriever]
         consolidated_threshold: int = 20

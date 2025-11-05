@@ -5,7 +5,10 @@ from memmachine.semantic_memory.semantic_model import Resources
 
 
 class IsolationType(Enum):
-    PROFILE = "profile"
+    """Isolation scopes supported when mapping activity to semantic-memory set_ids."""
+
+    USER = "user_profile"
+    ROLE = "role_profile"
     SESSION = "session"
 
 
@@ -14,53 +17,77 @@ ALL_MEMORY_TYPES: Final[list[IsolationType]] = [m for m in IsolationType]
 
 @runtime_checkable
 class SessionData(Protocol):
-    def profile_id(self) -> str | None:
+    """Protocol exposing the identifiers used to derive set_ids."""
+
+    def user_profile_id(self) -> str | None:
         raise NotImplementedError
 
     def session_id(self) -> str | None:
         raise NotImplementedError
 
+    def role_profile_id(self) -> str | None:
+        raise NotImplementedError
+
 
 @runtime_checkable
 class SessionIdIsolationTypeChecker(Protocol):
+    """Protocol for determining the isolation type associated with a set_id."""
+
     def set_id_isolation_type(self, _id: str) -> IsolationType:
         raise NotImplementedError
 
 
 class SessionIdManager:
+    """Generates namespaced set_ids and reports which isolation scope they belong to."""
+
     def __init__(self):
         pass
 
     _SESSION_ID_PREFIX: Final[str] = "mem_session_"
-    _PROFILE_ID_PREFIX: Final[str] = "mem_profile_"
+    _USER_ID_PREFIX: Final[str] = "mem_user_"
+    _ROLE_ID_PREFIX: Final[str] = "mem_role_"
 
     def generate_session_data(
         self,
         *,
-        profile_id: Optional[str],
-        session_id: Optional[str],
+        user_profile_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        role_profile_id: Optional[str] = None,
     ) -> SessionData:
         class _SessionDataImpl:
-            def __init__(self, _profile_id, _session_id):
-                self._profile_id = _profile_id
+            """Lightweight `SessionData` implementation backed by generated set_ids."""
+
+            def __init__(self, *, _user_profile_id, _role_profile_id, _session_id):
+                self._user_id = _user_profile_id
+                self._role_id = _role_profile_id
                 self._session_id = _session_id
 
-            def profile_id(self) -> Optional[str]:
-                return self._profile_id
+            def user_profile_id(self) -> str | None:
+                return self._user_id
+
+            def role_profile_id(self) -> str | None:
+                return self._role_id
 
             def session_id(self) -> Optional[str]:
                 return self._session_id
 
         return _SessionDataImpl(
-            self._PROFILE_ID_PREFIX + profile_id if profile_id else None,
-            self._SESSION_ID_PREFIX + session_id if session_id else None,
+            _user_profile_id=self._USER_ID_PREFIX + user_profile_id
+            if user_profile_id
+            else None,
+            _session_id=self._SESSION_ID_PREFIX + session_id if session_id else None,
+            _role_profile_id=self._ROLE_ID_PREFIX + role_profile_id
+            if role_profile_id
+            else None,
         )
 
     def set_id_isolation_type(self, _id: str) -> IsolationType:
         if self.is_session_id(_id):
             return IsolationType.SESSION
         elif self.is_producer_id(_id):
-            return IsolationType.PROFILE
+            return IsolationType.USER
+        elif self.is_role_id(_id):
+            return IsolationType.ROLE
         else:
             raise ValueError(f"Invalid id: {_id}")
 
@@ -68,10 +95,15 @@ class SessionIdManager:
         return _id.startswith(self._SESSION_ID_PREFIX)
 
     def is_producer_id(self, _id: str) -> bool:
-        return _id.startswith(self._PROFILE_ID_PREFIX)
+        return _id.startswith(self._USER_ID_PREFIX)
+
+    def is_role_id(self, _id: str) -> bool:
+        return _id.startswith(self._ROLE_ID_PREFIX)
 
 
 class SessionResourceRetriever:
+    """Resolves the `Resources` bundle for a set_id, falling back to isolation defaults."""
+
     def __init__(
         self,
         session_id_manager: SessionIdIsolationTypeChecker,

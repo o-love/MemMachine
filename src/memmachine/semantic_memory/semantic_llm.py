@@ -30,6 +30,8 @@ def _features_to_llm_format(
 
 
 class _SemanticFeatureUpdateRes(BaseModel):
+    """Schema used to validate parsed feature-update commands returned by the LLM."""
+
     commands: list[SemanticCommand] = Field(default_factory=list)
 
 
@@ -68,12 +70,16 @@ async def llm_feature_update(
 
 
 class LLMReducedFeature(BaseModel):
+    """Minimal feature payload emitted by the consolidation prompt for reinsertion."""
+
     tag: str
     feature: str
     value: str
 
 
 class SemanticConsolidateMemoryRes(BaseModel):
+    """LLM response describing merged features and ids of features to retain."""
+
     consolidated_memories: list[LLMReducedFeature] = Field(default_factory=list)
     keep_memories: list[int] | None
 

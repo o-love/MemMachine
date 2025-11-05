@@ -28,7 +28,11 @@ def _consolidate_errors_and_raise(possible_errors: list[Any], msg: str) -> None:
 
 
 class SemanticService:
+    """High-level coordinator for ingesting history and serving semantic features."""
+
     class Params(BaseModel):
+        """Infrastructure dependencies and background-update configuration."""
+
         semantic_storage: InstanceOf[SemanticStorageBase]
         consolidation_threshold: int = 20
 
@@ -187,6 +191,8 @@ class SemanticService:
         )
 
     class FeatureSearchOpts(BaseModel):
+        """Filters controlling which features are read or deleted from storage."""
+
         set_ids: list[str] | None = None
         type_names: list[str] | None = None
         feature_names: list[str] | None = None

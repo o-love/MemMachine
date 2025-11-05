@@ -11,11 +11,15 @@ from memmachine.common.language_model import LanguageModel
 
 
 class SemanticCommandType(Enum):
+    """Semantic memory actions that can be applied to a feature."""
+
     ADD = "add"
     DELETE = "delete"
 
 
 class SemanticCommand(BaseModel):
+    """Normalized instruction emitted by the LLM to mutate semantic features."""
+
     command: SemanticCommandType
     feature: str
     tag: str
@@ -23,7 +27,11 @@ class SemanticCommand(BaseModel):
 
 
 class HistoryMessage(BaseModel):
+    """Conversation message stored in history together with persistence metadata."""
+
     class Metadata(BaseModel):
+        """Optional storage details for a history message (id, provider-specific info)."""
+
         id: Optional[int] = None
         other: Optional[dict[str, Any]] = None
 
@@ -35,6 +43,8 @@ class HistoryMessage(BaseModel):
 
 @dataclass
 class SemanticPrompt:
+    """Pair of prompt templates driving update and consolidation LLM calls."""
+
     update_prompt: str
     consolidation_prompt: str
 
@@ -50,7 +60,11 @@ class SemanticPrompt:
 
 
 class SemanticFeature(BaseModel):
+    """Semantic memory entry composed of type, tag, feature name, and textual value."""
+
     class Metadata(BaseModel):
+        """Storage metadata for a semantic feature, including id and citations."""
+
         citations: Optional[list[HistoryMessage]] = None
         id: Optional[int] = None
         other: Optional[dict[str, Any]] = None
@@ -96,6 +110,8 @@ class SemanticFeature(BaseModel):
 
 
 class SemanticType(BaseModel):
+    """Defines a semantic feature category, its allowed tags, and prompt strategy."""
+
     id: Optional[int] = None
 
     name: str
@@ -104,6 +120,8 @@ class SemanticType(BaseModel):
 
 
 class Resources(BaseModel):
+    """Resource bundle (embedder, language model, semantic types) for a set_id."""
+
     embedder: InstanceOf[Embedder]
     language_model: InstanceOf[LanguageModel]
     semantic_types: list[InstanceOf[SemanticType]]
@@ -111,5 +129,7 @@ class Resources(BaseModel):
 
 @runtime_checkable
 class ResourceRetriever(Protocol):
+    """Protocol for locating the `Resources` bundle associated with a set_id."""
+
     def get_resources(self, set_id: str) -> Resources:
         raise NotImplementedError

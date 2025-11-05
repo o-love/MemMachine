@@ -83,6 +83,8 @@ class SemanticStorageBase(ABC):
 
     @dataclass
     class VectorSearchOpts:
+        """Parameters controlling vector similarity constraints for retrieval."""
+
         query_embedding: InstanceOf[np.ndarray]
         min_distance: Optional[float] = 0.7
 
