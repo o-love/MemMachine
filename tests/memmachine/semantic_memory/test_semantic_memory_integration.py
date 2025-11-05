@@ -64,6 +64,7 @@ def session_types(openai_integration_config):
     module_names = [
         # "crm_prompt",
         # "financial_analyst_prompt",
+        "profile_prompt",  # TODO: temporary until a proper session prompt is created
     ]
 
     return load_types_from_modules(module_names)
@@ -136,6 +137,10 @@ async def semantic_service(
         SemanticService.Params(
             semantic_storage=storage,
             resource_retriever=resource_retriever,
+            feature_update_interval_sec=0.05,
+            feature_update_message_limit=10,
+            feature_update_time_limit_sec=0.05,
+            debug_fail_loudly=True,
         )
     )
     await mem.start()
@@ -215,6 +220,42 @@ class TestLongMemEvalIngestion:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
+    async def test_long_mem_eval_smoke(
+        self,
+        semantic_memory,
+        basic_session_data,
+        long_mem_convos,
+    ):
+        smoke_convos = long_mem_convos[0]
+        if len(smoke_convos) > 2:
+            smoke_convos = smoke_convos[:2]
+
+        await self.ingest_question_convos(
+            basic_session_data,
+            semantic_memory=semantic_memory,
+            conversation_sessions=[smoke_convos],
+        )
+        count = 1
+        for i in range(60):
+            count = await semantic_memory.number_of_uningested_messages(
+                session_data=basic_session_data,
+            )
+
+            if count == 0:
+                break
+            await asyncio.sleep(1)
+
+        if count != 0:
+            pytest.fail(f"Messages are not ingested, count={count}")
+
+        memories = await semantic_memory.get_set_features(
+            session_data=basic_session_data,
+        )
+        assert len(memories) > 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    @pytest.mark.integration
     async def test_periodic_mem_eval(
         self,
         long_mem_convos,
@@ -240,7 +281,7 @@ class TestLongMemEvalIngestion:
             await asyncio.sleep(1)
 
         if count != 0:
-            pytest.fail("Messages are not ingested")
+            pytest.fail(f"Messages are not ingested, count={count}")
 
         eval_resp = await self.eval_answer(
             session_data=basic_session_data,

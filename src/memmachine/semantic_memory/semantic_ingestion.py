@@ -32,11 +32,13 @@ class IngestionService:
         semantic_storage: InstanceOf[SemanticStorageBase]
         resource_retriever: InstanceOf[ResourceRetriever]
         consolidated_threshold: int = 20
+        debug_fail_loudly: bool = False
 
     def __init__(self, params: Params):
         self._semantic_storage = params.semantic_storage
         self._resource_retriever = params.resource_retriever
         self._consolidation_threshold = params.consolidated_threshold
+        self._debug_fail_loudly = params.debug_fail_loudly
 
     async def process_set_ids(self, set_ids: list[str]) -> None:
         results = await asyncio.gather(
@@ -46,23 +48,25 @@ class IngestionService:
 
         errors = [r for r in results if isinstance(r, Exception)]
         if len(errors) > 0:
-            for e in errors:
-                logger.error("Failed to process set")
-
-            raise errors[0]
+            raise ExceptionGroup("Failed to process set ids", errors)
 
     async def _process_single_set(self, set_id: str):
         resources = self._resource_retriever.get_resources(set_id)
+
         messages = await self._semantic_storage.get_history_messages(
             set_ids=[set_id],
             k=50,
             is_ingested=False,
         )
 
+        if len(resources.semantic_types) == 0:
+            await self._semantic_storage.mark_messages_ingested(
+                set_id=set_id,
+                ids=[m.metadata.id for m in messages if m.metadata.id is not None],
+            )
+
         if len(messages) == 0:
             return
-
-        mark_messages = []
 
         async def process_semantic_type(semantic_type: InstanceOf[SemanticType]):
             for message in messages:
@@ -83,11 +87,14 @@ class IngestionService:
                         model=resources.language_model,
                         update_prompt=semantic_type.prompt.update_prompt,
                     )
-                except (ValueError, TypeError) as e:
+                except Exception as e:
                     logger.error(
                         f"Failed to process message {message.metadata.id} for semantic type {semantic_type.name}",
                         e,
                     )
+                    if self._debug_fail_loudly:
+                        raise e
+
                     continue
 
                 await self._apply_commands(
@@ -100,12 +107,16 @@ class IngestionService:
 
                 mark_messages.append(message.metadata.id)
 
+        mark_messages: list[int] = []
         semantic_type_runners = []
         for t in resources.semantic_types:
             task = process_semantic_type(t)
             semantic_type_runners.append(task)
 
         await asyncio.gather(*semantic_type_runners)
+
+        if len(mark_messages) == 0:
+            return
 
         await self._semantic_storage.mark_messages_ingested(
             set_id=set_id,
@@ -206,10 +217,14 @@ class IngestionService:
             )
         except (ValueError, TypeError) as e:
             logger.error("Failed to update features while calling LLM", e)
+            if self._debug_fail_loudly:
+                raise e
             return
 
         if consolidate_resp is None or consolidate_resp.keep_memories is None:
             logger.warning("Failed to consolidate features")
+            if self._debug_fail_loudly:
+                raise ValueError("Failed to consolidate features")
             return
 
         memories_to_delete = [

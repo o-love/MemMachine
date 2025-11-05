@@ -156,9 +156,9 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        type_names: Optional[list[str]],
-        tag_names: Optional[list[str]],
-        feature_names: Optional[list[str]],
+        type_names: Optional[list[str]] = None,
+        tag_names: Optional[list[str]] = None,
+        feature_names: Optional[list[str]] = None,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
 

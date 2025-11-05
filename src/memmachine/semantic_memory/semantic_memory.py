@@ -51,6 +51,8 @@ class SemanticService:
 
         resource_retriever: InstanceOf[ResourceRetriever]
 
+        debug_fail_loudly: bool = False
+
     def __init__(
         self,
         params: Params,
@@ -69,6 +71,7 @@ class SemanticService:
 
         self._ingestion_task = None
         self._is_shutting_down = False
+        self._debug_fail_loudly = params.debug_fail_loudly
 
     async def start(self):
         if self._ingestion_task is not None:
@@ -268,4 +271,10 @@ class SemanticService:
                 await asyncio.sleep(self._background_ingestion_interval_sec)
                 continue
 
-            await ingestion_service.process_set_ids(dirty_sets)
+            try:
+                await ingestion_service.process_set_ids(dirty_sets)
+            except Exception as e:
+                if self._debug_fail_loudly:
+                    raise e
+                else:
+                    logger.error(f"background task crashed, restarting: {e}")

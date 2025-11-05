@@ -3,6 +3,7 @@ import logging
 
 from pydantic import (
     BaseModel,
+    Field,
     InstanceOf,
     TypeAdapter,
     validate_call,
@@ -29,7 +30,7 @@ def _features_to_llm_format(
 
 
 class _SemanticFeatureUpdateRes(BaseModel):
-    commands: list[SemanticCommand]
+    commands: list[SemanticCommand] = Field(default_factory=list)
 
 
 @validate_call
@@ -73,7 +74,7 @@ class LLMReducedFeature(BaseModel):
 
 
 class SemanticConsolidateMemoryRes(BaseModel):
-    consolidated_memories: list[LLMReducedFeature]
+    consolidated_memories: list[LLMReducedFeature] = Field(default_factory=list)
     keep_memories: list[int] | None
 
 

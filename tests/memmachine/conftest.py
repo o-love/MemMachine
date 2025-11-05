@@ -3,6 +3,9 @@ import os
 from unittest.mock import create_autospec
 
 import pytest
+import pytest_asyncio
+import sqlalchemy
+from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
 from memmachine.common.language_model import LanguageModel
@@ -45,7 +48,7 @@ def mock_llm_embedder():
     return FakeEmbedder()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def openai_integration_config():
     open_api_key = os.environ.get("OPENAI_API_KEY")
     if not open_api_key:
@@ -58,7 +61,7 @@ def openai_integration_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def openai_embedder(openai_integration_config):
     return OpenAIEmbedder(
         {
@@ -68,7 +71,7 @@ def openai_embedder(openai_integration_config):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def openai_llm_model(openai_integration_config):
     return OpenAILanguageModel(
         {
@@ -78,7 +81,7 @@ def openai_llm_model(openai_integration_config):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def openai_compatible_llm_config():
     ollama_host = os.environ.get("OLLAMA_HOST")
     if not ollama_host:
@@ -91,7 +94,7 @@ def openai_compatible_llm_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def openai_compatible_llm_model(openai_compatible_llm_config):
     return OpenAICompatibleLanguageModel(
         {
@@ -102,7 +105,7 @@ def openai_compatible_llm_model(openai_compatible_llm_config):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def bedrock_integration_config():
     aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -116,7 +119,7 @@ def bedrock_integration_config():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def bedrock_llm_model(bedrock_integration_config):
     return AmazonBedrockLanguageModel(
         AmazonBedrockLanguageModelConfig(
@@ -144,3 +147,34 @@ def real_llm_model(request):
             return request.getfixturevalue("openai_compatible_llm_model")
         case _:
             raise ValueError(f"Unknown LLM model type: {request.param}")
+
+
+@pytest.fixture(scope="session")
+def pg_container():
+    with PostgresContainer("pgvector/pgvector:pg16") as container:
+        yield container
+
+
+@pytest_asyncio.fixture(scope="session")
+async def pg_server(pg_container):
+    host = pg_container.get_container_host_ip()
+    port = int(pg_container.get_exposed_port(5432))
+    database = pg_container.dbname
+    user = pg_container.username
+    password = pg_container.password
+
+    yield {
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "database": database,
+    }
+
+
+@pytest.fixture
+def sqlalchemy_pg_engine(pg_server):
+    sqlalchemy_engine = sqlalchemy.create_engine(
+        f"postgresql://{pg_server['user']}:{pg_server['password']}@{pg_server['host']}:{pg_server['port']}/{pg_server['database']}"
+    )
+    return sqlalchemy_engine

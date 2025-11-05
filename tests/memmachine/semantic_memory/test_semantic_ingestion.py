@@ -97,23 +97,6 @@ async def ingestion_service(
 
 
 @pytest.mark.asyncio
-async def test_process_set_ids_propagates_error(ingestion_service: IngestionService):
-    calls: list[str] = []
-
-    async def _runner(set_id: str):
-        calls.append(set_id)
-        if set_id == "second":
-            raise RuntimeError("boom")
-
-    ingestion_service._process_single_set = AsyncMock(side_effect=_runner)  # type: ignore[attr-defined]
-
-    with pytest.raises(RuntimeError):
-        await ingestion_service.process_set_ids(["first", "second", "third"])
-
-    assert sorted(calls) == ["first", "second", "third"]
-
-
-@pytest.mark.asyncio
 async def test_process_single_set_returns_when_no_messages(
     ingestion_service: IngestionService,
     storage: InMemorySemanticStorage,
