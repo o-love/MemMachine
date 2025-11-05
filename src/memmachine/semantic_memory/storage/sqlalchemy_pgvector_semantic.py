@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, Optional, Set
 
 import numpy as np
@@ -7,7 +8,6 @@ from sqlalchemy import (
     TIMESTAMP,
     Boolean,
     Column,
-    Engine,
     ForeignKey,
     Index,
     Integer,
@@ -18,18 +18,25 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     joinedload,
     mapped_column,
     relationship,
-    sessionmaker,
 )
 from sqlalchemy.sql import func
 
 from memmachine.semantic_memory.semantic_model import HistoryMessage, SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
+
+
+def _to_naive_utc(dt: AwareDatetime) -> datetime:
+    """Convert aware datetimes to naive UTC for TIMESTAMP WITHOUT TIME ZONE columns."""
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 class BaseSemanticStorage(DeclarativeBase):
@@ -160,32 +167,35 @@ class SetIngestedHistory(BaseSemanticStorage):
 class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     """Concrete SemanticStorageBase backed by PostgreSQL with pgvector."""
 
-    def __init__(self, sqlalchemy_engine: Engine):
+    def __init__(self, sqlalchemy_engine: AsyncEngine):
         self._engine = sqlalchemy_engine
+        self._session_factory = async_sessionmaker(
+            bind=self._engine,
+            expire_on_commit=False,
+        )
 
-    def _create_session(self):
-        return sessionmaker(bind=self._engine)()
+    def _create_session(self) -> AsyncSession:
+        return self._session_factory()
 
-    def _initialize_db(self):
-        with self._engine.begin() as conn:
-            conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
-
-        BaseSemanticStorage.metadata.create_all(self._engine)
+    async def _initialize_db(self):
+        async with self._engine.begin() as conn:
+            await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
+            await conn.run_sync(BaseSemanticStorage.metadata.create_all)
 
     async def startup(self):
-        self._initialize_db()
+        await self._initialize_db()
 
     async def cleanup(self):
-        pass
+        await self._engine.dispose()
 
     @validate_call
     async def delete_all(self):
-        with self._create_session() as session:
-            session.query(citation_association_table).delete()
-            session.query(SetIngestedHistory).delete()
-            session.query(Feature).delete()
-            session.query(History).delete()
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(delete(citation_association_table))
+            await session.execute(delete(SetIngestedHistory))
+            await session.execute(delete(Feature))
+            await session.execute(delete(History))
+            await session.commit()
 
     @validate_call
     async def add_feature(
@@ -213,11 +223,12 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             .returning(Feature.id)
         )
 
-        with self._create_session() as session:
-            res = session.execute(stmt).scalar_one()
-            session.commit()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+            feature_id = result.scalar_one()
 
-        return res
+        return feature_id
 
     async def update_feature(
         self,
@@ -248,9 +259,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         if metadata is not None:
             stmt = stmt.values(json_metadata=metadata)
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @validate_call
     async def get_feature(
@@ -261,16 +272,17 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         stmt = select(Feature).where(Feature.id == feature_id)
 
         if load_citations:
-            stmt.options(joinedload(Feature.citations))
+            stmt = stmt.options(joinedload(Feature.citations))
 
-        with self._create_session() as session:
-            feature = session.execute(stmt).scalar_one_or_none()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            if load_citations:
+                result = result.unique()
+            feature = result.scalar_one_or_none()
 
-            return (
-                feature.to_typed_model(with_citations=load_citations)
-                if feature
-                else None
-            )
+        return (
+            feature.to_typed_model(with_citations=load_citations) if feature else None
+        )
 
     @validate_call
     async def get_feature_set(
@@ -299,19 +311,22 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         )
 
         if load_citations:
-            stmt.options(joinedload(Feature.citations))
+            stmt = stmt.options(joinedload(Feature.citations))
 
-        with self._create_session() as session:
-            features = session.execute(stmt).scalars().all()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            if load_citations:
+                result = result.unique()
+            features = result.scalars().all()
 
-            return [f.to_typed_model(with_citations=load_citations) for f in features]
+        return [f.to_typed_model(with_citations=load_citations) for f in features]
 
     @validate_call
     async def delete_features(self, feature_ids: list[int]):
         stmt = delete(Feature).where(Feature.id.in_(feature_ids))
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @validate_call
     async def delete_feature_set(
@@ -338,18 +353,18 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             vector_search_opts=vector_search_opts,
         )
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     async def add_citations(self, feature_id: int, history_ids: list[int]):
         rows = [{"feature_id": feature_id, "history_id": hid} for hid in history_ids]
 
         stmt = insert(citation_association_table).values(rows)
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @validate_call
     async def add_history(
@@ -371,30 +386,32 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             pass
 
         if created_at is not None:
-            stmt = stmt.values(created_at=created_at)
+            stmt = stmt.values(created_at=_to_naive_utc(created_at))
 
-        with self._create_session() as session:
-            res = session.execute(stmt).scalar_one()
-            session.commit()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+            history_id = result.scalar_one()
 
-        return res
+        return history_id
 
     @validate_call
     async def get_history(self, history_id: int) -> Optional[HistoryMessage]:
         stmt = select(History).where(History.id == history_id)
 
-        with self._create_session() as session:
-            history = session.execute(stmt).scalar_one_or_none()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            history = result.scalar_one_or_none()
 
-            return history.to_typed_model() if history else None
+        return history.to_typed_model() if history else None
 
     @validate_call
     async def delete_history(self, history_ids: list[int]):
         stmt = delete(History).where(History.id.in_(history_ids))
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @validate_call
     async def delete_history_messages(
@@ -411,9 +428,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             end_time=end_time,
         )
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @validate_call
     async def get_history_messages(
@@ -439,8 +456,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             is_ingested=is_ingested,
         )
 
-        with self._create_session() as session:
-            history_messages = session.execute(stmt).scalars().all()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            history_messages = result.scalars().all()
 
         return [h.to_typed_model() for h in history_messages]
 
@@ -465,8 +483,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             is_ingested=is_ingested,
         )
 
-        with self._create_session() as session:
-            return session.execute(stmt).scalar_one()
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            count = result.scalar_one()
+
+        return count
 
     @validate_call
     async def mark_messages_ingested(self, set_id: str, ids: list[int]) -> None:
@@ -480,9 +501,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             .values(ingested=True)
         )
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @validate_call
     async def add_history_to_set(
@@ -492,9 +513,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     ) -> None:
         stmt = insert(SetIngestedHistory).values(set_id=set_id, history_id=history_id)
 
-        with self._create_session() as session:
-            session.execute(stmt)
-            session.commit()
+        async with self._create_session() as session:
+            await session.execute(stmt)
+            await session.commit()
 
     @staticmethod
     def _apply_history_filter(
@@ -507,9 +528,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         is_ingested: Optional[bool] = None,
     ):
         if start_time is not None:
-            stmt = stmt.where(History.created_at >= start_time)
+            stmt = stmt.where(History.created_at >= _to_naive_utc(start_time))
         if end_time is not None:
-            stmt = stmt.where(History.created_at <= end_time)
+            stmt = stmt.where(History.created_at <= _to_naive_utc(end_time))
         if k is not None:
             stmt = stmt.limit(k)
 

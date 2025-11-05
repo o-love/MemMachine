@@ -20,7 +20,6 @@ from contextlib import asynccontextmanager
 from importlib import import_module
 from typing import Any, Self, cast
 
-import sqlalchemy
 import uvicorn
 import yaml
 from dotenv import load_dotenv
@@ -32,6 +31,8 @@ from fastmcp import FastMCP
 from fastmcp.server.http import StarletteWithLifespan
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field, model_validator
+from sqlalchemy.engine import URL
+from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
@@ -606,8 +607,15 @@ async def initialize_resource(
         "password": db_config.get("password", ""),
         "database": db_config.get("database", ""),
     }
-    sqlalchemy_engine = sqlalchemy.create_engine(
-        f"postgresql://{pg_server['user']}:{pg_server['password']}@{pg_server['host']}:{pg_server['port']}/{pg_server['database']}"
+    sqlalchemy_engine = create_async_engine(
+        URL.create(
+            "postgresql+asyncpg",
+            username=pg_server["user"],
+            password=pg_server["password"],
+            host=pg_server["host"],
+            port=pg_server["port"],
+            database=pg_server["database"],
+        )
     )
     semantic_storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
 

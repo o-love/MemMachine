@@ -4,7 +4,8 @@ from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
-import sqlalchemy
+from sqlalchemy.engine import URL
+from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
@@ -174,7 +175,13 @@ async def pg_server(pg_container):
 
 @pytest.fixture
 def sqlalchemy_pg_engine(pg_server):
-    sqlalchemy_engine = sqlalchemy.create_engine(
-        f"postgresql://{pg_server['user']}:{pg_server['password']}@{pg_server['host']}:{pg_server['port']}/{pg_server['database']}"
+    return create_async_engine(
+        URL.create(
+            "postgresql+asyncpg",
+            username=pg_server["user"],
+            password=pg_server["password"],
+            host=pg_server["host"],
+            port=pg_server["port"],
+            database=pg_server["database"],
+        )
     )
-    return sqlalchemy_engine

@@ -56,7 +56,7 @@ def mock_dependencies(monkeypatch):
     # Mock SQLAlchemy and storage
     mock_sqlalchemy_create_engine = MagicMock(return_value=mock_sqlalchemy_engine)
     monkeypatch.setattr(
-        "memmachine.server.app.sqlalchemy.create_engine", mock_sqlalchemy_create_engine
+        "memmachine.server.app.create_async_engine", mock_sqlalchemy_create_engine
     )
 
     mock_storage_class = MagicMock(return_value=mock_semantic_storage)
