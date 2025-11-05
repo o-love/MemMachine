@@ -37,6 +37,9 @@ jobs:
 
           # Semantic Storage tests
           "tests/memmachine/semantic_memory/storage/test_semantic_storage.py",
+
+          # Schema upgrader tests
+          "tools/schema_upgrader/tests",
         ]
         os: [ ubuntu-latest, ubuntu-24.04-arm ]
         python-version: [ "3.12", "3.13", "3.14" ]

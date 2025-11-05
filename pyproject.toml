@@ -6,6 +6,7 @@ build-backend = "uv_build"
 name = "memmachine"
 version = "0.1.0"
 dependencies = [
+    "alembic>=1.15.0",
     "boto3>=1.40.40",
     "coverage>=7.11.0",
     "dotenv>=0.9.9",
@@ -80,4 +81,9 @@ asyncio_default_test_loop_scope = "session"
 markers = [
     "integration: mark the test as an integration test",
     "slow: mark the test as slow"
+]
+
+[tool.uv.workspace]
+members = [
+    "tools/schema_upgrader",
 ]

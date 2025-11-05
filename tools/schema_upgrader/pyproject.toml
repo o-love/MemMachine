@@ -1,0 +1,15 @@
+[project]
+name = "schema-upgrader"
+version = "0.1.0"
+description = "Used to upgrade the schema of MemMachine databases"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.17.1",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "pgvector>=0.2.0",
+]
+
+[project.scripts]
+schema-upgrader = "main:main"
