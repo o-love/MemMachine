@@ -663,8 +663,8 @@ async def init_global_memory():
 
 async def shutdown_global_memory():
     global episodic_memory
-    global profile_memory
-    if profile_memory is not None:
+    global semantic_session_manager
+    if semantic_session_manager is not None:
         await semantic_session_manager._semantic_service.stop()
     if episodic_memory is not None:
         await episodic_memory.shut_down()
