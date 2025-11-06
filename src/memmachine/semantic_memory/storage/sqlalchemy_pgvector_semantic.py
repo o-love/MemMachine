@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional, Set
 
 import numpy as np
+from alembic import command
+from alembic.config import Config
 from pgvector.sqlalchemy import Vector
 from pydantic import AwareDatetime, InstanceOf, validate_call
 from sqlalchemy import (
@@ -16,8 +19,10 @@ from sqlalchemy import (
     delete,
     insert,
     select,
+    text,
     update,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -87,7 +92,11 @@ class Feature(BaseSemanticStorage):
         onupdate=func.now(),
     )
     embedding = mapped_column(Vector)
-    json_metadata = mapped_column(String, name="metadata", server_default="{}")
+    json_metadata = mapped_column(
+        JSONB,
+        name="metadata",
+        server_default=text("'{}'::jsonb"),
+    )
 
     citations: Mapped[Set["History"]] = relationship(
         secondary=citation_association_table,
@@ -118,6 +127,7 @@ class Feature(BaseSemanticStorage):
             metadata=SemanticFeature.Metadata(
                 id=self.id,
                 citations=citations,
+                other=self.json_metadata or None,
             ),
             set_id=self.set_id,
             type=self.semantic_type_id,
@@ -135,7 +145,11 @@ class History(BaseSemanticStorage):
 
     content = mapped_column(String)
 
-    json_metadata = mapped_column(String, name="metadata", server_default="{}")
+    json_metadata = mapped_column(
+        JSONB,
+        name="metadata",
+        server_default=text("'{}'::jsonb"),
+    )
     created_at = mapped_column(
         TIMESTAMP,
         server_default=func.now(),
@@ -145,6 +159,7 @@ class History(BaseSemanticStorage):
         return HistoryMessage(
             metadata=HistoryMessage.Metadata(
                 id=self.id,
+                other=self.json_metadata or None,
             ),
             content=self.content,
             created_at=self.created_at,
@@ -164,6 +179,27 @@ class SetIngestedHistory(BaseSemanticStorage):
     ingested = mapped_column(Boolean, default=False)
 
 
+async def apply_alembic_migrations(engine: AsyncEngine):
+    script_location = Path(__file__).parent / "alembic_pg"
+    versions_location = script_location / "versions"
+
+    async with engine.begin() as conn:
+        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
+
+        def run_migrations(sync_conn):
+            config = Config()
+            script_path = str(script_location.resolve())
+            versions_path = str(versions_location.resolve())
+            config.set_main_option("script_location", script_path)
+            config.set_main_option("version_locations", versions_path)
+            config.set_main_option("path_separator", "os")
+            config.set_main_option("sqlalchemy.url", str(sync_conn.engine.url))
+            config.attributes["connection"] = sync_conn
+            command.upgrade(config, "head")
+
+        await conn.run_sync(run_migrations)
+
+
 class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     """Concrete SemanticStorageBase backed by PostgreSQL with pgvector."""
 
@@ -178,9 +214,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         return self._session_factory()
 
     async def _initialize_db(self):
-        async with self._engine.begin() as conn:
-            await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
-            await conn.run_sync(BaseSemanticStorage.metadata.create_all)
+        await apply_alembic_migrations(self._engine)
 
     async def startup(self):
         await self._initialize_db()
@@ -382,8 +416,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         )
 
         if metadata is not None:
-            # TODO: Add metadata to History
-            pass
+            stmt = stmt.values(json_metadata=metadata)
 
         if created_at is not None:
             stmt = stmt.values(created_at=_to_naive_utc(created_at))
