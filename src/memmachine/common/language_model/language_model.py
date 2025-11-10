@@ -3,8 +3,9 @@ Abstract base class for a language model.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TypeVar
 
+T = TypeVar("T")
 
 class LanguageModel(ABC):
     """
@@ -14,11 +15,11 @@ class LanguageModel(ABC):
     @abstractmethod
     async def generate_parsed_response(
         self,
-        output_format: Any,
+        output_format: type[T],
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         max_attempts: int = 1,
-    ):
+    ) -> T:
         """
         Generate a response with structured output parsing.
 
@@ -32,7 +33,7 @@ class LanguageModel(ABC):
             max_attempts (int, optional):
                 The maximum number of attempts to make before giving up
                 (default: 1).
-            output_format (Any):
+            output_format (type[T]):
                 The expected output format or schema for parsing the response.
                 Implementation-specific (e.g., Pydantic model, JSON schema)
                 (default: None).
