@@ -1141,7 +1141,7 @@ async def _add_semantic_memory(episode: NewEpisode):
     semantic_session_data = cast(
         SessionIdManager, session_id_manager
     ).generate_session_data(
-        user_profile_id=episode.producer,
+        user_id=episode.producer,
         session_id=session.session_id,
     )
 
@@ -1286,7 +1286,7 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     semantic_session_data = cast(
         SessionIdManager, session_id_manager
     ).generate_session_data(
-        user_profile_id=session.first_user_id(),
+        user_id=session.first_user_id(),
         session_id=session.session_id,
     )
     res = await cast(SemanticSessionManager, semantic_session_manager).search(

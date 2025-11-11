@@ -5,7 +5,7 @@ from memmachine.semantic_memory.semantic_llm import (
     llm_feature_update,
 )
 from memmachine.semantic_memory.semantic_model import SemanticFeature
-from memmachine.server.prompt.profile_prompt import UserProfileSemanticType
+from memmachine.server.prompt.profile_prompt import UserProfileSemanticCategory
 
 pytestmark = pytest.mark.integration
 
@@ -17,7 +17,7 @@ def llm_model(real_llm_model):
 
 @pytest.fixture
 def semantic_prompt():
-    return UserProfileSemanticType.prompt
+    return UserProfileSemanticCategory.prompt
 
 
 @pytest.fixture

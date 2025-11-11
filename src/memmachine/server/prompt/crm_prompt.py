@@ -561,7 +561,7 @@ The final output schema is:
 CONSOLIDATION_PROMPT = _build_consolidation_prompt()
 
 
-CrmSemanticType = SemanticCategory(
+CrmSemanticCategory = SemanticCategory(
     name="crm_prompt",
     tags=set(),
     prompt=RawSemanticPrompt(
@@ -570,4 +570,4 @@ CrmSemanticType = SemanticCategory(
     ),
 )
 
-SEMANTIC_TYPE = CrmSemanticType
+SEMANTIC_TYPE = CrmSemanticCategory

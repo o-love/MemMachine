@@ -241,7 +241,7 @@ The final output schema is:
 }
 """
 
-UserProfileSemanticType = SemanticCategory(
+UserProfileSemanticCategory = SemanticCategory(
     name="profile",
     tags=set(),
     prompt=RawSemanticPrompt(
@@ -250,4 +250,4 @@ UserProfileSemanticType = SemanticCategory(
     ),
 )
 
-SEMANTIC_TYPE = UserProfileSemanticType
+SEMANTIC_TYPE = UserProfileSemanticCategory

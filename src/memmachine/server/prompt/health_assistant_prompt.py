@@ -380,7 +380,7 @@ The conversation history is: {context}.
 The query prompt is: {query}.
 """
 
-HealthAssistantSemanticType = SemanticCategory(
+HealthAssistantSemanticCategory = SemanticCategory(
     name="health_assistant_prompt",
     tags=set(),
     prompt=RawSemanticPrompt(
@@ -389,4 +389,4 @@ HealthAssistantSemanticType = SemanticCategory(
     ),
 )
 
-SEMANTIC_TYPE = HealthAssistantSemanticType
+SEMANTIC_TYPE = HealthAssistantSemanticCategory

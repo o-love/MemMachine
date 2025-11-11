@@ -465,7 +465,7 @@ def get_consolidation_prompt():
     return CONSOLIDATION_PROMPT
 
 
-WritingAssistantSemanticType = SemanticCategory(
+WritingAssistantSemanticCategory = SemanticCategory(
     name="writing_assistant",
     tags=set(),
     prompt=RawSemanticPrompt(
@@ -474,4 +474,4 @@ WritingAssistantSemanticType = SemanticCategory(
     ),
 )
 
-SEMANTIC_TYPE = WritingAssistantSemanticType
+SEMANTIC_TYPE = WritingAssistantSemanticCategory

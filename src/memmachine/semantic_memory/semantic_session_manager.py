@@ -133,7 +133,7 @@ class SemanticSessionManager:
         )
 
     async def get_feature(
-        self, feature_id: int, load_citations: bool
+        self, feature_id: int, load_citations: bool = False
     ) -> SemanticFeature | None:
         return await self._semantic_service.get_feature(
             feature_id, load_citations=load_citations
@@ -189,7 +189,6 @@ class SemanticSessionManager:
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-        limit: int | None = None,
     ):
         set_ids = self._get_set_ids(session_data, memory_type)
 
@@ -199,9 +198,6 @@ class SemanticSessionManager:
             "feature_names": feature_names,
             "tags": tags,
         }
-
-        if limit is not None:
-            search_opts["limit"] = limit
 
         return await self._semantic_service.delete_feature_set(
             SemanticService.FeatureSearchOpts(

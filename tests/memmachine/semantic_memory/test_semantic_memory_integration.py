@@ -128,7 +128,7 @@ def resource_retriever(
 @pytest.fixture
 def basic_session_data(session_id_manager: SessionIdManager):
     return session_id_manager.generate_session_data(
-        user_profile_id="test_user",
+        user_id="test_user",
         session_id="test_session",
     )
 

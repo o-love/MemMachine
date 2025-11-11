@@ -531,7 +531,7 @@ The conversation history is: {context}.
 The query prompt is: {query}.
 """
 
-FinancialAnalystSemanticType = SemanticCategory(
+FinancialAnalystSemanticCategory = SemanticCategory(
     name="financial_analyst_prompt",
     tags=set(),
     prompt=RawSemanticPrompt(
@@ -540,4 +540,4 @@ FinancialAnalystSemanticType = SemanticCategory(
     ),
 )
 
-SEMANTIC_TYPE = FinancialAnalystSemanticType
+SEMANTIC_TYPE = FinancialAnalystSemanticCategory

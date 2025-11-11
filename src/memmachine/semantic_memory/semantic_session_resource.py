@@ -50,9 +50,9 @@ class SessionIdManager:
     def generate_session_data(
         self,
         *,
-        user_profile_id: str | None = None,
+        user_id: str | None = None,
         session_id: str | None = None,
-        role_profile_id: str | None = None,
+        role_id: str | None = None,
     ) -> SessionData:
         class _SessionDataImpl:
             """Lightweight `SessionData` implementation backed by generated set_ids."""
@@ -72,13 +72,9 @@ class SessionIdManager:
                 return self._session_id
 
         return _SessionDataImpl(
-            _user_profile_id=self._USER_ID_PREFIX + user_profile_id
-            if user_profile_id
-            else None,
+            _user_profile_id=self._USER_ID_PREFIX + user_id if user_id else None,
             _session_id=self._SESSION_ID_PREFIX + session_id if session_id else None,
-            _role_profile_id=self._ROLE_ID_PREFIX + role_profile_id
-            if role_profile_id
-            else None,
+            _role_profile_id=self._ROLE_ID_PREFIX + role_id if role_id else None,
         )
 
     def set_id_isolation_type(self, _id: str) -> IsolationType:

@@ -147,7 +147,7 @@ def session_id_manager() -> SessionIdManager:
 @pytest.fixture
 def session_data(session_id_manager: SessionIdManager):
     return session_id_manager.generate_session_data(
-        user_profile_id="user-123",
+        user_id="user-123",
         session_id="session-abc",
     )
 

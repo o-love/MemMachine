@@ -80,9 +80,9 @@ class TestSessionIdManager:
         manager = SessionIdManager()
 
         session_data = manager.generate_session_data(
-            user_profile_id="user123",
+            user_id="user123",
             session_id="session456",
-            role_profile_id="role789",
+            role_id="role789",
         )
 
         assert session_data.user_profile_id() == "mem_user_user123"
@@ -93,7 +93,7 @@ class TestSessionIdManager:
         manager = SessionIdManager()
 
         session_data = manager.generate_session_data(
-            user_profile_id="",
+            user_id="",
             session_id="",
         )
 
