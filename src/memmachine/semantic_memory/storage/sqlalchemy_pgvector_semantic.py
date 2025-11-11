@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional, Set
+from typing import Any
 
 import numpy as np
 from alembic import command
@@ -41,7 +41,7 @@ def _to_naive_utc(dt: AwareDatetime) -> datetime:
     """Convert aware datetimes to naive UTC for TIMESTAMP WITHOUT TIME ZONE columns."""
     if dt.tzinfo is None:
         return dt
-    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.astimezone(UTC).replace(tzinfo=None)
 
 
 class BaseSemanticStorage(DeclarativeBase):
@@ -98,7 +98,7 @@ class Feature(BaseSemanticStorage):
         server_default=text("'{}'::jsonb"),
     )
 
-    citations: Mapped[Set["History"]] = relationship(
+    citations: Mapped[set["History"]] = relationship(
         secondary=citation_association_table,
     )
 
@@ -106,7 +106,10 @@ class Feature(BaseSemanticStorage):
         Index("idx_feature_set_id", "set_id"),
         Index("idx_feature_set_id_semantic_category", "set_id", "semantic_category_id"),
         Index(
-            "idx_feature_set_semantic_category_tag", "set_id", "semantic_category_id", "tag_id"
+            "idx_feature_set_semantic_category_tag",
+            "set_id",
+            "semantic_category_id",
+            "tag_id",
         ),
         Index(
             "idx_feature_set_semantic_category_tag_feature",
@@ -268,12 +271,12 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         feature_id: int,
         *,
-        set_id: Optional[str] = None,
-        category_name: Optional[str] = None,
-        feature: Optional[str] = None,
-        value: Optional[str] = None,
-        tag: Optional[str] = None,
-        embedding: Optional[InstanceOf[np.ndarray]] = None,
+        set_id: str | None = None,
+        category_name: str | None = None,
+        feature: str | None = None,
+        value: str | None = None,
+        tag: str | None = None,
+        embedding: InstanceOf[np.ndarray] | None = None,
         metadata: dict[str, Any] | None = None,
     ):
         stmt = update(Feature).where(Feature.id == feature_id)
@@ -322,13 +325,13 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def get_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
-        tag_threshold: Optional[int] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
+        tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         stmt = select(Feature)
@@ -366,13 +369,13 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def delete_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        thresh: Optional[int] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        thresh: int | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         stmt = delete(Feature)
 
@@ -405,7 +408,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         content: str,
         metadata: dict[str, str] | None = None,
-        created_at: Optional[AwareDatetime] = None,
+        created_at: AwareDatetime | None = None,
     ) -> int:
         stmt = (
             insert(History)
@@ -429,7 +432,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         return history_id
 
     @validate_call
-    async def get_history(self, history_id: int) -> Optional[HistoryMessage]:
+    async def get_history(self, history_id: int) -> HistoryMessage | None:
         stmt = select(History).where(History.id == history_id)
 
         async with self._create_session() as session:
@@ -450,8 +453,8 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def delete_history_messages(
         self,
         *,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
     ):
         stmt = delete(History)
 
@@ -469,11 +472,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def get_history_messages(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
     ) -> list[HistoryMessage]:
         stmt = select(History)
 
@@ -499,11 +502,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def get_history_messages_count(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
     ) -> int:
         stmt = select(func.count(History.id))
 
@@ -554,11 +557,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     def _apply_history_filter(
         stmt,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
     ):
         if start_time is not None:
             stmt = stmt.where(History.created_at >= _to_naive_utc(start_time))
@@ -582,13 +585,13 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         stmt,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        thresh: Optional[int] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        thresh: int | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         def _apply_feature_id_filter(
             _stmt,

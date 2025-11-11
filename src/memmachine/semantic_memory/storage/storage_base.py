@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from pydantic import AwareDatetime, InstanceOf
@@ -67,12 +67,12 @@ class SemanticStorageBase(ABC):
         self,
         feature_id: int,
         *,
-        set_id: Optional[str] = None,
-        category_name: Optional[str] = None,
-        feature: Optional[str] = None,
-        value: Optional[str] = None,
-        tag: Optional[str] = None,
-        embedding: Optional[InstanceOf[np.ndarray]] = None,
+        set_id: str | None = None,
+        category_name: str | None = None,
+        feature: str | None = None,
+        value: str | None = None,
+        tag: str | None = None,
+        embedding: InstanceOf[np.ndarray] | None = None,
         metadata: dict[str, Any] | None = None,
     ):
         raise NotImplementedError
@@ -86,19 +86,19 @@ class SemanticStorageBase(ABC):
         """Parameters controlling vector similarity constraints for retrieval."""
 
         query_embedding: InstanceOf[np.ndarray]
-        min_distance: Optional[float] = 0.7
+        min_distance: float | None = 0.7
 
     @abstractmethod
     async def get_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[VectorSearchOpts] = None,
-        tag_threshold: Optional[int] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        k: int | None = None,
+        vector_search_opts: VectorSearchOpts | None = None,
+        tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         """
@@ -112,13 +112,13 @@ class SemanticStorageBase(ABC):
     async def delete_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        thresh: Optional[int] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[VectorSearchOpts] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        thresh: int | None = None,
+        k: int | None = None,
+        vector_search_opts: VectorSearchOpts | None = None,
     ):
         """
         Delete all the features by id
@@ -133,8 +133,8 @@ class SemanticStorageBase(ABC):
     async def add_history(
         self,
         content: str,
-        metadata: Optional[dict[str, str]] = None,
-        created_at: Optional[AwareDatetime] = None,
+        metadata: dict[str, str] | None = None,
+        created_at: AwareDatetime | None = None,
     ) -> int:
         raise NotImplementedError
 
@@ -142,7 +142,7 @@ class SemanticStorageBase(ABC):
     async def get_history(
         self,
         history_id: int,
-    ) -> Optional[HistoryMessage]:
+    ) -> HistoryMessage | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -156,8 +156,8 @@ class SemanticStorageBase(ABC):
     async def delete_history_messages(
         self,
         *,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
     ):
         raise NotImplementedError
 
@@ -165,11 +165,11 @@ class SemanticStorageBase(ABC):
     async def get_history_messages(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
     ) -> list[HistoryMessage]:
         """
         retrieve the list of the history messages for the user
@@ -181,11 +181,11 @@ class SemanticStorageBase(ABC):
     async def get_history_messages_count(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
     ) -> int:
         """
         retrieve the count of the history messages

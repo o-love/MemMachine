@@ -1,5 +1,6 @@
 """Unit tests for semantic model classes and their methods."""
 
+from datetime import UTC
 from types import ModuleType
 
 import pytest
@@ -206,9 +207,9 @@ class TestHistoryMessage:
     """Tests for HistoryMessage model."""
 
     def test_history_message_with_minimal_fields(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         msg = HistoryMessage(
             content="Test message",
             created_at=now,
@@ -220,9 +221,9 @@ class TestHistoryMessage:
         assert msg.metadata.other is None
 
     def test_history_message_with_metadata(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         msg = HistoryMessage(
             content="Test message",
             created_at=now,
@@ -259,9 +260,9 @@ class TestSemanticFeature:
         assert feature.metadata.other is None
 
     def test_semantic_feature_with_all_fields(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         citation = HistoryMessage(
             content="I love pasta",
             created_at=now,

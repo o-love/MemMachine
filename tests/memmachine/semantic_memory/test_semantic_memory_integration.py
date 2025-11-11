@@ -12,8 +12,8 @@ from memmachine.semantic_memory.semantic_memory import (
 from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
     Resources,
-    SemanticPrompt,
     SemanticCategory,
+    SemanticPrompt,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (

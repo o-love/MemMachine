@@ -7,8 +7,8 @@ from memmachine.common.embedder import Embedder, SimilarityMetric
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     Resources,
-    SemanticPrompt,
     SemanticCategory,
+    SemanticPrompt,
 )
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockResourceRetriever,
@@ -86,7 +86,9 @@ def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
 
 
 @pytest.fixture
-def resources(spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticCategory):
+def resources(
+    spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticCategory
+):
     return Resources(
         embedder=spy_embedder,
         language_model=mock_llm_model,

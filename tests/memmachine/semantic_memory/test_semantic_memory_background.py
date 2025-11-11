@@ -9,8 +9,8 @@ import pytest_asyncio
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     Resources,
-    SemanticPrompt,
     SemanticCategory,
+    SemanticPrompt,
 )
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockEmbedder,

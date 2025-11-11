@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pytest
@@ -197,7 +197,7 @@ async def test_get_feature_set_min_cos_vector_search(
 
 @pytest_asyncio.fixture
 async def time_history_message(storage: SemanticStorageBase):
-    datetime_at = datetime.now(timezone.utc) - timedelta(days=1)
+    datetime_at = datetime.now(UTC) - timedelta(days=1)
     datetime_before = datetime_at - timedelta(minutes=1)
     datetime_after = datetime_at + timedelta(minutes=1)
 
@@ -710,7 +710,7 @@ async def test_complex_history_workflow(storage: SemanticStorageBase):
         history_id=h2_id,
     )
     await asyncio.sleep(0.5)
-    cutoff = datetime.now(timezone.utc)
+    cutoff = datetime.now(UTC)
     await asyncio.sleep(0.5)
     h3_id = await storage.add_history(
         content="third",

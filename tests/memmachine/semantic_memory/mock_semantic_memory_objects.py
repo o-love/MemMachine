@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import AsyncMock
 
 import numpy as np
@@ -44,7 +44,7 @@ class MockSemanticStorage(SemanticStorageBase):
         value: str,
         tag: str,
         embedding: np.ndarray,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         return await self.add_feature_mock(
             set_id=set_id,
@@ -60,13 +60,13 @@ class MockSemanticStorage(SemanticStorageBase):
         self,
         feature_id: int,
         *,
-        set_id: Optional[str] = None,
-        category_name: Optional[str] = None,
-        feature: Optional[str] = None,
-        value: Optional[str] = None,
-        tag: Optional[str] = None,
-        embedding: Optional[np.ndarray] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        set_id: str | None = None,
+        category_name: str | None = None,
+        feature: str | None = None,
+        value: str | None = None,
+        tag: str | None = None,
+        embedding: np.ndarray | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         raise NotImplementedError
 
@@ -76,13 +76,13 @@ class MockSemanticStorage(SemanticStorageBase):
     async def get_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
-        tag_threshold: Optional[int] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
+        tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         return await self.get_feature_set_mock(
@@ -99,13 +99,13 @@ class MockSemanticStorage(SemanticStorageBase):
     async def delete_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        thresh: Optional[int] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        thresh: int | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         await self.delete_feature_set_mock(
             set_ids=set_ids,
@@ -123,8 +123,8 @@ class MockSemanticStorage(SemanticStorageBase):
     async def add_history(
         self,
         content: str,
-        metadata: Optional[dict[str, str]] = None,
-        created_at: Optional[datetime] = None,
+        metadata: dict[str, str] | None = None,
+        created_at: datetime | None = None,
     ) -> int:
         raise NotImplementedError
 
@@ -137,19 +137,19 @@ class MockSemanticStorage(SemanticStorageBase):
     async def delete_history_messages(
         self,
         *,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ):
         raise NotImplementedError
 
     async def get_history_messages(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        is_ingested: bool | None = None,
     ) -> list[HistoryMessage]:
         return await self.get_history_messages_mock(
             set_ids=set_ids,
@@ -162,11 +162,11 @@ class MockSemanticStorage(SemanticStorageBase):
     async def get_history_messages_count(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        is_ingested: Optional[bool] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        is_ingested: bool | None = None,
     ) -> int:
         raise NotImplementedError
 

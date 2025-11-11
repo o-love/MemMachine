@@ -53,7 +53,10 @@ async def test_semantic_llm_consolidate_with_basic_profile(
     result = await llm_consolidate_features(
         features=[
             SemanticFeature(
-                feature_name="favorite_pizza", value="pepperoni", tag="food", category="Profile"
+                feature_name="favorite_pizza",
+                value="pepperoni",
+                tag="food",
+                category="Profile",
             ),
         ],
         consolidate_prompt=consolidation_prompt,

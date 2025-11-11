@@ -8,7 +8,7 @@ information extraction and a vector database for semantic search capabilities.
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, InstanceOf
@@ -97,10 +97,10 @@ class SemanticService:
         query: str,
         *,
         min_distance: float = 0.7,
-        category_names: Optional[list[str]] = None,
-        tag_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        k: Optional[int] = 30,
+        category_names: list[str] | None = None,
+        tag_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        k: int | None = 30,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         resources = self._resource_retriever.get_resources(set_ids[0])
@@ -217,11 +217,11 @@ class SemanticService:
         self,
         feature_id: int,
         *,
-        set_id: Optional[str] = None,
-        category_name: Optional[str] = None,
-        feature: Optional[str] = None,
-        value: Optional[str] = None,
-        tag: Optional[str] = None,
+        set_id: str | None = None,
+        category_name: str | None = None,
+        feature: str | None = None,
+        value: str | None = None,
+        tag: str | None = None,
         metadata: dict[str, str] | None = None,
     ):
         if value is not None:

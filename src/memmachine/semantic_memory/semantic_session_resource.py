@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Final, Optional, Protocol, runtime_checkable
+from typing import Final, Protocol, runtime_checkable
 
 from memmachine.semantic_memory.semantic_model import Resources
 
@@ -50,9 +50,9 @@ class SessionIdManager:
     def generate_session_data(
         self,
         *,
-        user_profile_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        role_profile_id: Optional[str] = None,
+        user_profile_id: str | None = None,
+        session_id: str | None = None,
+        role_profile_id: str | None = None,
     ) -> SessionData:
         class _SessionDataImpl:
             """Lightweight `SessionData` implementation backed by generated set_ids."""
@@ -68,7 +68,7 @@ class SessionIdManager:
             def role_profile_id(self) -> str | None:
                 return self._role_id
 
-            def session_id(self) -> Optional[str]:
+            def session_id(self) -> str | None:
                 return self._session_id
 
         return _SessionDataImpl(

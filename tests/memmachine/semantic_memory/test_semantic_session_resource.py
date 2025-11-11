@@ -4,8 +4,8 @@ import pytest
 
 from memmachine.semantic_memory.semantic_model import (
     Resources,
-    SemanticPrompt,
     SemanticCategory,
+    SemanticPrompt,
 )
 from memmachine.semantic_memory.semantic_session_resource import (
     IsolationType,

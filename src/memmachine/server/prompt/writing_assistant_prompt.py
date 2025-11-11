@@ -3,7 +3,7 @@ Writing Assistant prompt for MemMachine
 Handles writing style analysis and content generation using persona-based approach
 """
 
-from memmachine.semantic_memory.semantic_model import SemanticPrompt, SemanticCategory
+from memmachine.semantic_memory.semantic_model import SemanticCategory, SemanticPrompt
 
 # -----------------------
 # WRITING STYLE FEATURES

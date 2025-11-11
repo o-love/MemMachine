@@ -1,4 +1,4 @@
-from memmachine.semantic_memory.semantic_model import SemanticPrompt, SemanticCategory
+from memmachine.semantic_memory.semantic_model import SemanticCategory, SemanticPrompt
 
 DEFAULT_CREATE_PROFILE_PROMPT = """
     You are an AI assistant that extracts ONLY the health and wellness related information about the user. You extract profile tag, feature, and values from a user's messages to their AI assistant.

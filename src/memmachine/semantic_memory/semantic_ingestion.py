@@ -2,7 +2,6 @@ import asyncio
 import itertools
 import logging
 from itertools import chain
-from typing import Optional
 
 import numpy as np
 from pydantic import BaseModel, InstanceOf, TypeAdapter
@@ -17,10 +16,10 @@ from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
     ResourceRetriever,
     Resources,
+    SemanticCategory,
     SemanticCommand,
     SemanticCommandType,
     SemanticFeature,
-    SemanticCategory,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -76,7 +75,9 @@ class IngestionService:
         if len(messages) == 0:
             return
 
-        async def process_semantic_type(semantic_category: InstanceOf[SemanticCategory]):
+        async def process_semantic_type(
+            semantic_category: InstanceOf[SemanticCategory],
+        ):
             for message in messages:
                 if message.metadata.id is None:
                     raise ValueError(
@@ -141,7 +142,7 @@ class IngestionService:
         commands: list[SemanticCommand],
         set_id: str,
         category_name: str,
-        citation_id: Optional[int],
+        citation_id: int | None,
         embedder: InstanceOf[Embedder],
     ):
         for command in commands:

@@ -7,6 +7,7 @@ from typing import Any, TypeVar
 
 T = TypeVar("T")
 
+
 class LanguageModel(ABC):
     """
     Abstract base class for a language model.

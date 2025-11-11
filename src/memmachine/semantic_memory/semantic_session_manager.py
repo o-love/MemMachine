@@ -1,4 +1,4 @@
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 from pydantic import AwareDatetime, InstanceOf
 
@@ -21,7 +21,7 @@ class HistoryStorage(Protocol):
         self,
         content: str,
         metadata: dict[str, str] | None = None,
-        created_at: Optional[AwareDatetime] = None,
+        created_at: AwareDatetime | None = None,
     ) -> int:
         raise NotImplementedError
 
@@ -46,7 +46,7 @@ class SemanticSessionManager:
         message: str,
         session_data: SessionData,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        created_at: Optional[AwareDatetime] = None,
+        created_at: AwareDatetime | None = None,
     ) -> int:
         h_id = await self._history_storage.add_history(
             content=message,
@@ -65,11 +65,11 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        min_distance: Optional[float] = None,
-        category_names: Optional[list[str]] = None,
-        tag_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        k: Optional[int] = None,
+        min_distance: float | None = None,
+        category_names: list[str] | None = None,
+        tag_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        k: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
@@ -143,10 +143,10 @@ class SemanticSessionManager:
         self,
         feature_id: int,
         *,
-        category_name: Optional[str] = None,
-        feature: Optional[str] = None,
-        value: Optional[str] = None,
-        tag: Optional[str] = None,
+        category_name: str | None = None,
+        feature: str | None = None,
+        value: str | None = None,
+        tag: str | None = None,
         metadata: dict[str, str] | None = None,
     ):
         await self._semantic_service.update_feature(
@@ -166,9 +166,9 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        category_names: Optional[list[str]] = None,
-        tag_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
+        category_names: list[str] | None = None,
+        tag_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
 
@@ -186,10 +186,10 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        k: Optional[int] = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        k: int | None = None,
     ):
         set_ids = self._get_set_ids(session_data, memory_type)
 

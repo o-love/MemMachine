@@ -6,6 +6,7 @@ import asyncio
 import os
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import URL, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -18,9 +19,9 @@ config = context.config
 
 target_metadata = BaseSemanticStorage.metadata
 
-from dotenv import load_dotenv
 
 load_dotenv()  # Loads variables from .env file
+
 
 def pg_server():
     host = os.environ.get("POSTGRES_HOST")
@@ -40,6 +41,7 @@ def pg_server():
         port=port,
         database=database,
     )
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -63,7 +65,6 @@ def run_migrations_offline() -> None:
 
     with context.begin_transaction():
         context.run_migrations()
-
 
 
 def do_run_migrations(connection: Connection) -> None:
@@ -109,4 +110,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

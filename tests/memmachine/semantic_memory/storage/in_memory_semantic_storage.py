@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Iterable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import numpy as np
 from pydantic import AwareDatetime, InstanceOf
@@ -14,10 +15,10 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def _cosine_similarity(lhs: np.ndarray, rhs: np.ndarray) -> Optional[float]:
+def _cosine_similarity(lhs: np.ndarray, rhs: np.ndarray) -> float | None:
     lnorm = float(np.linalg.norm(lhs))
     rnorm = float(np.linalg.norm(rhs))
     if lnorm == 0 or rnorm == 0:
@@ -121,12 +122,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         feature_id: int,
         *,
-        set_id: Optional[str] = None,
-        category_name: Optional[str] = None,
-        feature: Optional[str] = None,
-        value: Optional[str] = None,
-        tag: Optional[str] = None,
-        embedding: Optional[InstanceOf[np.ndarray]] = None,
+        set_id: str | None = None,
+        category_name: str | None = None,
+        feature: str | None = None,
+        value: str | None = None,
+        tag: str | None = None,
+        embedding: InstanceOf[np.ndarray] | None = None,
         metadata: dict[str, Any] | None = None,
     ):
         async with self._lock:
@@ -176,13 +177,13 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def get_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
-        tag_threshold: Optional[int] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
+        tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         async with self._lock:
@@ -203,13 +204,13 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def delete_feature_set(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        category_names: Optional[list[str]] = None,
-        feature_names: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        thresh: Optional[int] = None,
-        k: Optional[int] = None,
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts] = None,
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
+        thresh: int | None = None,
+        k: int | None = None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         async with self._lock:
             to_remove = self._filter_features(
@@ -251,7 +252,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         content: str,
         metadata: dict[str, str] | None = None,
-        created_at: Optional[AwareDatetime] = None,
+        created_at: AwareDatetime | None = None,
     ) -> int:
         metadata = dict(metadata or {})
         async with self._lock:
@@ -269,7 +270,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def get_history(
         self,
         history_id: int,
-    ) -> Optional[HistoryMessage]:
+    ) -> HistoryMessage | None:
         async with self._lock:
             entry = self._history_by_id.get(history_id)
             if entry is None:
@@ -296,8 +297,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def delete_history_messages(
         self,
         *,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
     ):
         async with self._lock:
             to_delete: list[int] = []
@@ -323,12 +324,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def get_history_messages(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
-        set_id: Optional[str] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
+        set_id: str | None = None,
     ) -> list[HistoryMessage]:
         if set_ids is not None and set_id is not None:
             raise ValueError("Provide either set_id or set_ids, not both")
@@ -351,12 +352,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def get_history_messages_count(
         self,
         *,
-        set_ids: Optional[list[str]] = None,
-        k: Optional[int] = None,
-        start_time: Optional[AwareDatetime] = None,
-        end_time: Optional[AwareDatetime] = None,
-        is_ingested: Optional[bool] = None,
-        set_id: Optional[str] = None,
+        set_ids: list[str] | None = None,
+        k: int | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        is_ingested: bool | None = None,
+        set_id: str | None = None,
     ) -> int:
         if set_ids is not None and set_id is not None:
             raise ValueError("Provide either set_id or set_ids, not both")
@@ -416,7 +417,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         *,
         load_citations: bool,
     ) -> SemanticFeature:
-        citations: Optional[list[HistoryMessage]] = None
+        citations: list[HistoryMessage] | None = None
         if load_citations:
             citations = [
                 self._history_to_model(self._history_by_id[history_id])
@@ -448,13 +449,13 @@ class InMemorySemanticStorage(SemanticStorageBase):
     def _filter_features(
         self,
         *,
-        set_ids: Optional[list[str]],
-        type_names: Optional[list[str]],
-        feature_names: Optional[list[str]],
-        tags: Optional[list[str]],
-        k: Optional[int],
-        vector_search_opts: Optional[SemanticStorageBase.VectorSearchOpts],
-        tag_threshold: Optional[int],
+        set_ids: list[str] | None,
+        type_names: list[str] | None,
+        feature_names: list[str] | None,
+        tags: list[str] | None,
+        k: int | None,
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None,
+        tag_threshold: int | None,
     ) -> list[_FeatureEntry]:
         entries: list[_FeatureEntry] = list(self._features_by_id.values())
 
@@ -504,10 +505,10 @@ class InMemorySemanticStorage(SemanticStorageBase):
     def _filter_history_entries(
         self,
         *,
-        set_ids: Optional[list[str]],
-        start_time: Optional[AwareDatetime],
-        end_time: Optional[AwareDatetime],
-        is_ingested: Optional[bool],
+        set_ids: list[str] | None,
+        start_time: AwareDatetime | None,
+        end_time: AwareDatetime | None,
+        is_ingested: bool | None,
     ) -> list[_HistoryEntry]:
         entries: Iterable[_HistoryEntry]
         entries = list(self._history_by_id.values())

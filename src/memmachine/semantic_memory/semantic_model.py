@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from types import ModuleType
-from typing import Any, Optional, Protocol, Tuple, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, InstanceOf
 
@@ -32,8 +32,8 @@ class HistoryMessage(BaseModel):
     class Metadata(BaseModel):
         """Optional storage details for a history message (id, provider-specific info)."""
 
-        id: Optional[int] = None
-        other: Optional[dict[str, Any]] = None
+        id: int | None = None
+        other: dict[str, Any] | None = None
 
     content: str
     created_at: datetime
@@ -65,11 +65,11 @@ class SemanticFeature(BaseModel):
     class Metadata(BaseModel):
         """Storage metadata for a semantic feature, including id and citations."""
 
-        citations: Optional[list[HistoryMessage]] = None
-        id: Optional[int] = None
-        other: Optional[dict[str, Any]] = None
+        citations: list[HistoryMessage] | None = None
+        id: int | None = None
+        other: dict[str, Any] | None = None
 
-    set_id: Optional[str] = None
+    set_id: str | None = None
     category: str
     tag: str
     feature_name: str
@@ -79,8 +79,8 @@ class SemanticFeature(BaseModel):
     @staticmethod
     def group_features(
         features: list["SemanticFeature"],
-    ) -> dict[Tuple[str, str, str], list["SemanticFeature"]]:
-        grouped_features: dict[Tuple[str, str, str], list[SemanticFeature]] = {}
+    ) -> dict[tuple[str, str, str], list["SemanticFeature"]]:
+        grouped_features: dict[tuple[str, str, str], list[SemanticFeature]] = {}
 
         for f in features:
             key = (f.category, f.tag, f.feature_name)
@@ -95,8 +95,8 @@ class SemanticFeature(BaseModel):
     @staticmethod
     def group_features_by_tag(
         features: list["SemanticFeature"],
-    ) -> dict[Tuple[str, str], list["SemanticFeature"]]:
-        grouped_features: dict[Tuple[str, str], list[SemanticFeature]] = {}
+    ) -> dict[tuple[str, str], list["SemanticFeature"]]:
+        grouped_features: dict[tuple[str, str], list[SemanticFeature]] = {}
 
         for f in features:
             key = (f.tag, f.feature_name)
@@ -112,7 +112,7 @@ class SemanticFeature(BaseModel):
 class SemanticCategory(BaseModel):
     """Defines a semantic feature category, its allowed tags, and prompt strategy."""
 
-    id: Optional[int] = None
+    id: int | None = None
 
     name: str
     tags: set[str]

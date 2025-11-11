@@ -47,16 +47,13 @@ async def llm_feature_update(
     user_prompt = (
         "The old feature set is provided below:\n"
         "<OLD_PROFILE>\n"
-        "{feature_set}\n"
+        f"{json.dumps(_features_to_llm_format(features))}\n"
         "</OLD_PROFILE>\n"
         "\n"
         "The history is provided below:\n"
         "<HISTORY>\n"
-        "{message_content}\n"
+        f"{message_content}\n"
         "</HISTORY>\n"
-    ).format(
-        feature_set=json.dumps(_features_to_llm_format(features)),
-        message_content=message_content,
     )
 
     parsed_output = await model.generate_parsed_response(

@@ -1,6 +1,6 @@
 """Tests for the ingestion service using the in-memory semantic storage."""
 
-from typing import Iterable
+from collections.abc import Iterable
 from unittest.mock import AsyncMock
 
 import numpy as np
@@ -15,10 +15,10 @@ from memmachine.semantic_memory.semantic_llm import (
 from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
     Resources,
+    SemanticCategory,
     SemanticCommand,
     SemanticFeature,
     SemanticPrompt,
-    SemanticCategory,
 )
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockEmbedder,

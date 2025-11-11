@@ -9,8 +9,8 @@ from memmachine.common.embedder import Embedder, SimilarityMetric
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     Resources,
-    SemanticPrompt,
     SemanticCategory,
+    SemanticPrompt,
 )
 from memmachine.semantic_memory.semantic_session_manager import (
     SemanticSessionManager,
