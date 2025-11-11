@@ -1,19 +1,18 @@
 """Tests for the ingestion service using the in-memory semantic storage."""
 
-from collections.abc import Iterable
 from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
 import pytest_asyncio
 
+from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_ingestion import IngestionService
 from memmachine.semantic_memory.semantic_llm import (
     LLMReducedFeature,
     SemanticConsolidateMemoryRes,
 )
 from memmachine.semantic_memory.semantic_model import (
-    HistoryMessage,
     RawSemanticPrompt,
     Resources,
     SemanticCategory,
@@ -21,12 +20,10 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticFeature,
     SemanticPrompt,
 )
+from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockEmbedder,
     MockResourceRetriever,
-)
-from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
-    InMemorySemanticStorage,
 )
 
 
@@ -76,21 +73,14 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 
 
 @pytest_asyncio.fixture
-async def storage() -> InMemorySemanticStorage:
-    store = InMemorySemanticStorage()
-    await store.startup()
-    yield store
-    await store.delete_all()
-    await store.cleanup()
-
-
-@pytest_asyncio.fixture
 async def ingestion_service(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     resource_retriever: MockResourceRetriever,
 ) -> IngestionService:
     params = IngestionService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_store=history_storage,
         resource_retriever=resource_retriever,
         consolidated_threshold=2,
     )
@@ -100,15 +90,15 @@ async def ingestion_service(
 @pytest.mark.asyncio
 async def test_process_single_set_returns_when_no_messages(
     ingestion_service: IngestionService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     resource_retriever: MockResourceRetriever,
 ):
     await ingestion_service._process_single_set("user-123")
 
     assert resource_retriever.seen_ids == ["user-123"]
-    assert await storage.get_feature_set(set_ids=["user-123"]) == []
+    assert await semantic_storage.get_feature_set(set_ids=["user-123"]) == []
     assert (
-        await storage.get_history_messages(
+        await semantic_storage.get_history_messages(
             set_ids=["user-123"],
             is_ingested=False,
         )
@@ -119,15 +109,16 @@ async def test_process_single_set_returns_when_no_messages(
 @pytest.mark.asyncio
 async def test_process_single_set_applies_commands(
     ingestion_service: IngestionService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     embedder_double: MockEmbedder,
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    message_id = await storage.add_history(content="I love blue cars")
-    await storage.add_history_to_set(set_id="user-123", history_id=message_id)
+    message_id = await history_storage.add_history(content="I love blue cars")
+    await semantic_storage.add_history_to_set(set_id="user-123", history_id=message_id)
 
-    await storage.add_feature(
+    await semantic_storage.add_feature(
         set_id="user-123",
         category_name=semantic_category.name,
         feature="favorite_motorcycle",
@@ -159,7 +150,7 @@ async def test_process_single_set_applies_commands(
     await ingestion_service._process_single_set("user-123")
 
     llm_feature_update_mock.assert_awaited_once()
-    features = await storage.get_feature_set(
+    features = await semantic_storage.get_feature_set(
         set_ids=["user-123"],
         category_names=[semantic_category.name],
         load_citations=True,
@@ -170,41 +161,42 @@ async def test_process_single_set_applies_commands(
     assert feature.value == "blue"
     assert feature.tag == "car"
     assert feature.metadata.citations is not None
-    assert [c.metadata.id for c in feature.metadata.citations] == [message_id]
+    assert [c_id for c_id in feature.metadata.citations] == [message_id]
 
-    remaining = await storage.get_feature_set(
+    remaining = await semantic_storage.get_feature_set(
         set_ids=["user-123"],
         feature_names=["favorite_motorcycle"],
     )
     assert remaining == []
 
     assert (
-        await storage.get_history_messages(
+        await semantic_storage.get_history_messages(
             set_ids=["user-123"],
             is_ingested=False,
         )
         == []
     )
-    ingested = await storage.get_history_messages(
+    ingested = await semantic_storage.get_history_messages(
         set_ids=["user-123"],
         is_ingested=True,
     )
-    assert [msg.metadata.id for msg in ingested] == [message_id]
+    assert [msg_id for msg_id in ingested] == [message_id]
     assert embedder_double.ingest_calls == [["blue"]]
 
 
 @pytest.mark.asyncio
 async def test_consolidation_groups_by_tag(
     ingestion_service: IngestionService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     resources: Resources,
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    first_history = await storage.add_history(content="thin crust")
-    second_history = await storage.add_history(content="deep dish")
+    first_history = await history_storage.add_history(content="thin crust")
+    second_history = await history_storage.add_history(content="deep dish")
 
-    first_feature = await storage.add_feature(
+    first_feature = await semantic_storage.add_feature(
         set_id="user-456",
         category_name=semantic_category.name,
         feature="pizza",
@@ -212,7 +204,7 @@ async def test_consolidation_groups_by_tag(
         tag="food",
         embedding=np.array([1.0, -1.0]),
     )
-    second_feature = await storage.add_feature(
+    second_feature = await semantic_storage.add_feature(
         set_id="user-456",
         category_name=semantic_category.name,
         feature="pizza",
@@ -220,8 +212,8 @@ async def test_consolidation_groups_by_tag(
         tag="food",
         embedding=np.array([2.0, -2.0]),
     )
-    await storage.add_citations(first_feature, [first_history])
-    await storage.add_citations(second_feature, [second_history])
+    await semantic_storage.add_citations(first_feature, [first_history])
+    await semantic_storage.add_citations(second_feature, [second_history])
 
     dedupe_mock = AsyncMock()
     monkeypatch.setattr(ingestion_service, "_deduplicate_features", dedupe_mock)
@@ -243,15 +235,16 @@ async def test_consolidation_groups_by_tag(
 @pytest.mark.asyncio
 async def test_deduplicate_features_merges_and_relabels(
     ingestion_service: IngestionService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     resources: Resources,
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    keep_history = await storage.add_history(content="keep")
-    drop_history = await storage.add_history(content="drop")
+    keep_history = await history_storage.add_history(content="keep")
+    drop_history = await history_storage.add_history(content="drop")
 
-    keep_feature_id = await storage.add_feature(
+    keep_feature_id = await semantic_storage.add_feature(
         set_id="user-789",
         category_name=semantic_category.name,
         feature="pizza",
@@ -259,7 +252,7 @@ async def test_deduplicate_features_merges_and_relabels(
         tag="food",
         embedding=np.array([1.0, 0.5]),
     )
-    drop_feature_id = await storage.add_feature(
+    drop_feature_id = await semantic_storage.add_feature(
         set_id="user-789",
         category_name=semantic_category.name,
         feature="pizza",
@@ -268,10 +261,10 @@ async def test_deduplicate_features_merges_and_relabels(
         embedding=np.array([2.0, 1.0]),
     )
 
-    await storage.add_citations(keep_feature_id, [keep_history])
-    await storage.add_citations(drop_feature_id, [drop_history])
+    await semantic_storage.add_citations(keep_feature_id, [keep_history])
+    await semantic_storage.add_citations(drop_feature_id, [drop_history])
 
-    memories = await storage.get_feature_set(
+    memories = await semantic_storage.get_feature_set(
         set_ids=["user-789"],
         category_names=[semantic_category.name],
         load_citations=True,
@@ -293,26 +286,26 @@ async def test_deduplicate_features_merges_and_relabels(
         llm_consolidate_mock,
     )
 
-    original_add_citations = storage.add_citations
-
-    async def _normalized_add_citations(
-        feature_id: int,
-        history_items: Iterable[HistoryMessage | int],
-    ):
-        normalized: list[int] = []
-        for item in history_items:
-            if isinstance(item, HistoryMessage):
-                if item.metadata.id is not None:
-                    normalized.append(item.metadata.id)
-            else:
-                normalized.append(int(item))
-        await original_add_citations(feature_id, normalized)
-
-    monkeypatch.setattr(
-        ingestion_service._semantic_storage,
-        "add_citations",
-        _normalized_add_citations,
-    )
+    # original_add_citations = storage.add_citations
+    #
+    # async def _normalized_add_citations(
+    #     feature_id: int,
+    #     history_items: Iterable[HistoryMessage | int],
+    # ):
+    #     normalized: list[int] = []
+    #     for item in history_items:
+    #         if isinstance(item, HistoryMessage):
+    #             if item.metadata.id is not None:
+    #                 normalized.append(item)
+    #         else:
+    #             normalized.append(int(item))
+    #     await original_add_citations(feature_id, normalized)
+    #
+    # monkeypatch.setattr(
+    #     ingestion_service._semantic_storage,
+    #     "add_citations",
+    #     _normalized_add_citations,
+    # )
 
     await ingestion_service._deduplicate_features(
         set_id="user-789",
@@ -322,12 +315,16 @@ async def test_deduplicate_features_merges_and_relabels(
     )
 
     llm_consolidate_mock.assert_awaited_once()
-    assert await storage.get_feature(drop_feature_id, load_citations=True) is None
-    kept_feature = await storage.get_feature(keep_feature_id, load_citations=True)
+    assert (
+        await semantic_storage.get_feature(drop_feature_id, load_citations=True) is None
+    )
+    kept_feature = await semantic_storage.get_feature(
+        keep_feature_id, load_citations=True
+    )
     assert kept_feature is not None
     assert kept_feature.value == "original pizza"
 
-    all_features = await storage.get_feature_set(
+    all_features = await semantic_storage.get_feature_set(
         set_ids=["user-789"],
         category_names=[semantic_category.name],
         load_citations=True,
@@ -340,5 +337,5 @@ async def test_deduplicate_features_merges_and_relabels(
     assert consolidated.tag == "food"
     assert consolidated.feature_name == "pizza"
     assert consolidated.metadata.citations is not None
-    assert [c.metadata.id for c in consolidated.metadata.citations] == [drop_history]
+    assert [c_id for c_id in consolidated.metadata.citations] == [drop_history]
     assert resources.embedder.ingest_calls == [["consolidated pizza"]]

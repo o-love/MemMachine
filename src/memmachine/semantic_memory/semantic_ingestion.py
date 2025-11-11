@@ -7,13 +7,14 @@ import numpy as np
 from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
+from memmachine.history_store.history_model import HistoryIdT, HistoryMessage
+from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_llm import (
     LLMReducedFeature,
     llm_consolidate_features,
     llm_feature_update,
 )
 from memmachine.semantic_memory.semantic_model import (
-    HistoryMessage,
     ResourceRetriever,
     Resources,
     SemanticCategory,
@@ -37,12 +38,14 @@ class IngestionService:
         """Dependencies and tuning knobs for the ingestion workflow."""
 
         semantic_storage: InstanceOf[SemanticStorageBase]
+        history_store: InstanceOf[HistoryStorage]
         resource_retriever: InstanceOf[ResourceRetriever]
         consolidated_threshold: int = 20
         debug_fail_loudly: bool = False
 
     def __init__(self, params: Params):
         self._semantic_storage = params.semantic_storage
+        self._history_store = params.history_store
         self._resource_retriever = params.resource_retriever
         self._consolidation_threshold = params.consolidated_threshold
         self._debug_fail_loudly = params.debug_fail_loudly
@@ -60,7 +63,7 @@ class IngestionService:
     async def _process_single_set(self, set_id: str):
         resources = self._resource_retriever.get_resources(set_id)
 
-        messages = await self._semantic_storage.get_history_messages(
+        history_ids = await self._semantic_storage.get_history_messages(
             set_ids=[set_id],
             limit=50,
             is_ingested=False,
@@ -69,11 +72,20 @@ class IngestionService:
         if len(resources.semantic_categories) == 0:
             await self._semantic_storage.mark_messages_ingested(
                 set_id=set_id,
-                ids=[m.metadata.id for m in messages if m.metadata.id is not None],
+                history_ids=history_ids,
             )
 
-        if len(messages) == 0:
+        if len(history_ids) == 0:
             return
+
+        raw_messages = await asyncio.gather(
+            *[self._history_store.get_history(h_id) for h_id in history_ids]
+        )
+
+        if len(raw_messages) != len([m for m in raw_messages if m is not None]):
+            raise ValueError("Failed to retrieve messages. Invalid history_ids")
+
+        messages = TypeAdapter(list[HistoryMessage]).validate_python(raw_messages)
 
         async def process_semantic_type(
             semantic_category: InstanceOf[SemanticCategory],
@@ -129,7 +141,7 @@ class IngestionService:
 
         await self._semantic_storage.mark_messages_ingested(
             set_id=set_id,
-            ids=mark_messages,
+            history_ids=mark_messages,
         )
 
         await self._consolidate_set_memories_if_applicable(
@@ -253,8 +265,8 @@ class IngestionService:
                 if m.metadata.citations is not None
             ]
         )
-        citation_ids = TypeAdapter(list[int]).validate_python(
-            [c.metadata.id for c in merged_citations]
+        citation_ids = TypeAdapter(list[HistoryIdT]).validate_python(
+            [c_id for c_id in merged_citations]
         )
 
         async def _add_feature(f: LLMReducedFeature):

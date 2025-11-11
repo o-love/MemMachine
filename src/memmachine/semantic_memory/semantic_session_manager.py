@@ -1,29 +1,14 @@
-from typing import Any, Protocol
+import asyncio
+from typing import Any
 
-from pydantic import AwareDatetime, InstanceOf
-
+from memmachine.history_store.history_model import HistoryIdT
 from memmachine.semantic_memory.semantic_memory import SemanticService
-from memmachine.semantic_memory.semantic_model import SemanticFeature
+from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.semantic_session_resource import (
     ALL_MEMORY_TYPES,
     IsolationType,
     SessionData,
 )
-
-
-class HistoryStorage(Protocol):
-    """Async history backend used by `SemanticSessionManager` to persist messages.
-
-    Implementations store raw conversation messages and return the created history_id.
-    """
-
-    async def add_history(
-        self,
-        content: str,
-        metadata: dict[str, str] | None = None,
-        created_at: AwareDatetime | None = None,
-    ) -> int:
-        raise NotImplementedError
 
 
 class SemanticSessionManager:
@@ -36,28 +21,29 @@ class SemanticSessionManager:
     def __init__(
         self,
         semantic_service: SemanticService,
-        history_storage: InstanceOf[HistoryStorage],
     ):
         self._semantic_service: SemanticService = semantic_service
-        self._history_storage: InstanceOf[HistoryStorage] = history_storage
 
     async def add_message(
         self,
-        message: str,
+        history_ids: list[HistoryIdT],
         session_data: SessionData,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        created_at: AwareDatetime | None = None,
-    ) -> int:
-        h_id = await self._history_storage.add_history(
-            content=message,
-            created_at=created_at,
-        )
+    ):
+        if len(history_ids) == 0:
+            return
 
         set_ids = self._get_set_ids(session_data, memory_type)
 
-        await self._semantic_service.add_message_to_sets(h_id, set_ids)
+        if len(history_ids) == 1:
+            await self._semantic_service.add_message_to_sets(history_ids[0], set_ids)
+            return
 
-        return h_id
+        tasks = []
+        for s_id in set_ids:
+            tasks.append(self._semantic_service.add_messages(s_id, history_ids))
+
+        await asyncio.gather(*tasks)
 
     async def search(
         self,
@@ -116,7 +102,7 @@ class SemanticSessionManager:
         tag: str,
         metadata: dict[str, str] | None = None,
         citations: list[int] | None = None,
-    ) -> int:
+    ) -> FeatureIdT:
         set_ids = self._get_set_ids(session_data, [memory_type])
         if len(set_ids) != 1:
             raise ValueError("Invalid set_ids", set_ids)
@@ -133,7 +119,7 @@ class SemanticSessionManager:
         )
 
     async def get_feature(
-        self, feature_id: int, load_citations: bool = False
+        self, feature_id: FeatureIdT, load_citations: bool = False
     ) -> SemanticFeature | None:
         return await self._semantic_service.get_feature(
             feature_id, load_citations=load_citations

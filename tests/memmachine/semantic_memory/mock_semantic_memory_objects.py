@@ -174,8 +174,10 @@ class MockSemanticStorage(SemanticStorageBase):
     async def add_history_to_set(self, set_id: str, history_id: int):
         raise NotImplementedError
 
-    async def mark_messages_ingested(self, *, set_id: str, ids: list[int]) -> None:
-        await self.mark_messages_ingested_mock(set_id=set_id, ids=ids)
+    async def mark_messages_ingested(
+        self, *, set_id: str, history_ids: list[int]
+    ) -> None:
+        await self.mark_messages_ingested_mock(set_id=set_id, ids=history_ids)
 
 
 class MockEmbedder(Embedder):

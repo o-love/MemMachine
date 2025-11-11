@@ -6,6 +6,7 @@ import pytest
 import pytest_asyncio
 
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
+from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_memory import (
     SemanticService,
 )
@@ -23,7 +24,6 @@ from memmachine.semantic_memory.semantic_session_resource import (
     SessionIdManager,
     SessionResourceRetriever,
 )
-from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
 
 @pytest.fixture
@@ -37,9 +37,9 @@ def llm_model(real_llm_model):
 
 
 @pytest.fixture
-def storage(sqlalchemy_profile_storage):
-    yield sqlalchemy_profile_storage
-    sqlalchemy_profile_storage.delete_all()
+def storage(pgvector_semantic_storage):
+    yield pgvector_semantic_storage
+    pgvector_semantic_storage.delete_all()
 
 
 def load_types_from_modules(module_names):
@@ -136,11 +136,13 @@ def basic_session_data(session_id_manager: SessionIdManager):
 @pytest_asyncio.fixture
 async def semantic_service(
     storage,
+    history_storage: HistoryStorage,
     resource_retriever: ResourceRetriever,
 ):
     mem = SemanticService(
         SemanticService.Params(
             semantic_storage=storage,
+            history_storage=history_storage,
             resource_retriever=resource_retriever,
             feature_update_interval_sec=0.05,
             feature_update_message_limit=10,
@@ -156,11 +158,9 @@ async def semantic_service(
 @pytest_asyncio.fixture
 async def semantic_memory(
     semantic_service: SemanticService,
-    storage: SemanticStorageBase,
 ):
     return SemanticSessionManager(
         semantic_service=semantic_service,
-        history_storage=storage,
     )
 
 
@@ -169,13 +169,15 @@ class TestLongMemEvalIngestion:
     async def ingest_question_convos(
         session_data: SessionData,
         semantic_memory: SemanticSessionManager,
+        history_storage: HistoryStorage,
         conversation_sessions: list[list[dict[str, str]]],
     ):
         for convo in conversation_sessions:
             for turn in convo:
+                h_id = await history_storage.add_history(content=turn["content"])
                 await semantic_memory.add_message(
                     session_data=session_data,
-                    message=turn["content"],
+                    history_ids=[h_id],
                 )
 
     @staticmethod
@@ -228,6 +230,7 @@ class TestLongMemEvalIngestion:
     async def test_long_mem_eval_smoke(
         self,
         semantic_memory,
+        history_storage: HistoryStorage,
         basic_session_data,
         long_mem_convos,
     ):
@@ -238,6 +241,7 @@ class TestLongMemEvalIngestion:
         await self.ingest_question_convos(
             basic_session_data,
             semantic_memory=semantic_memory,
+            history_storage=history_storage,
             conversation_sessions=[smoke_convos],
         )
         count = 1
@@ -267,12 +271,14 @@ class TestLongMemEvalIngestion:
         long_mem_question,
         long_mem_answer,
         semantic_memory,
+        history_storage: HistoryStorage,
         llm_model,
         basic_session_data,
     ):
         await self.ingest_question_convos(
             basic_session_data,
             semantic_memory=semantic_memory,
+            history_storage=history_storage,
             conversation_sessions=long_mem_convos,
         )
         count = 1

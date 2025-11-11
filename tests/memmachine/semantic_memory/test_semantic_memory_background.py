@@ -6,11 +6,13 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
+from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
     Resources,
     SemanticCategory,
+    SemanticCommandType,
     SemanticPrompt,
 )
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
@@ -18,14 +20,14 @@ from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockResourceRetriever,
 )
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
-    InMemorySemanticStorage,
+    SemanticStorageBase,
 )
 
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def semantic_prompt() -> SemanticPrompt:
+def semantic_prompt():
     return RawSemanticPrompt(
         update_prompt="update-prompt",
         consolidation_prompt="consolidation-prompt",
@@ -61,21 +63,14 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 
 
 @pytest_asyncio.fixture
-async def storage():
-    store = InMemorySemanticStorage()
-    await store.startup()
-    yield store
-    await store.delete_all()
-    await store.cleanup()
-
-
-@pytest_asyncio.fixture
 async def semantic_service(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     resource_retriever: MockResourceRetriever,
-) -> SemanticService:
+):
     params = SemanticService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_storage=history_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=2,
@@ -87,77 +82,54 @@ async def semantic_service(
 
 
 async def test_service_starts_and_stops_cleanly(
-    storage: InMemorySemanticStorage,
-    resource_retriever: MockResourceRetriever,
+    semantic_service: SemanticService,
 ):
-    # Given a semantic service
-    params = SemanticService.Params(
-        semantic_storage=storage,
-        resource_retriever=resource_retriever,
-        feature_update_interval_sec=0.05,
-    )
-    service = SemanticService(params)
-
     # When starting the service
-    await service.start()
+    await semantic_service.start()
 
     # Then the ingestion task is created
-    assert service._ingestion_task is not None
-    assert not service._is_shutting_down
+    assert semantic_service._ingestion_task is not None
+    assert not semantic_service._is_shutting_down
 
     # When stopping the service
-    await service.stop()
+    await semantic_service.stop()
 
     # Then the shutdown flag is set
-    assert service._is_shutting_down
+    assert semantic_service._is_shutting_down
 
 
 async def test_start_idempotent(
-    storage: InMemorySemanticStorage,
-    resource_retriever: MockResourceRetriever,
+    semantic_service: SemanticService,
 ):
     # Given a semantic service
-    params = SemanticService.Params(
-        semantic_storage=storage,
-        resource_retriever=resource_retriever,
-        feature_update_interval_sec=0.05,
-    )
-    service = SemanticService(params)
 
     # When starting the service multiple times
-    await service.start()
-    first_task = service._ingestion_task
-    await service.start()
-    second_task = service._ingestion_task
+    await semantic_service.start()
+    first_task = semantic_service._ingestion_task
+    await semantic_service.start()
+    second_task = semantic_service._ingestion_task
 
     # Then the same task is reused
     assert first_task is second_task
 
-    await service.stop()
+    await semantic_service.stop()
 
 
 async def test_stop_when_not_started(
-    storage: InMemorySemanticStorage,
-    resource_retriever: MockResourceRetriever,
+    semantic_service: SemanticService,
 ):
     # Given a semantic service that has not been started
-    params = SemanticService.Params(
-        semantic_storage=storage,
-        resource_retriever=resource_retriever,
-        feature_update_interval_sec=0.05,
-    )
-    service = SemanticService(params)
-
     # When stopping the service
-    await service.stop()
+    await semantic_service.stop()
 
     # Then no error occurs
-    assert service._ingestion_task is None
+    assert semantic_service._ingestion_task is None
 
 
 async def test_background_ingestion_processes_messages_on_message_limit(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     resource_retriever: MockResourceRetriever,
+    history_storage: HistoryStorage,
     semantic_type: SemanticCategory,
     monkeypatch,
 ):
@@ -165,7 +137,8 @@ async def test_background_ingestion_processes_messages_on_message_limit(
 
     # Create service with message_limit=2 and very fast interval
     params = SemanticService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_storage=history_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=2,  # Trigger on 2 messages
@@ -177,7 +150,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     # Mock the LLM response
     commands = [
         SemanticCommand(
-            command="add",
+            command=SemanticCommandType.ADD,
             feature="favorite_color",
             tag="preferences",
             value="blue",
@@ -194,10 +167,10 @@ async def test_background_ingestion_processes_messages_on_message_limit(
 
     # Add two messages to trigger ingestion (message_limit=2)
     # Need to add them separately so tracker counts each one
-    msg1 = await storage.add_history(content="I like blue")
+    msg1 = await history_storage.add_history(content="I like blue")
     await service.add_messages(set_id="user-123", history_ids=[msg1])
 
-    msg2 = await storage.add_history(content="Blue is my favorite")
+    msg2 = await history_storage.add_history(content="Blue is my favorite")
     await service.add_messages(set_id="user-123", history_ids=[msg2])
 
     # Wait for background ingestion to process
@@ -208,13 +181,13 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     await asyncio.sleep(0.3)
 
     # Verify messages were marked as ingested
-    uningested = await storage.get_history_messages_count(
+    uningested = await semantic_storage.get_history_messages_count(
         set_ids=["user-123"],
         is_ingested=False,
     )
 
     # Verify features were created
-    features = await storage.get_feature_set(
+    features = await semantic_storage.get_feature_set(
         set_ids=["user-123"],
         category_names=[semantic_type.name],
     )
@@ -227,8 +200,9 @@ async def test_background_ingestion_processes_messages_on_message_limit(
 
 
 async def test_background_ingestion_with_time_based_trigger(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     resource_retriever: MockResourceRetriever,
+    history_storage: HistoryStorage,
     semantic_type: SemanticCategory,
     monkeypatch,
 ):
@@ -236,7 +210,8 @@ async def test_background_ingestion_with_time_based_trigger(
 
     # Create service with very short time limit
     params = SemanticService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_storage=history_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=100,  # High message limit
@@ -248,7 +223,7 @@ async def test_background_ingestion_with_time_based_trigger(
     # Mock the LLM response
     commands = [
         SemanticCommand(
-            command="add",
+            command=SemanticCommandType.ADD,
             feature="activity",
             tag="hobbies",
             value="reading",
@@ -264,14 +239,14 @@ async def test_background_ingestion_with_time_based_trigger(
     )
 
     # Add a single message
-    msg1 = await storage.add_history(content="I enjoy reading books")
+    msg1 = await history_storage.add_history(content="I enjoy reading books")
     await service.add_messages(set_id="user-456", history_ids=[msg1])
 
     # Wait for time-based trigger to fire
     await asyncio.sleep(0.25)
 
     # Verify features were created despite not hitting message limit
-    features = await storage.get_feature_set(
+    features = await semantic_storage.get_feature_set(
         set_ids=["user-456"],
         category_names=[semantic_type.name],
     )
@@ -283,7 +258,7 @@ async def test_background_ingestion_with_time_based_trigger(
 
 async def test_background_ingestion_handles_errors_gracefully(
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
+    history_storage: HistoryStorage,
     monkeypatch,
 ):
     # Start the background service
@@ -299,8 +274,8 @@ async def test_background_ingestion_handles_errors_gracefully(
     )
 
     # Add messages to trigger ingestion
-    msg1 = await storage.add_history(content="Test message 1")
-    msg2 = await storage.add_history(content="Test message 2")
+    msg1 = await history_storage.add_history(content="Test message 1")
+    msg2 = await history_storage.add_history(content="Test message 2")
     await semantic_service.add_messages(set_id="user-error", history_ids=[msg1, msg2])
 
     # Wait for background processing
@@ -313,14 +288,15 @@ async def test_background_ingestion_handles_errors_gracefully(
 
 async def test_consolidation_threshold_not_reached(
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     semantic_type: SemanticCategory,
 ):
     # Given a service with high consolidation threshold
     # (default is 20 in the fixture)
 
     # Add a few features (less than threshold)
-    await storage.add_feature(
+    await semantic_storage.add_feature(
         set_id="user-consolidate",
         category_name=semantic_type.name,
         feature="color1",
@@ -328,7 +304,7 @@ async def test_consolidation_threshold_not_reached(
         tag="colors",
         embedding=np.array([1.0, 0.0]),
     )
-    await storage.add_feature(
+    await semantic_storage.add_feature(
         set_id="user-consolidate",
         category_name=semantic_type.name,
         feature="color2",
@@ -338,23 +314,21 @@ async def test_consolidation_threshold_not_reached(
     )
 
     # Get initial count
-    features_before = await storage.get_feature_set(
+    features_before = await semantic_storage.get_feature_set(
         set_ids=["user-consolidate"],
         category_names=[semantic_type.name],
     )
     count_before = len(features_before)
 
     # Add messages to trigger background processing
-    msg = await storage.add_history(content="I like colors")
-    await semantic_service.add_messages(
-        set_id="user-consolidate", history_ids=[msg, msg]
-    )
+    msg_id = await history_storage.add_history(content="I like colors")
+    await semantic_service.add_messages(set_id="user-consolidate", history_ids=[msg_id])
 
     # Wait for processing
     await asyncio.sleep(0.2)
 
     # Features should not be consolidated
-    features_after = await storage.get_feature_set(
+    features_after = await semantic_storage.get_feature_set(
         set_ids=["user-consolidate"],
         category_names=[semantic_type.name],
     )
@@ -364,8 +338,9 @@ async def test_consolidation_threshold_not_reached(
 
 
 async def test_multiple_sets_processed_independently(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     resource_retriever: MockResourceRetriever,
+    history_storage: HistoryStorage,
     semantic_type: SemanticCategory,
     monkeypatch,
 ):
@@ -373,7 +348,8 @@ async def test_multiple_sets_processed_independently(
 
     # Create service with message_limit=2
     params = SemanticService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_storage=history_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=2,
@@ -388,7 +364,7 @@ async def test_multiple_sets_processed_independently(
         if "user-a" in str(message):
             return [
                 SemanticCommand(
-                    command="add",
+                    command=SemanticCommandType.ADD,
                     feature="trait_a",
                     tag="traits",
                     value="value_a",
@@ -397,7 +373,7 @@ async def test_multiple_sets_processed_independently(
         else:
             return [
                 SemanticCommand(
-                    command="add",
+                    command=SemanticCommandType.ADD,
                     feature="trait_b",
                     tag="traits",
                     value="value_b",
@@ -411,35 +387,35 @@ async def test_multiple_sets_processed_independently(
 
     # Add messages for two different sets
     # Need to add them separately so tracker counts each one
-    msg_a1 = await storage.add_history(content="user-a message 1")
+    msg_a1 = await history_storage.add_history(content="user-a message 1")
     await service.add_messages(set_id="user-a", history_ids=[msg_a1])
-    msg_a2 = await storage.add_history(content="user-a message 2")
+    msg_a2 = await history_storage.add_history(content="user-a message 2")
     await service.add_messages(set_id="user-a", history_ids=[msg_a2])
 
-    msg_b1 = await storage.add_history(content="user-b message 1")
+    msg_b1 = await history_storage.add_history(content="user-b message 1")
     await service.add_messages(set_id="user-b", history_ids=[msg_b1])
-    msg_b2 = await storage.add_history(content="user-b message 2")
+    msg_b2 = await history_storage.add_history(content="user-b message 2")
     await service.add_messages(set_id="user-b", history_ids=[msg_b2])
 
     # Wait for background processing
     await asyncio.sleep(0.4)
 
     # Verify that messages were ingested for both sets
-    uningested_a = await storage.get_history_messages_count(
+    uningested_a = await semantic_storage.get_history_messages_count(
         set_ids=["user-a"],
         is_ingested=False,
     )
-    uningested_b = await storage.get_history_messages_count(
+    uningested_b = await semantic_storage.get_history_messages_count(
         set_ids=["user-b"],
         is_ingested=False,
     )
 
     # Verify both sets were processed independently
-    features_a = await storage.get_feature_set(
+    features_a = await semantic_storage.get_feature_set(
         set_ids=["user-a"],
         category_names=[semantic_type.name],
     )
-    features_b = await storage.get_feature_set(
+    features_b = await semantic_storage.get_feature_set(
         set_ids=["user-b"],
         category_names=[semantic_type.name],
     )
