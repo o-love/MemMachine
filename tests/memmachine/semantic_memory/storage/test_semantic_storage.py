@@ -159,7 +159,7 @@ async def test_get_feature_set_basic_vector_search(
     # When doing a vector search
     results = await storage.get_feature_set(
         set_ids=["user"],
-        k=10,
+        limit=10,
         vector_search_opts=SemanticStorageBase.VectorSearchOpts(
             query_embedding=embed_a,
             min_distance=None,
@@ -183,7 +183,7 @@ async def test_get_feature_set_min_cos_vector_search(
     # When doing a vector search with a min_cos threshold
     results = await storage.get_feature_set(
         set_ids=["user"],
-        k=10,
+        limit=10,
         vector_search_opts=SemanticStorageBase.VectorSearchOpts(
             query_embedding=embed_a,
             min_distance=0.5,
@@ -692,7 +692,7 @@ async def test_complex_semantic_search_and_citations(storage: SemanticStorageBas
 
     results = await storage.get_feature_set(
         set_ids=["user"],
-        k=10,
+        limit=10,
         vector_search_opts=SemanticStorageBase.VectorSearchOpts(
             query_embedding=np.array([1.0, 0.0]),
             min_distance=0.0,
@@ -708,7 +708,7 @@ async def test_complex_semantic_search_and_citations(storage: SemanticStorageBas
 
     filtered = await storage.get_feature_set(
         set_ids=["user"],
-        k=1,
+        limit=1,
         vector_search_opts=SemanticStorageBase.VectorSearchOpts(
             query_embedding=np.array([1.0, 0.0]),
             min_distance=0.5,
@@ -776,7 +776,7 @@ async def test_complex_history_workflow(storage: SemanticStorageBase):
 
     latest_uningested = await storage.get_history_messages(
         set_ids=["user"],
-        k=2,
+        limit=2,
         is_ingested=False,
     )
     assert [entry.content for entry in latest_uningested] == ["first", "second"]

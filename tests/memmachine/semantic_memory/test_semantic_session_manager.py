@@ -372,7 +372,7 @@ async def test_search_passes_set_ids_and_filters(
         memory_type=[IsolationType.USER],
         tag_names=["facts"],
         feature_names=["alpha_fact"],
-        k=5,
+        limit=5,
         load_citations=True,
     )
 
@@ -381,7 +381,7 @@ async def test_search_passes_set_ids_and_filters(
     assert kwargs["set_ids"] == [session_data.user_profile_id()]
     assert kwargs["tag_names"] == ["facts"]
     assert kwargs["feature_names"] == ["alpha_fact"]
-    assert kwargs["k"] == 5
+    assert kwargs["limit"] == 5
     assert kwargs["load_citations"] is True
     assert result == ["result"]
 

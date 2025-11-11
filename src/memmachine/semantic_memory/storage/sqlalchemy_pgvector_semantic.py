@@ -325,7 +325,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
@@ -339,7 +339,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             tags=tags,
             feature_names=feature_names,
             thresh=tag_threshold,
-            k=k,
+            k=limit,
             vector_search_opts=vector_search_opts,
         )
 
@@ -370,7 +370,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
         thresh: int | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         stmt = delete(Feature)
@@ -382,7 +382,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             tags=tags,
             feature_names=feature_names,
             thresh=thresh,
-            k=k,
+            k=limit,
             vector_search_opts=vector_search_opts,
         )
 
@@ -469,7 +469,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         is_ingested: bool | None = None,
@@ -484,7 +484,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             set_ids=set_ids,
             start_time=start_time,
             end_time=end_time,
-            k=k,
+            k=limit,
             is_ingested=is_ingested,
         )
 
@@ -499,7 +499,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         is_ingested: bool | None = None,
@@ -511,7 +511,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             set_ids=set_ids,
             start_time=start_time,
             end_time=end_time,
-            k=k,
+            k=limit,
             is_ingested=is_ingested,
         )
 

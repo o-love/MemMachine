@@ -1292,7 +1292,7 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     res = await cast(SemanticSessionManager, semantic_session_manager).search(
         message=q.query,
         session_data=semantic_session_data,
-        k=q.limit if q.limit is not None else 5,
+        limit=q.limit if q.limit is not None else 5,
     )
     return SearchResult(content={"profile_memory": res})
 

@@ -100,7 +100,7 @@ class SemanticService:
         category_names: list[str] | None = None,
         tag_names: list[str] | None = None,
         feature_names: list[str] | None = None,
-        k: int | None = 30,
+        limit: int | None = 30,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         resources = self._resource_retriever.get_resources(set_ids[0])
@@ -115,7 +115,7 @@ class SemanticService:
             category_names=category_names,
             tags=tag_names,
             feature_names=feature_names,
-            k=k,
+            limit=limit,
             load_citations=load_citations,
         )
 
@@ -197,7 +197,7 @@ class SemanticService:
         category_names: list[str] | None = None
         feature_names: list[str] | None = None
         tags: list[str] | None = None
-        k: int = 100
+        limit: int = 100
         with_citations: bool = False
 
     async def get_set_features(
@@ -209,7 +209,7 @@ class SemanticService:
             category_names=opts.category_names,
             feature_names=opts.feature_names,
             tags=opts.tags,
-            k=opts.k,
+            limit=opts.limit,
             load_citations=opts.with_citations,
         )
 

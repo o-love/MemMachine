@@ -115,7 +115,7 @@ class TestLRUCache:
         cache.put("key2", "value2")
         cache.put("key3", "value3")
 
-        cache.clean()
+        cache.clear()
 
         assert len(cache.cache) == 0
         assert cache.get("key1") is None
@@ -125,7 +125,7 @@ class TestLRUCache:
     def test_clean_allows_reuse(self):
         cache = LRUCache(2)
         cache.put("key1", "value1")
-        cache.clean()
+        cache.clear()
 
         cache.put("key2", "value2")
         cache.put("key3", "value3")

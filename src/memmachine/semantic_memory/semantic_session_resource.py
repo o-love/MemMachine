@@ -33,7 +33,7 @@ class SessionData(Protocol):
 class SessionIdIsolationTypeChecker(Protocol):
     """Protocol for determining the isolation type associated with a set_id."""
 
-    def set_id_isolation_type(self, _id: str) -> IsolationType:
+    def set_id_isolation_type(self, set_id: str) -> IsolationType:
         raise NotImplementedError
 
 

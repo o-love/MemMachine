@@ -69,7 +69,7 @@ class SemanticSessionManager:
         category_names: list[str] | None = None,
         tag_names: list[str] | None = None,
         feature_names: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
@@ -86,8 +86,8 @@ class SemanticSessionManager:
         if min_distance is not None:
             optionals_dft_args["min_distance"] = min_distance
 
-        if k is not None:
-            optionals_dft_args["k"] = k
+        if limit is not None:
+            optionals_dft_args["limit"] = limit
 
         return await self._semantic_service.search(
             **optionals_dft_args,
@@ -189,7 +189,7 @@ class SemanticSessionManager:
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
     ):
         set_ids = self._get_set_ids(session_data, memory_type)
 
@@ -200,8 +200,8 @@ class SemanticSessionManager:
             "tags": tags,
         }
 
-        if k is not None:
-            search_opts["k"] = k
+        if limit is not None:
+            search_opts["limit"] = limit
 
         return await self._semantic_service.delete_feature_set(
             SemanticService.FeatureSearchOpts(

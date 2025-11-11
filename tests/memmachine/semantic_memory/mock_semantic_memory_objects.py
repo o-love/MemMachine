@@ -80,7 +80,7 @@ class MockSemanticStorage(SemanticStorageBase):
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
@@ -90,7 +90,7 @@ class MockSemanticStorage(SemanticStorageBase):
             type_names=category_names,
             feature_names=feature_names,
             tags=tags,
-            k=k,
+            k=limit,
             vector_search_opts=vector_search_opts,
             tag_threshold=tag_threshold,
             load_citations=load_citations,
@@ -104,7 +104,7 @@ class MockSemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
         thresh: int | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         await self.delete_feature_set_mock(
@@ -113,7 +113,7 @@ class MockSemanticStorage(SemanticStorageBase):
             feature_names=feature_names,
             tags=tags,
             thresh=thresh,
-            k=k,
+            k=limit,
             vector_search_opts=vector_search_opts,
         )
 
@@ -146,14 +146,14 @@ class MockSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
         is_ingested: bool | None = None,
     ) -> list[HistoryMessage]:
         return await self.get_history_messages_mock(
             set_ids=set_ids,
-            k=k,
+            k=limit,
             start_time=start_time,
             end_time=end_time,
             is_ingested=is_ingested,
@@ -163,7 +163,7 @@ class MockSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
         is_ingested: bool | None = None,

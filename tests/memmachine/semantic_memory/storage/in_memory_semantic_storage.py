@@ -181,7 +181,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
@@ -192,7 +192,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 type_names=category_names,
                 feature_names=feature_names,
                 tags=tags,
-                k=k,
+                k=limit,
                 vector_search_opts=vector_search_opts,
                 tag_threshold=tag_threshold,
             )
@@ -209,7 +209,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
         thresh: int | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
     ):
         async with self._lock:
@@ -218,7 +218,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 type_names=category_names,
                 feature_names=feature_names,
                 tags=tags,
-                k=k,
+                k=limit,
                 vector_search_opts=vector_search_opts,
                 tag_threshold=thresh,
             )
@@ -325,7 +325,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         is_ingested: bool | None = None,
@@ -344,8 +344,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 is_ingested=is_ingested,
             )
 
-            if k is not None:
-                entries = entries[:k]
+            if limit is not None:
+                entries = entries[:limit]
 
             return [self._history_to_model(entry) for entry in entries]
 
@@ -353,7 +353,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: list[str] | None = None,
-        k: int | None = None,
+        limit: int | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         is_ingested: bool | None = None,
@@ -371,8 +371,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 end_time=end_time,
                 is_ingested=is_ingested,
             )
-            if k is not None:
-                return len(entries[:k])
+            if limit is not None:
+                return len(entries[:limit])
             return len(entries)
 
     async def add_history_to_set(

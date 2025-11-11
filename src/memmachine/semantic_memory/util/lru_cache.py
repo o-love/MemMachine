@@ -55,7 +55,7 @@ class LRUCache:
             self.head.next.prev = node
         self.head.next = node
 
-    def clean(self) -> None:
+    def clear(self) -> None:
         self.cache = {}
         self.head = Node(None, None)
         self.tail = Node(None, None)
