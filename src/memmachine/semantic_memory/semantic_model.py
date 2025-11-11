@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from types import ModuleType
 from typing import Any, Protocol, runtime_checkable
@@ -8,6 +7,10 @@ from pydantic import BaseModel, InstanceOf
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
+from memmachine.history_store.history_model import HistoryIdT
+
+SetIdT = str
+FeatureIdT = str
 
 
 class SemanticCommandType(Enum):
@@ -24,21 +27,6 @@ class SemanticCommand(BaseModel):
     feature: str
     tag: str
     value: str
-
-
-class HistoryMessage(BaseModel):
-    """Conversation message stored in history together with persistence metadata."""
-
-    class Metadata(BaseModel):
-        """Optional storage details for a history message (id, provider-specific info)."""
-
-        id: int | None = None
-        other: dict[str, Any] | None = None
-
-    content: str
-    created_at: datetime
-
-    metadata: Metadata = Metadata()
 
 
 @dataclass
@@ -65,11 +53,11 @@ class SemanticFeature(BaseModel):
     class Metadata(BaseModel):
         """Storage metadata for a semantic feature, including id and citations."""
 
-        citations: list[HistoryMessage] | None = None
-        id: int | None = None
+        citations: list[HistoryIdT] | None = None
+        id: FeatureIdT | None = None
         other: dict[str, Any] | None = None
 
-    set_id: str | None = None
+    set_id: SetIdT | None = None
     category: str
     tag: str
     feature_name: str
@@ -142,5 +130,5 @@ class Resources(BaseModel):
 class ResourceRetriever(Protocol):
     """Protocol for locating the `Resources` bundle associated with a set_id."""
 
-    def get_resources(self, set_id: str) -> Resources:
+    def get_resources(self, set_id: SetIdT) -> Resources:
         raise NotImplementedError

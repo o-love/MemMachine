@@ -7,6 +7,7 @@ import pytest_asyncio
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
@@ -25,7 +26,7 @@ from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockResourceRetriever,
 )
 from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
-    InMemorySemanticStorage,
+    SemanticStorageBase,
 )
 
 pytestmark = pytest.mark.asyncio
@@ -115,21 +116,14 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 
 
 @pytest_asyncio.fixture
-async def storage() -> InMemorySemanticStorage:
-    store = InMemorySemanticStorage()
-    await store.startup()
-    yield store
-    await store.delete_all()
-    await store.cleanup()
-
-
-@pytest_asyncio.fixture
 async def semantic_service(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     resource_retriever: MockResourceRetriever,
-) -> SemanticService:
+):
     params = SemanticService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_storage=history_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=10,
@@ -156,11 +150,9 @@ def session_data(session_id_manager: SessionIdManager):
 @pytest_asyncio.fixture
 async def session_manager(
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
 ) -> SemanticSessionManager:
     return SemanticSessionManager(
         semantic_service=semantic_service,
-        history_storage=storage,
     )
 
 
@@ -180,42 +172,42 @@ def mock_semantic_service() -> MagicMock:
 @pytest_asyncio.fixture
 async def mock_session_manager(
     mock_semantic_service: MagicMock,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
 ) -> SemanticSessionManager:
     return SemanticSessionManager(
         semantic_service=mock_semantic_service,
-        history_storage=storage,
     )
 
 
 async def test_add_message_records_history_and_uningested_counts(
     session_manager: SemanticSessionManager,
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
     session_data,
 ):
     # Given a session with both session and profile identifiers
-    history_id = await session_manager.add_message(
-        message="Alpha update",
-        session_data=session_data,
+    history_id = await history_storage.add_history(content="Alpha memory")
+    await session_manager.add_message(
+        session_data=session_data, history_ids=[history_id]
     )
 
     # When inspecting storage for each isolation level
     profile_id = session_data.user_profile_id()
     session_id = session_data.session_id()
-    profile_messages = await storage.get_history_messages(
+    profile_messages = await semantic_storage.get_history_messages(
         set_ids=[profile_id],
         is_ingested=False,
     )
-    session_messages = await storage.get_history_messages(
+    session_messages = await semantic_storage.get_history_messages(
         set_ids=[session_id],
         is_ingested=False,
     )
 
     # Then the history is recorded for both set ids and marked as uningested
-    assert history_id > 0
-    assert [msg.metadata.id for msg in profile_messages] == [history_id]
-    assert [msg.metadata.id for msg in session_messages] == [history_id]
+    assert len(history_id) > 0
+    assert [msg_id for msg_id in profile_messages] == [history_id]
+    assert [msg_id for msg_id in session_messages] == [history_id]
     assert await semantic_service.number_of_uningested([profile_id]) == 1
     assert await semantic_service.number_of_uningested([session_id]) == 1
 
@@ -259,7 +251,7 @@ async def test_search_returns_relevant_features(
 
 async def test_add_feature_applies_requested_isolation(
     session_manager: SemanticSessionManager,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     spy_embedder: SpyEmbedder,
     session_data,
 ):
@@ -276,8 +268,8 @@ async def test_add_feature_applies_requested_isolation(
     # When retrieving features for each set id
     profile_id = session_data.user_profile_id()
     session_id = session_data.session_id()
-    profile_features = await storage.get_feature_set(set_ids=[profile_id])
-    session_features = await storage.get_feature_set(set_ids=[session_id])
+    profile_features = await semantic_storage.get_feature_set(set_ids=[profile_id])
+    session_features = await semantic_storage.get_feature_set(set_ids=[session_id])
 
     # Then only the profile receives the new feature and embeddings were generated
     assert feature_id == profile_features[0].metadata.id
@@ -290,7 +282,7 @@ async def test_add_feature_applies_requested_isolation(
 async def test_delete_feature_set_removes_filtered_entries(
     session_manager: SemanticSessionManager,
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     session_data,
 ):
     # Given profile and session features with distinct tags
@@ -319,8 +311,8 @@ async def test_delete_feature_set_removes_filtered_entries(
     )
 
     # Then profile features are cleared while session-scoped entries remain
-    profile_features = await storage.get_feature_set(set_ids=[profile_id])
-    session_features = await storage.get_feature_set(set_ids=[session_id])
+    profile_features = await semantic_storage.get_feature_set(set_ids=[profile_id])
+    session_features = await semantic_storage.get_feature_set(set_ids=[session_id])
 
     assert profile_features == []
     assert len(session_features) == 1
@@ -332,9 +324,9 @@ async def test_add_message_uses_all_isolations(
     mock_semantic_service: MagicMock,
     session_data,
 ):
-    history_id = await mock_session_manager.add_message(
-        message="Alpha update",
-        session_data=session_data,
+    history_id = "abc"
+    await mock_session_manager.add_message(
+        session_data=session_data, history_ids=[history_id]
     )
 
     mock_semantic_service.add_message_to_sets.assert_awaited_once_with(
@@ -349,7 +341,7 @@ async def test_add_message_with_session_only_isolation(
     session_data,
 ):
     await mock_session_manager.add_message(
-        message="Session only",
+        history_ids=["abc"],
         session_data=session_data,
         memory_type=[IsolationType.SESSION],
     )

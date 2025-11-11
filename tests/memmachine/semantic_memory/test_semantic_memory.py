@@ -5,6 +5,7 @@ import pytest_asyncio
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
@@ -12,11 +13,9 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticCategory,
     SemanticPrompt,
 )
+from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockResourceRetriever,
-)
-from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import (
-    InMemorySemanticStorage,
 )
 
 pytestmark = pytest.mark.asyncio
@@ -104,21 +103,14 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 
 
 @pytest_asyncio.fixture
-async def storage():
-    store = InMemorySemanticStorage()
-    await store.startup()
-    yield store
-    await store.delete_all()
-    await store.cleanup()
-
-
-@pytest_asyncio.fixture
 async def semantic_service(
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
     resource_retriever: MockResourceRetriever,
+    history_storage: HistoryStorage,
 ) -> SemanticService:
     params = SemanticService.Params(
-        semantic_storage=storage,
+        semantic_storage=semantic_storage,
+        history_storage=history_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=10,
@@ -287,10 +279,11 @@ async def test_delete_feature_set_applies_filters(
 
 async def test_add_messages_tracks_uningested_counts(
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
 ):
     # Given a stored history message
-    history_id = await storage.add_history(content="Alpha memory")
+    history_id = await history_storage.add_history(content="Alpha memory")
 
     # When associating the message to a set
     await semantic_service.add_messages(set_id="user-21", history_ids=[history_id])
@@ -299,7 +292,9 @@ async def test_add_messages_tracks_uningested_counts(
     assert await semantic_service.number_of_uningested(["user-21"]) == 1
 
     # When the message is marked ingested
-    await storage.mark_messages_ingested(set_id="user-21", ids=[history_id])
+    await semantic_storage.mark_messages_ingested(
+        set_id="user-21", history_ids=[history_id]
+    )
 
     # Then the uningested count drops to zero
     assert await semantic_service.number_of_uningested(["user-21"]) == 0
@@ -307,10 +302,11 @@ async def test_add_messages_tracks_uningested_counts(
 
 async def test_add_message_to_sets_supports_multiple_targets(
     semantic_service: SemanticService,
-    storage: InMemorySemanticStorage,
+    semantic_storage: SemanticStorageBase,
+    history_storage: HistoryStorage,
 ):
     # Given a history entry
-    history_id = await storage.add_history(content="Alpha shared memory")
+    history_id = await history_storage.add_history(content="Alpha shared memory")
 
     # When linking the message to multiple sets
     await semantic_service.add_message_to_sets(

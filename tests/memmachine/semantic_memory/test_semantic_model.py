@@ -5,6 +5,7 @@ from types import ModuleType
 
 import pytest
 
+from memmachine.history_store.history_model import HistoryIdT
 from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
     RawSemanticPrompt,
@@ -228,14 +229,14 @@ class TestHistoryMessage:
             content="Test message",
             created_at=now,
             metadata=HistoryMessage.Metadata(
-                id=123,
+                id=HistoryIdT(123),
                 other={"source": "test", "priority": "high"},
             ),
         )
 
         assert msg.content == "Test message"
         assert msg.created_at == now
-        assert msg.metadata.id == 123
+        assert msg.metadata.id == "123"
         assert msg.metadata.other == {"source": "test", "priority": "high"}
 
 
@@ -266,7 +267,7 @@ class TestSemanticFeature:
         citation = HistoryMessage(
             content="I love pasta",
             created_at=now,
-            metadata=HistoryMessage.Metadata(id=456),
+            metadata=HistoryMessage.Metadata(id="456aw3w"),
         )
 
         feature = SemanticFeature(
@@ -276,8 +277,8 @@ class TestSemanticFeature:
             feature_name="favorite_meal",
             value="pasta",
             metadata=SemanticFeature.Metadata(
-                id=789,
-                citations=[citation],
+                id="a789",
+                citations=[citation.metadata.id],
                 other={"confidence": 0.95},
             ),
         )
@@ -287,7 +288,7 @@ class TestSemanticFeature:
         assert feature.tag == "food"
         assert feature.feature_name == "favorite_meal"
         assert feature.value == "pasta"
-        assert feature.metadata.id == 789
+        assert feature.metadata.id == "a789"
         assert len(feature.metadata.citations) == 1
-        assert feature.metadata.citations[0].content == "I love pasta"
+        assert feature.metadata.citations[0] == "456aw3w"
         assert feature.metadata.other == {"confidence": 0.95}

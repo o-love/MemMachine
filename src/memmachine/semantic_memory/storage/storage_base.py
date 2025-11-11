@@ -3,9 +3,14 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from pydantic import AwareDatetime, InstanceOf
+from pydantic import InstanceOf
 
-from memmachine.semantic_memory.semantic_model import HistoryMessage, SemanticFeature
+from memmachine.history_store.history_storage import HistoryIdT
+from memmachine.semantic_memory.semantic_model import (
+    FeatureIdT,
+    SemanticFeature,
+    SetIdT,
+)
 
 
 class SemanticStorageBase(ABC):
@@ -40,7 +45,7 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def get_feature(
         self,
-        feature_id: int,
+        feature_id: FeatureIdT,
         load_citations: bool = False,
     ) -> SemanticFeature | None:
         raise NotImplementedError
@@ -49,14 +54,14 @@ class SemanticStorageBase(ABC):
     async def add_feature(
         self,
         *,
-        set_id: str,
+        set_id: SetIdT,
         category_name: str,
         feature: str,
         value: str,
         tag: str,
         embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
-    ) -> int:
+    ) -> FeatureIdT:
         """
         Add a new feature to the user.
         """
@@ -65,9 +70,9 @@ class SemanticStorageBase(ABC):
     @abstractmethod
     async def update_feature(
         self,
-        feature_id: int,
+        feature_id: FeatureIdT,
         *,
-        set_id: str | None = None,
+        set_id: SetIdT | None = None,
         category_name: str | None = None,
         feature: str | None = None,
         value: str | None = None,
@@ -78,7 +83,7 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_features(self, feature_ids: list[int]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]):
         raise NotImplementedError
 
     @dataclass
@@ -92,7 +97,7 @@ class SemanticStorageBase(ABC):
     async def get_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
+        set_ids: list[SetIdT] | None = None,
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
@@ -112,7 +117,7 @@ class SemanticStorageBase(ABC):
     async def delete_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
+        set_ids: list[SetIdT] | None = None,
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
@@ -126,38 +131,8 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add_citations(self, feature_id: int, history_ids: list[int]):
-        raise NotImplementedError
-
-    @abstractmethod
-    async def add_history(
-        self,
-        content: str,
-        metadata: dict[str, str] | None = None,
-        created_at: AwareDatetime | None = None,
-    ) -> int:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def get_history(
-        self,
-        history_id: int,
-    ) -> HistoryMessage | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def delete_history(
-        self,
-        history_ids: list[int],
-    ):
-        raise NotImplementedError
-
-    @abstractmethod
-    async def delete_history_messages(
-        self,
-        *,
-        start_time: AwareDatetime | None = None,
-        end_time: AwareDatetime | None = None,
+    async def add_citations(
+        self, feature_id: FeatureIdT, history_ids: list[HistoryIdT]
     ):
         raise NotImplementedError
 
@@ -167,10 +142,8 @@ class SemanticStorageBase(ABC):
         *,
         set_ids: list[str] | None = None,
         limit: int | None = None,
-        start_time: AwareDatetime | None = None,
-        end_time: AwareDatetime | None = None,
         is_ingested: bool | None = None,
-    ) -> list[HistoryMessage]:
+    ) -> list[HistoryIdT]:
         """
         retrieve the list of the history messages for the user
         with the ingestion status, up to k messages if k > 0
@@ -182,9 +155,6 @@ class SemanticStorageBase(ABC):
         self,
         *,
         set_ids: list[str] | None = None,
-        limit: int | None = None,
-        start_time: AwareDatetime | None = None,
-        end_time: AwareDatetime | None = None,
         is_ingested: bool | None = None,
     ) -> int:
         """
@@ -193,7 +163,7 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add_history_to_set(self, set_id: str, history_id: int) -> None:
+    async def add_history_to_set(self, set_id: str, history_id: HistoryIdT) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -201,7 +171,7 @@ class SemanticStorageBase(ABC):
         self,
         *,
         set_id: str,
-        ids: list[int],
+        history_ids: list[HistoryIdT],
     ) -> None:
         """
         mark the messages with the id as ingested
