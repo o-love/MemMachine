@@ -9,9 +9,8 @@ import yaml
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel, LanguageModelBuilder
-from memmachine.episodic_memory.episodic_memory_manager import (
-    EpisodicMemoryManager,
-)
+from memmachine.episodic_memory_manager import EpisodicMemoryManager
+
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
