@@ -36,9 +36,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
+from memmachine.common.configuration import load_config_yml_file
 from memmachine.common.embedder import EmbedderBuilder
 from memmachine.common.language_model import LanguageModelBuilder
 from memmachine.common.metrics_factory import MetricsFactoryBuilder
+from memmachine.common.resource_mgr import ResourceMgr
 from memmachine.episodic_memory.data_types import ContentType
 from memmachine.episodic_memory.episodic_memory import (
     AsyncEpisodicMemory,
@@ -492,17 +494,13 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-semantic_session_manager: SemanticSessionManager | None = None
-session_id_manager: SessionIdManager | None = None
-episodic_memory: EpisodicMemoryManager | None = None
+resource_mgr: ResourceMgr | None = None
 
 
 # === Lifespan Management ===
 
 
-async def initialize_resource(
-    config_file: str,
-) -> tuple[EpisodicMemoryManager, SemanticSessionManager, SessionIdManager]:
+async def initialize_resource(config_file: str) -> ResourceMgr:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -516,166 +514,21 @@ async def initialize_resource(
         and SessionIdManager instances.
     """
 
-    try:
-        yaml_config = yaml.safe_load(open(config_file, encoding="utf-8"))
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Config file {config_file} not found")
-    except yaml.YAMLError:
-        raise ValueError(f"Config file {config_file} is not valid YAML")
-    except Exception as e:
-        raise e
-
-    def config_to_lowercase(data: Any) -> Any:
-        """Recursively converts all dictionary keys in a nested structure
-        to lowercase."""
-        if isinstance(data, dict):
-            return {k.lower(): config_to_lowercase(v) for k, v in data.items()}
-        if isinstance(data, list):
-            return [config_to_lowercase(i) for i in data]
-        return data
-
-    yaml_config = config_to_lowercase(yaml_config)
-
-    # if the model is defined in the config, use it.
-    profile_config = yaml_config.get("profile_memory", {})
-
-    # create LLM model from the configuration
-    model_config = yaml_config.get("model", {})
-
-    model_name = profile_config.get("llm_model")
-    if model_name is None:
-        raise ValueError("Model not configured in config file for profile memory")
-
-    model_def = model_config.get(model_name)
-    if model_def is None:
-        raise ValueError(f"Can not find definition of model{model_name}")
-
-    profile_model = copy.deepcopy(model_def)
-    metrics_manager = MetricsFactoryBuilder.build("prometheus", {}, {})
-    profile_model["metrics_factory_id"] = "prometheus"
-    metrics_injection = {}
-    metrics_injection["prometheus"] = metrics_manager
-    model_vendor = profile_model.pop("model_vendor")
-    llm_model = LanguageModelBuilder.build(
-        model_vendor, profile_model, metrics_injection
-    )
-
-    # create embedder
-    embedders = yaml_config.get("embedder", {})
-    embedder_id = profile_config.get("embedding_model")
-    if embedder_id is None:
-        raise ValueError(
-            "Embedding model not configured in config file for profile memory"
-        )
-
-    embedder_def = embedders.get(embedder_id)
-    if embedder_def is None:
-        raise ValueError(f"Can not find definition of embedder {embedder_id}")
-
-    embedder_config = copy.deepcopy(embedder_def["config"])
-    if embedder_def["provider"] == "openai":
-        embedder_config["metrics_factory_id"] = "prometheus"
-
-    embeddings = EmbedderBuilder.build(
-        embedder_def["provider"], embedder_config, metrics_injection
-    )
-
-    # Get the database configuration
-    # get DB config from configuration file is available
-    db_config_name = profile_config.get("database")
-    if db_config_name is None:
-        raise ValueError("Profile database not configured in config file")
-    db_config = yaml_config.get("storage", {})
-    db_config = db_config.get(db_config_name)
-    if db_config is None:
-        raise ValueError(f"Can not find configuration for database {db_config_name}")
-
-    prompt_file = profile_config.get("prompt", "profile_prompt")
-    prompt_module = import_module(f".prompt.{prompt_file}", __package__)
-
-    # Load semantic types from the prompt module
-    semantic_types = []
-    if hasattr(prompt_module, "SEMANTIC_TYPE"):
-        semantic_types.append(prompt_module.SEMANTIC_TYPE)
-    else:
-        raise ValueError(f"Can not find semantic type in prompt module {prompt_file}")
-
-    pg_server = {
-        "host": db_config.get("host", "localhost"),
-        "port": db_config.get("port", 0),
-        "user": db_config.get("user", ""),
-        "password": db_config.get("password", ""),
-        "database": db_config.get("database", ""),
-    }
-    sqlalchemy_engine = create_async_engine(
-        URL.create(
-            "postgresql+asyncpg",
-            username=pg_server["user"],
-            password=pg_server["password"],
-            host=pg_server["host"],
-            port=pg_server["port"],
-            database=pg_server["database"],
-        )
-    )
-    semantic_storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_engine)
-
-    # Create session ID manager for semantic memory
-    session_id_mgr = SessionIdManager()
-
-    # Create resource retriever for semantic service
-    default_resources = {
-        IsolationType.USER: Resources(
-            embedder=embeddings,
-            language_model=llm_model,
-            semantic_categories=semantic_types,
-        ),
-        IsolationType.ROLE: Resources(
-            embedder=embeddings,
-            language_model=llm_model,
-            semantic_categories=[],
-        ),
-        IsolationType.SESSION: Resources(
-            embedder=embeddings,
-            language_model=llm_model,
-            semantic_categories=[],
-        ),
-    }
-    resource_retriever = SessionResourceRetriever(session_id_mgr, default_resources)
-
-    # Create semantic service
-    semantic_service = SemanticService(
-        SemanticService.Params(
-            semantic_storage=semantic_storage,
-            resource_retriever=resource_retriever,
-        )
-    )
-
-    # Create semantic session manager
-    semantic_session_mgr = SemanticSessionManager(
-        semantic_service=semantic_service,
-        history_storage=semantic_storage,
-    )
-
-    episodic_memory = EpisodicMemoryManager.create_episodic_memory_manager(config_file)
-    return episodic_memory, semantic_session_mgr, session_id_mgr
+    config = load_config_yml_file(config_file)
+    ret = ResourceMgr(config)
+    await resource_mgr.profile_memory.startup()
+    return ret
 
 
 async def init_global_memory():
     config_file = os.getenv("MEMORY_CONFIG", "cfg.yml")
-
-    global episodic_memory
-    global semantic_memory
-    episodic_memory, semantic_memory = await initialize_resource(config_file)
-    await semantic_memory.startup()
+    global resource_mgr
+    resource_mgr = await initialize_resource(config_file)
 
 
 async def shutdown_global_memory():
-    global episodic_memory
-    global semantic_session_manager
-    if semantic_session_manager is not None:
-        await semantic_session_manager._semantic_service.stop()
-    if episodic_memory is not None:
-        await episodic_memory.shut_down()
+    global resource_mgr
+    resource_mgr.close()
 
 
 @asynccontextmanager
@@ -1515,19 +1368,13 @@ def main():
 
         async def run_mcp_server():
             """Initialize resources and run MCP server in the same event loop."""
-            global episodic_memory, semantic_session_manager, session_id_manager
+            global resource_mgr
             try:
-                (
-                    episodic_memory,
-                    semantic_session_manager,
-                    session_id_manager,
-                ) = await initialize_resource(config_file)
-                await semantic_session_manager._semantic_service.start()
+                resource_mgr = await initialize_resource(config_file)
                 await mcp.run_stdio_async()
             finally:
                 # Clean up resources when server stops
-                if semantic_session_manager:
-                    await semantic_session_manager._semantic_service.stop()
+                resource_mgr.close()
 
         asyncio.run(run_mcp_server())
     else:
