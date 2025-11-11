@@ -6,6 +6,7 @@ import pytest_asyncio
 from memmachine.common.embedder import Embedder, SimilarityMetric
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
     Resources,
     SemanticCategory,
     SemanticPrompt,
@@ -70,7 +71,7 @@ def spy_embedder() -> SpyEmbedder:
 
 @pytest.fixture
 def semantic_prompt() -> SemanticPrompt:
-    return SemanticPrompt(
+    return RawSemanticPrompt(
         update_prompt="update-semantic-memory",
         consolidation_prompt="consolidate-semantic-memory",
     )

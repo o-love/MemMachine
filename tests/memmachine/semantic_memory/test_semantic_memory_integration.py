@@ -10,10 +10,10 @@ from memmachine.semantic_memory.semantic_memory import (
     SemanticService,
 )
 from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
     ResourceRetriever,
     Resources,
     SemanticCategory,
-    SemanticPrompt, RawSemanticPrompt,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (

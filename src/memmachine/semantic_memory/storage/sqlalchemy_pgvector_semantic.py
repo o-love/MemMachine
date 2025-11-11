@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -8,9 +7,9 @@ from alembic.config import Config
 from pgvector.sqlalchemy import Vector
 from pydantic import AwareDatetime, InstanceOf, validate_call
 from sqlalchemy import (
-    TIMESTAMP,
     Boolean,
     Column,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -21,7 +20,6 @@ from sqlalchemy import (
     select,
     text,
     update,
-    DateTime,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker

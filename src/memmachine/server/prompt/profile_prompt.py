@@ -1,7 +1,6 @@
 from memmachine.semantic_memory.semantic_model import (
-    SemanticCategory,
-    SemanticPrompt,
     RawSemanticPrompt,
+    SemanticCategory,
 )
 
 UPDATE_PROMPT = """

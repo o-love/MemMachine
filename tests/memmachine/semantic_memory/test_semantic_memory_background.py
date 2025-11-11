@@ -8,6 +8,7 @@ import pytest_asyncio
 
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
     Resources,
     SemanticCategory,
     SemanticPrompt,
@@ -25,7 +26,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture
 def semantic_prompt() -> SemanticPrompt:
-    return SemanticPrompt(
+    return RawSemanticPrompt(
         update_prompt="update-prompt",
         consolidation_prompt="consolidation-prompt",
     )

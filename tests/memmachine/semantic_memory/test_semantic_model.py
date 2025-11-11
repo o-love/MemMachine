@@ -7,8 +7,8 @@ import pytest
 
 from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
+    RawSemanticPrompt,
     SemanticFeature,
-    SemanticPrompt,
 )
 
 
@@ -150,8 +150,8 @@ class TestSemanticFeatureGrouping:
         assert grouped[key][0].value == "blue"
 
 
-class TestSemanticPrompt:
-    """Tests for SemanticPrompt class."""
+class TestRawSemanticPrompt:
+    """Tests for RawSemanticPrompt class."""
 
     def test_load_from_module_with_both_prompts(self):
         # Create a mock module with both prompts
@@ -159,7 +159,7 @@ class TestSemanticPrompt:
         mock_module.UPDATE_PROMPT = "Update the profile"
         mock_module.CONSOLIDATION_PROMPT = "Consolidate memories"
 
-        prompt = SemanticPrompt.load_from_module(mock_module)
+        prompt = RawSemanticPrompt.load_from_module(mock_module)
 
         assert prompt.update_prompt == "Update the profile"
         assert prompt.consolidation_prompt == "Consolidate memories"
@@ -168,7 +168,7 @@ class TestSemanticPrompt:
         mock_module = ModuleType("mock_prompts")
         mock_module.CONSOLIDATION_PROMPT = "Consolidate memories"
 
-        prompt = SemanticPrompt.load_from_module(mock_module)
+        prompt = RawSemanticPrompt.load_from_module(mock_module)
 
         assert prompt.update_prompt == ""
         assert prompt.consolidation_prompt == "Consolidate memories"
@@ -177,7 +177,7 @@ class TestSemanticPrompt:
         mock_module = ModuleType("mock_prompts")
         mock_module.UPDATE_PROMPT = "Update the profile"
 
-        prompt = SemanticPrompt.load_from_module(mock_module)
+        prompt = RawSemanticPrompt.load_from_module(mock_module)
 
         assert prompt.update_prompt == "Update the profile"
         assert prompt.consolidation_prompt == ""
@@ -185,7 +185,7 @@ class TestSemanticPrompt:
     def test_load_from_module_missing_both_prompts(self):
         mock_module = ModuleType("mock_prompts")
 
-        prompt = SemanticPrompt.load_from_module(mock_module)
+        prompt = RawSemanticPrompt.load_from_module(mock_module)
 
         assert prompt.update_prompt == ""
         assert prompt.consolidation_prompt == ""
@@ -197,7 +197,7 @@ class TestSemanticPrompt:
         mock_module.SOME_OTHER_ATTRIBUTE = "ignored"
         mock_module.ANOTHER_THING = 42
 
-        prompt = SemanticPrompt.load_from_module(mock_module)
+        prompt = RawSemanticPrompt.load_from_module(mock_module)
 
         assert prompt.update_prompt == "Update prompt"
         assert prompt.consolidation_prompt == "Consolidation prompt"

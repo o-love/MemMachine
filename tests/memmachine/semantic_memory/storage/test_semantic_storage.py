@@ -491,9 +491,10 @@ async def test_delete_history_with_citations(
     feature = await storage.get_feature(feature_id=feature_id, load_citations=True)
     assert len(feature.metadata.citations) == len(citations) - 1
 
+
 @pytest.mark.asyncio
 async def test_add_history_with_current_time(
-        storage: SemanticStorageBase,
+    storage: SemanticStorageBase,
 ):
     h1_id = await storage.add_history(
         content="first",
@@ -538,6 +539,7 @@ async def test_add_history_with_current_time(
 
     await storage.delete_history_messages()
     assert await storage.get_history_messages(set_ids=["user"]) == []
+
 
 @pytest.mark.asyncio
 async def test_get_history_message_count_set_id(

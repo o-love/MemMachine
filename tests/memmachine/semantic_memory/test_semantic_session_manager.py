@@ -8,6 +8,7 @@ import pytest_asyncio
 from memmachine.common.embedder import Embedder, SimilarityMetric
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
     Resources,
     SemanticCategory,
     SemanticPrompt,
@@ -79,7 +80,7 @@ def spy_embedder() -> SpyEmbedder:
 
 @pytest.fixture
 def semantic_prompt() -> SemanticPrompt:
-    return SemanticPrompt(
+    return RawSemanticPrompt(
         update_prompt="update-session-memory",
         consolidation_prompt="consolidate-session-memory",
     )
@@ -421,7 +422,7 @@ async def test_add_feature_translates_to_single_set(
 
     mock_semantic_service.add_new_feature.assert_awaited_once_with(
         set_id=session_data.user_profile_id(),
-        type_name="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha calm",
         tag="writing_style",
@@ -456,7 +457,7 @@ async def test_update_feature_forwards_arguments(
 
     mock_semantic_service.update_feature.assert_awaited_once_with(
         17,
-        type_id="Profile",
+        category_name="Profile",
         feature="tone",
         value="calm",
         tag="writing_style",

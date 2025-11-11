@@ -3,6 +3,7 @@
 import pytest
 
 from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
     Resources,
     SemanticCategory,
     SemanticPrompt,
@@ -24,7 +25,7 @@ def test_semantic_session_id_manager_is_instance():
 
 @pytest.fixture
 def semantic_prompt() -> SemanticPrompt:
-    return SemanticPrompt(
+    return RawSemanticPrompt(
         update_prompt="update-prompt",
         consolidation_prompt="consolidation-prompt",
     )

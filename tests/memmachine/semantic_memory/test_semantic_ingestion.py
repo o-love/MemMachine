@@ -14,6 +14,7 @@ from memmachine.semantic_memory.semantic_llm import (
 )
 from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
+    RawSemanticPrompt,
     Resources,
     SemanticCategory,
     SemanticCommand,
@@ -31,14 +32,14 @@ from tests.memmachine.semantic_memory.storage.in_memory_semantic_storage import 
 
 @pytest.fixture
 def semantic_prompt() -> SemanticPrompt:
-    return SemanticPrompt(
+    return RawSemanticPrompt(
         update_prompt="update-prompt",
         consolidation_prompt="consolidation-prompt",
     )
 
 
 @pytest.fixture
-def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
+def semantic_category(semantic_prompt: SemanticPrompt) -> SemanticCategory:
     return SemanticCategory(
         name="Profile",
         tags={"food"},
@@ -60,12 +61,12 @@ def llm_model(mock_llm_model):
 def resources(
     embedder_double: MockEmbedder,
     llm_model,
-    semantic_type: SemanticCategory,
+    semantic_category: SemanticCategory,
 ) -> Resources:
     return Resources(
         embedder=embedder_double,
         language_model=llm_model,
-        semantic_categories=[semantic_type],
+        semantic_categories=[semantic_category],
     )
 
 
@@ -120,7 +121,7 @@ async def test_process_single_set_applies_commands(
     ingestion_service: IngestionService,
     storage: InMemorySemanticStorage,
     embedder_double: MockEmbedder,
-    semantic_type: SemanticCategory,
+    semantic_category: SemanticCategory,
     monkeypatch,
 ):
     message_id = await storage.add_history(content="I love blue cars")
@@ -128,7 +129,7 @@ async def test_process_single_set_applies_commands(
 
     await storage.add_feature(
         set_id="user-123",
-        category_name=semantic_type.name,
+        category_name=semantic_category.name,
         feature="favorite_motorcycle",
         value="old bike",
         tag="bike",
@@ -160,7 +161,7 @@ async def test_process_single_set_applies_commands(
     llm_feature_update_mock.assert_awaited_once()
     features = await storage.get_feature_set(
         set_ids=["user-123"],
-        category_names=[semantic_type.name],
+        category_names=[semantic_category.name],
         load_citations=True,
     )
     assert len(features) == 1
@@ -197,7 +198,7 @@ async def test_consolidation_groups_by_tag(
     ingestion_service: IngestionService,
     storage: InMemorySemanticStorage,
     resources: Resources,
-    semantic_type: SemanticCategory,
+    semantic_category: SemanticCategory,
     monkeypatch,
 ):
     first_history = await storage.add_history(content="thin crust")
@@ -205,7 +206,7 @@ async def test_consolidation_groups_by_tag(
 
     first_feature = await storage.add_feature(
         set_id="user-456",
-        category_name=semantic_type.name,
+        category_name=semantic_category.name,
         feature="pizza",
         value="thin crust",
         tag="food",
@@ -213,7 +214,7 @@ async def test_consolidation_groups_by_tag(
     )
     second_feature = await storage.add_feature(
         set_id="user-456",
-        category_name=semantic_type.name,
+        category_name=semantic_category.name,
         feature="pizza",
         value="deep dish",
         tag="food",
@@ -235,7 +236,7 @@ async def test_consolidation_groups_by_tag(
     memories: list[SemanticFeature] = call.kwargs["memories"]
     assert {m.metadata.id for m in memories} == {first_feature, second_feature}
     assert call.kwargs["set_id"] == "user-456"
-    assert call.kwargs["semantic_type"] == semantic_type
+    assert call.kwargs["semantic_category"] == semantic_category
     assert call.kwargs["resources"] == resources
 
 
@@ -244,7 +245,7 @@ async def test_deduplicate_features_merges_and_relabels(
     ingestion_service: IngestionService,
     storage: InMemorySemanticStorage,
     resources: Resources,
-    semantic_type: SemanticCategory,
+    semantic_category: SemanticCategory,
     monkeypatch,
 ):
     keep_history = await storage.add_history(content="keep")
@@ -252,7 +253,7 @@ async def test_deduplicate_features_merges_and_relabels(
 
     keep_feature_id = await storage.add_feature(
         set_id="user-789",
-        category_name=semantic_type.name,
+        category_name=semantic_category.name,
         feature="pizza",
         value="original pizza",
         tag="food",
@@ -260,7 +261,7 @@ async def test_deduplicate_features_merges_and_relabels(
     )
     drop_feature_id = await storage.add_feature(
         set_id="user-789",
-        category_name=semantic_type.name,
+        category_name=semantic_category.name,
         feature="pizza",
         value="duplicate pizza",
         tag="food",
@@ -272,7 +273,7 @@ async def test_deduplicate_features_merges_and_relabels(
 
     memories = await storage.get_feature_set(
         set_ids=["user-789"],
-        category_names=[semantic_type.name],
+        category_names=[semantic_category.name],
         load_citations=True,
     )
 
@@ -316,7 +317,7 @@ async def test_deduplicate_features_merges_and_relabels(
     await ingestion_service._deduplicate_features(
         set_id="user-789",
         memories=memories,
-        semantic_category=semantic_type,
+        semantic_category=semantic_category,
         resources=resources,
     )
 
@@ -328,7 +329,7 @@ async def test_deduplicate_features_merges_and_relabels(
 
     all_features = await storage.get_feature_set(
         set_ids=["user-789"],
-        category_names=[semantic_type.name],
+        category_names=[semantic_category.name],
         load_citations=True,
     )
     consolidated = next(
