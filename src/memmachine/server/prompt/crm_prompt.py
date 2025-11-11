@@ -6,7 +6,10 @@ Handles company profiles with direct feature/value pairs (no tags)
 import zoneinfo
 from datetime import datetime
 
-from memmachine.semantic_memory.semantic_model import SemanticCategory, SemanticPrompt
+from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
+    SemanticCategory,
+)
 
 # --- Canonical enumerations ---
 SALES_STAGE_ENUM = [
@@ -561,7 +564,7 @@ CONSOLIDATION_PROMPT = _build_consolidation_prompt()
 CrmSemanticType = SemanticCategory(
     name="crm_prompt",
     tags=set(),
-    prompt=SemanticPrompt(
+    prompt=RawSemanticPrompt(
         update_prompt=UPDATE_PROMPT,
         consolidation_prompt=CONSOLIDATION_PROMPT,
     ),

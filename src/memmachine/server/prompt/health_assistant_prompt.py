@@ -1,4 +1,7 @@
-from memmachine.semantic_memory.semantic_model import SemanticCategory, SemanticPrompt
+from memmachine.semantic_memory.semantic_model import (
+    RawSemanticPrompt,
+    SemanticCategory,
+)
 
 DEFAULT_CREATE_PROFILE_PROMPT = """
     You are an AI assistant that extracts ONLY the health and wellness related information about the user. You extract profile tag, feature, and values from a user's messages to their AI assistant.
@@ -380,7 +383,7 @@ The query prompt is: {query}.
 HealthAssistantSemanticType = SemanticCategory(
     name="health_assistant_prompt",
     tags=set(),
-    prompt=SemanticPrompt(
+    prompt=RawSemanticPrompt(
         update_prompt=DEFAULT_UPDATE_PROFILE_PROMPT,
         consolidation_prompt=DEFAULT_REWRITE_PROFILE_PROMPT,
     ),
