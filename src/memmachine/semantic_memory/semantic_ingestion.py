@@ -20,7 +20,7 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticCommand,
     SemanticCommandType,
     SemanticFeature,
-    SemanticType,
+    SemanticCategory,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -67,7 +67,7 @@ class IngestionService:
             is_ingested=False,
         )
 
-        if len(resources.semantic_types) == 0:
+        if len(resources.semantic_categories) == 0:
             await self._semantic_storage.mark_messages_ingested(
                 set_id=set_id,
                 ids=[m.metadata.id for m in messages if m.metadata.id is not None],
@@ -76,7 +76,7 @@ class IngestionService:
         if len(messages) == 0:
             return
 
-        async def process_semantic_type(semantic_type: InstanceOf[SemanticType]):
+        async def process_semantic_type(semantic_category: InstanceOf[SemanticCategory]):
             for message in messages:
                 if message.metadata.id is None:
                     raise ValueError(
@@ -85,7 +85,7 @@ class IngestionService:
 
                 features = await self._semantic_storage.get_feature_set(
                     set_ids=[set_id],
-                    type_names=[semantic_type.name],
+                    category_names=[semantic_category.name],
                 )
 
                 try:
@@ -93,11 +93,11 @@ class IngestionService:
                         features=features,
                         message_content=message.content,
                         model=resources.language_model,
-                        update_prompt=semantic_type.prompt.update_prompt,
+                        update_prompt=semantic_category.prompt.update_prompt,
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to process message {message.metadata.id} for semantic type {semantic_type.name}",
+                        f"Failed to process message {message.metadata.id} for semantic type {semantic_category.name}",
                         e,
                     )
                     if self._debug_fail_loudly:
@@ -108,7 +108,7 @@ class IngestionService:
                 await self._apply_commands(
                     commands=commands,
                     set_id=set_id,
-                    type_name=semantic_type.name,
+                    category_name=semantic_category.name,
                     citation_id=message.metadata.id,
                     embedder=resources.embedder,
                 )
@@ -116,12 +116,12 @@ class IngestionService:
                 mark_messages.append(message.metadata.id)
 
         mark_messages: list[int] = []
-        semantic_type_runners = []
-        for t in resources.semantic_types:
+        semantic_category_runners = []
+        for t in resources.semantic_categories:
             task = process_semantic_type(t)
-            semantic_type_runners.append(task)
+            semantic_category_runners.append(task)
 
-        await asyncio.gather(*semantic_type_runners)
+        await asyncio.gather(*semantic_category_runners)
 
         if len(mark_messages) == 0:
             return
@@ -140,7 +140,7 @@ class IngestionService:
         *,
         commands: list[SemanticCommand],
         set_id: str,
-        type_name: str,
+        category_name: str,
         citation_id: Optional[int],
         embedder: InstanceOf[Embedder],
     ):
@@ -151,7 +151,7 @@ class IngestionService:
 
                     f_id = await self._semantic_storage.add_feature(
                         set_id=set_id,
-                        type_name=type_name,
+                        category_name=category_name,
                         feature=command.feature,
                         value=command.value,
                         tag=command.tag,
@@ -164,7 +164,7 @@ class IngestionService:
                 case SemanticCommandType.DELETE:
                     await self._semantic_storage.delete_feature_set(
                         set_ids=[set_id],
-                        type_names=[type_name],
+                        category_names=[category_name],
                         feature_names=[command.feature],
                         tags=[command.tag],
                     )
@@ -178,10 +178,10 @@ class IngestionService:
         set_id: str,
         resources: InstanceOf[Resources],
     ):
-        async def _consolidate_type(semantic_type: InstanceOf[SemanticType]):
+        async def _consolidate_type(semantic_category: InstanceOf[SemanticCategory]):
             features = await self._semantic_storage.get_feature_set(
                 set_ids=[set_id],
-                type_names=[semantic_type.name],
+                category_names=[semantic_category.name],
                 tag_threshold=self._consolidation_threshold,
                 load_citations=True,
             )
@@ -196,32 +196,32 @@ class IngestionService:
                         set_id=set_id,
                         memories=section_features,
                         resources=resources,
-                        semantic_type=semantic_type,
+                        semantic_category=semantic_category,
                     )
                     for section_features in consolidation_sections
                 ]
             )
 
-        type_tasks = []
-        for t in resources.semantic_types:
+        category_tasks = []
+        for t in resources.semantic_categories:
             task = _consolidate_type(t)
-            type_tasks.append(task)
+            category_tasks.append(task)
 
-        await asyncio.gather(*type_tasks)
+        await asyncio.gather(*category_tasks)
 
     async def _deduplicate_features(
         self,
         *,
         set_id: str,
         memories: list[SemanticFeature],
-        semantic_type: InstanceOf[SemanticType],
+        semantic_category: InstanceOf[SemanticCategory],
         resources: InstanceOf[Resources],
     ):
         try:
             consolidate_resp = await llm_consolidate_features(
                 features=memories,
                 model=resources.language_model,
-                consolidate_prompt=semantic_type.prompt.consolidation_prompt,
+                consolidate_prompt=semantic_category.prompt.consolidation_prompt,
             )
         except (ValueError, TypeError) as e:
             logger.error("Failed to update features while calling LLM", e)
@@ -261,7 +261,7 @@ class IngestionService:
 
             f_id = await self._semantic_storage.add_feature(
                 set_id=set_id,
-                type_name=semantic_type.name,
+                category_name=semantic_category.name,
                 tag=f.tag,
                 feature=f.feature,
                 value=f.value,

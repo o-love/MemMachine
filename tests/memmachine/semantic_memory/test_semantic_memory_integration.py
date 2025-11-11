@@ -13,7 +13,7 @@ from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
     Resources,
     SemanticPrompt,
-    SemanticType,
+    SemanticCategory,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -50,7 +50,7 @@ def load_types_from_modules(module_names):
             __package__,
         )
         prompt = SemanticPrompt.load_from_module(prompt_module)
-        semantic_type = SemanticType(
+        semantic_type = SemanticCategory(
             name=module_name,
             tags={"unknown"},
             prompt=prompt,
@@ -97,17 +97,17 @@ def default_session_resources(
         IsolationType.SESSION: Resources(
             embedder=embedder,
             language_model=llm_model,
-            semantic_types=session_types,
+            semantic_categories=session_types,
         ),
         IsolationType.ROLE: Resources(
             embedder=embedder,
             language_model=llm_model,
-            semantic_types=[],
+            semantic_categories=[],
         ),
         IsolationType.USER: Resources(
             embedder=embedder,
             language_model=llm_model,
-            semantic_types=profile_types,
+            semantic_categories=profile_types,
         ),
     }
 

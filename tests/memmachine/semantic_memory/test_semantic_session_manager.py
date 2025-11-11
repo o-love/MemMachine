@@ -10,7 +10,7 @@ from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     Resources,
     SemanticPrompt,
-    SemanticType,
+    SemanticCategory,
 )
 from memmachine.semantic_memory.semantic_session_manager import (
     SemanticSessionManager,
@@ -86,8 +86,8 @@ def semantic_prompt() -> SemanticPrompt:
 
 
 @pytest.fixture
-def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
-    return SemanticType(
+def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
+    return SemanticCategory(
         name="Profile",
         tags={"general"},
         prompt=semantic_prompt,
@@ -98,12 +98,12 @@ def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
 def resources(
     spy_embedder: SpyEmbedder,
     mock_llm_model,
-    semantic_type: SemanticType,
+    semantic_type: SemanticCategory,
 ) -> Resources:
     return Resources(
         embedder=spy_embedder,
         language_model=mock_llm_model,
-        semantic_types=[semantic_type],
+        semantic_categories=[semantic_type],
     )
 
 
@@ -229,14 +229,14 @@ async def test_search_returns_relevant_features(
     session_id = session_data.session_id()
     await semantic_service.add_new_feature(
         set_id=profile_id,
-        type_name="Profile",
+        category_name="Profile",
         feature="alpha_fact",
         value="Alpha enjoys calm chats",
         tag="facts",
     )
     await semantic_service.add_new_feature(
         set_id=session_id,
-        type_name="Profile",
+        category_name="Profile",
         feature="beta_fact",
         value="Beta prefers debates",
         tag="facts",
@@ -251,7 +251,7 @@ async def test_search_returns_relevant_features(
     # Then only the alpha feature is returned and embedder search was invoked
     assert spy_embedder.search_calls == [["Why does alpha stay calm?"]]
     assert len(matches) == 1
-    assert matches[0].feature == "alpha_fact"
+    assert matches[0].feature_name == "alpha_fact"
     assert matches[0].set_id in {profile_id, session_id}
 
 
@@ -265,7 +265,7 @@ async def test_add_feature_applies_requested_isolation(
     feature_id = await session_manager.add_feature(
         session_data=session_data,
         memory_type=IsolationType.USER,
-        type_id="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha casual",
         tag="writing_style",
@@ -279,7 +279,7 @@ async def test_add_feature_applies_requested_isolation(
 
     # Then only the profile receives the new feature and embeddings were generated
     assert feature_id == profile_features[0].metadata.id
-    assert profile_features[0].feature == "tone"
+    assert profile_features[0].feature_name == "tone"
     assert profile_features[0].value == "Alpha casual"
     assert session_features == []
     assert spy_embedder.ingest_calls == [["Alpha casual"]]
@@ -296,14 +296,14 @@ async def test_delete_feature_set_removes_filtered_entries(
     session_id = session_data.session_id()
     await semantic_service.add_new_feature(
         set_id=profile_id,
-        type_name="Profile",
+        category_name="Profile",
         feature="favorite_color",
         value="Blue",
         tag="profile_tag",
     )
     await semantic_service.add_new_feature(
         set_id=session_id,
-        type_name="Profile",
+        category_name="Profile",
         feature="session_note",
         value="Remember to ask about projects",
         tag="session_tag",
@@ -322,7 +322,7 @@ async def test_delete_feature_set_removes_filtered_entries(
 
     assert profile_features == []
     assert len(session_features) == 1
-    assert session_features[0].feature == "session_note"
+    assert session_features[0].feature_name == "session_note"
 
 
 async def test_add_message_uses_all_isolations(
@@ -411,7 +411,7 @@ async def test_add_feature_translates_to_single_set(
     feature_id = await mock_session_manager.add_feature(
         session_data=session_data,
         memory_type=IsolationType.USER,
-        type_id="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha calm",
         tag="writing_style",
@@ -447,7 +447,7 @@ async def test_update_feature_forwards_arguments(
 ):
     await mock_session_manager.update_feature(
         17,
-        type_id="Profile",
+        category_name="Profile",
         feature="tone",
         value="calm",
         tag="writing_style",
@@ -472,7 +472,7 @@ async def test_get_set_features_wraps_opts(
     result = await mock_session_manager.get_set_features(
         session_data=session_data,
         memory_type=[IsolationType.USER],
-        type_names=["Profile"],
+        category_names=["Profile"],
         tag_names=["facts"],
         feature_names=["alpha_fact"],
     )
@@ -480,7 +480,7 @@ async def test_get_set_features_wraps_opts(
     mock_semantic_service.get_set_features.assert_awaited_once()
     opts = mock_semantic_service.get_set_features.await_args.args[0]
     assert opts.set_ids == [session_data.user_profile_id()]
-    assert opts.type_names == ["Profile"]
+    assert opts.category_names == ["Profile"]
     assert opts.tags == ["facts"]
     assert opts.feature_names == ["alpha_fact"]
     assert result == ["features"]

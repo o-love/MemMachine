@@ -59,7 +59,7 @@ async def test_multiple_features(
 async def test_delete_feature(storage: SemanticStorageBase):
     idx_a = await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="pizza",
         tag="food",
@@ -124,7 +124,7 @@ async def oposite_vector_features(storage: SemanticStorageBase):
 
     id_a = await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         tag="food",
         feature="likes",
         value=value_a,
@@ -132,7 +132,7 @@ async def oposite_vector_features(storage: SemanticStorageBase):
     )
     id_b = await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         tag="food",
         feature="likes",
         value=value_b,
@@ -402,7 +402,7 @@ async def feature_and_citations(storage: SemanticStorageBase):
 
     feature_id = await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         feature="topic",
         value="ai",
         tag="facts",
@@ -551,7 +551,7 @@ async def test_complex_feature_lifecycle(storage: SemanticStorageBase):
 
     await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="pizza",
         tag="food",
@@ -559,7 +559,7 @@ async def test_complex_feature_lifecycle(storage: SemanticStorageBase):
     )
     await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="sushi",
         tag="food",
@@ -567,7 +567,7 @@ async def test_complex_feature_lifecycle(storage: SemanticStorageBase):
     )
     await storage.add_feature(
         set_id="user",
-        type_name="tenant_A",
+        category_name="tenant_A",
         feature="color",
         value="blue",
         tag="prefs",
@@ -585,14 +585,14 @@ async def test_complex_feature_lifecycle(storage: SemanticStorageBase):
 
     tenant_profile = await storage.get_feature_set(
         set_ids=["user"],
-        type_names=["tenant_A"],
+        category_names=["tenant_A"],
     )
     grouped_tenant = SemanticFeature.group_features(tenant_profile)
     assert grouped_tenant[("tenant_A", "prefs", "color")][0].value == "blue"
 
     await storage.delete_feature_set(
         set_ids=["user"],
-        type_names=["default"],
+        category_names=["default"],
         feature_names=["likes"],
         tags=["food"],
     )
@@ -601,10 +601,10 @@ async def test_complex_feature_lifecycle(storage: SemanticStorageBase):
     grouped_after_delete = SemanticFeature.group_features(after_delete)
     assert ("default", "food", "likes") not in grouped_after_delete
 
-    await storage.delete_feature_set(set_ids=["user"], type_names=["tenant_A"])
+    await storage.delete_feature_set(set_ids=["user"], category_names=["tenant_A"])
     tenant_only = await storage.get_feature_set(
         set_ids=["user"],
-        type_names=["tenant_A"],
+        category_names=["tenant_A"],
     )
     assert tenant_only == []
 
@@ -625,7 +625,7 @@ async def test_complex_semantic_search_and_citations(storage: SemanticStorageBas
 
     f_id = await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         feature="topic",
         value="ai",
         tag="facts",
@@ -634,7 +634,7 @@ async def test_complex_semantic_search_and_citations(storage: SemanticStorageBas
     await storage.add_citations(f_id, [history_id])
     await storage.add_feature(
         set_id="user",
-        type_name="default",
+        category_name="default",
         feature="topic",
         value="music",
         tag="facts",
@@ -683,7 +683,7 @@ async def test_complex_semantic_search_and_citations(storage: SemanticStorageBas
     await storage.delete_features(feature_ids[:1])
     remaining = await storage.get_feature_set(
         set_ids=["user"],
-        type_names=["default"],
+        category_names=["default"],
         tags=["facts"],
         feature_names=["topic"],
     )

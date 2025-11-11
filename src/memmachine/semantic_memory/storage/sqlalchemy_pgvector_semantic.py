@@ -76,7 +76,7 @@ class Feature(BaseSemanticStorage):
 
     # Feature data
     set_id = mapped_column(String)
-    semantic_type_id = mapped_column(String)
+    semantic_category_id = mapped_column(String)
     tag_id = mapped_column(String)
     feature = mapped_column(String)
     value = mapped_column(String)
@@ -104,14 +104,14 @@ class Feature(BaseSemanticStorage):
 
     __table_args__ = (
         Index("idx_feature_set_id", "set_id"),
-        Index("idx_feature_set_id_semantic_type", "set_id", "semantic_type_id"),
+        Index("idx_feature_set_id_semantic_category", "set_id", "semantic_category_id"),
         Index(
-            "idx_feature_set_semantic_type_tag", "set_id", "semantic_type_id", "tag_id"
+            "idx_feature_set_semantic_category_tag", "set_id", "semantic_category_id", "tag_id"
         ),
         Index(
-            "idx_feature_set_semantic_type_tag_feature",
+            "idx_feature_set_semantic_category_tag_feature",
             "set_id",
-            "semantic_type_id",
+            "semantic_category_id",
             "tag_id",
             "feature",
         ),
@@ -130,9 +130,9 @@ class Feature(BaseSemanticStorage):
                 other=self.json_metadata or None,
             ),
             set_id=self.set_id,
-            type=self.semantic_type_id,
+            category=self.semantic_category_id,
             tag=self.tag_id,
-            feature=self.feature,
+            feature_name=self.feature,
             value=self.value,
         )
 
@@ -236,7 +236,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        type_name: str,
+        category_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -247,7 +247,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             insert(Feature)
             .values(
                 set_id=set_id,
-                semantic_type_id=type_name,
+                semantic_category_id=category_name,
                 tag_id=tag,
                 feature=feature,
                 value=value,
@@ -269,7 +269,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         feature_id: int,
         *,
         set_id: Optional[str] = None,
-        type_name: Optional[str] = None,
+        category_name: Optional[str] = None,
         feature: Optional[str] = None,
         value: Optional[str] = None,
         tag: Optional[str] = None,
@@ -280,8 +280,8 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
         if set_id is not None:
             stmt = stmt.values(set_id=set_id)
-        if type_name is not None:
-            stmt = stmt.values(semantic_type_id=type_name)
+        if category_name is not None:
+            stmt = stmt.values(semantic_category_id=category_name)
         if feature is not None:
             stmt = stmt.values(feature=feature)
         if value is not None:
@@ -323,7 +323,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         k: Optional[int] = None,
@@ -336,7 +336,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         stmt = self._apply_feature_filter(
             stmt,
             set_ids=set_ids,
-            type_names=type_names,
+            category_names=category_names,
             tags=tags,
             feature_names=feature_names,
             thresh=tag_threshold,
@@ -367,7 +367,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         thresh: Optional[int] = None,
@@ -379,7 +379,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         stmt = self._apply_feature_filter(
             stmt,
             set_ids=set_ids,
-            type_names=type_names,
+            category_names=category_names,
             tags=tags,
             feature_names=feature_names,
             thresh=thresh,
@@ -583,7 +583,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         stmt,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         thresh: Optional[int] = None,
@@ -596,8 +596,8 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             if set_ids is not None and len(set_ids) > 0:
                 _stmt = _stmt.where(Feature.set_id.in_(set_ids))
 
-            if type_names is not None and len(type_names) > 0:
-                _stmt = _stmt.where(Feature.semantic_type_id.in_(type_names))
+            if category_names is not None and len(category_names) > 0:
+                _stmt = _stmt.where(Feature.semantic_category_id.in_(category_names))
 
             if tags is not None and len(tags) > 0:
                 _stmt = _stmt.where(Feature.tag_id.in_(tags))

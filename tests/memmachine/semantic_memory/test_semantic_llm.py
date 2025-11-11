@@ -25,15 +25,15 @@ def magic_mock_llm_model():
 def basic_features():
     return [
         SemanticFeature(
-            type="Profile",
+            category="Profile",
             tag="food",
-            feature="favorite_pizza",
+            feature_name="favorite_pizza",
             value="peperoni pizza",
         ),
         SemanticFeature(
-            type="Profile",
+            category="Profile",
             tag="food",
-            feature="favorite_bread",
+            feature_name="favorite_bread",
             value="whole grain",
         ),
     ]

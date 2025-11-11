@@ -24,7 +24,9 @@ def _features_to_llm_format(
         if feature.tag not in structured_features:
             structured_features[feature.tag] = {}
 
-        structured_features.setdefault(feature.tag, {})[feature.feature] = feature.value
+        structured_features.setdefault(feature.tag, {})[feature.feature_name] = (
+            feature.value
+        )
 
     return structured_features
 

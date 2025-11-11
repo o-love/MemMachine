@@ -627,17 +627,17 @@ async def initialize_resource(
         IsolationType.USER: Resources(
             embedder=embeddings,
             language_model=llm_model,
-            semantic_types=semantic_types,
+            semantic_categories=semantic_types,
         ),
         IsolationType.ROLE: Resources(
             embedder=embeddings,
             language_model=llm_model,
-            semantic_types=[],
+            semantic_categories=[],
         ),
         IsolationType.SESSION: Resources(
             embedder=embeddings,
             language_model=llm_model,
-            semantic_types=[],
+            semantic_categories=[],
         ),
     }
     resource_retriever = SessionResourceRetriever(session_id_mgr, default_resources)

@@ -39,7 +39,7 @@ class MockSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        type_name: str,
+        category_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -48,7 +48,7 @@ class MockSemanticStorage(SemanticStorageBase):
     ) -> int:
         return await self.add_feature_mock(
             set_id=set_id,
-            type_name=type_name,
+            type_name=category_name,
             feature=feature,
             value=value,
             tag=tag,
@@ -61,7 +61,7 @@ class MockSemanticStorage(SemanticStorageBase):
         feature_id: int,
         *,
         set_id: Optional[str] = None,
-        type_name: Optional[str] = None,
+        category_name: Optional[str] = None,
         feature: Optional[str] = None,
         value: Optional[str] = None,
         tag: Optional[str] = None,
@@ -77,7 +77,7 @@ class MockSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         k: Optional[int] = None,
@@ -87,7 +87,7 @@ class MockSemanticStorage(SemanticStorageBase):
     ) -> list[SemanticFeature]:
         return await self.get_feature_set_mock(
             set_ids=set_ids,
-            type_names=type_names,
+            type_names=category_names,
             feature_names=feature_names,
             tags=tags,
             k=k,
@@ -100,7 +100,7 @@ class MockSemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         thresh: Optional[int] = None,
@@ -109,7 +109,7 @@ class MockSemanticStorage(SemanticStorageBase):
     ):
         await self.delete_feature_set_mock(
             set_ids=set_ids,
-            type_names=type_names,
+            type_names=category_names,
             feature_names=feature_names,
             tags=tags,
             thresh=thresh,

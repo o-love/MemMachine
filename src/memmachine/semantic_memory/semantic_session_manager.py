@@ -66,7 +66,7 @@ class SemanticSessionManager:
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
         min_distance: Optional[float] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         tag_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         k: Optional[int] = None,
@@ -77,7 +77,7 @@ class SemanticSessionManager:
         optionals_dft_args: dict[str, Any] = {
             "set_ids": set_ids,
             "query": message,
-            "type_names": type_names,
+            "category_names": category_names,
             "tag_names": tag_names,
             "feature_names": feature_names,
             "load_citations": load_citations,
@@ -110,7 +110,7 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: IsolationType,
-        type_id: str,
+        category_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -124,7 +124,7 @@ class SemanticSessionManager:
 
         return await self._semantic_service.add_new_feature(
             set_id=set_id,
-            type_name=type_id,
+            category_name=category_name,
             feature=feature,
             value=value,
             tag=tag,
@@ -143,7 +143,7 @@ class SemanticSessionManager:
         self,
         feature_id: int,
         *,
-        type_id: Optional[str] = None,
+        category_name: Optional[str] = None,
         feature: Optional[str] = None,
         value: Optional[str] = None,
         tag: Optional[str] = None,
@@ -151,7 +151,7 @@ class SemanticSessionManager:
     ):
         await self._semantic_service.update_feature(
             feature_id,
-            type_id=type_id,
+            category_name=category_name,
             feature=feature,
             value=value,
             tag=tag,
@@ -166,7 +166,7 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         tag_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
     ) -> list[SemanticFeature]:
@@ -175,7 +175,7 @@ class SemanticSessionManager:
         return await self._semantic_service.get_set_features(
             SemanticService.FeatureSearchOpts(
                 set_ids=set_ids,
-                type_names=type_names,
+                category_names=category_names,
                 feature_names=feature_names,
                 tags=tag_names,
             )
@@ -186,7 +186,7 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         k: Optional[int] = None,
@@ -195,7 +195,7 @@ class SemanticSessionManager:
 
         search_opts: dict[str, Any] = {
             "set_ids": set_ids,
-            "type_names": type_names,
+            "category_names": category_names,
             "feature_names": feature_names,
             "tags": tags,
         }

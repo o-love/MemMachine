@@ -60,7 +60,7 @@ class SemanticPrompt:
 
 
 class SemanticFeature(BaseModel):
-    """Semantic memory entry composed of type, tag, feature name, and textual value."""
+    """Semantic memory entry composed of category, tag, feature name, and textual value."""
 
     class Metadata(BaseModel):
         """Storage metadata for a semantic feature, including id and citations."""
@@ -70,9 +70,9 @@ class SemanticFeature(BaseModel):
         other: Optional[dict[str, Any]] = None
 
     set_id: Optional[str] = None
-    type: str
+    category: str
     tag: str
-    feature: str
+    feature_name: str
     value: str
     metadata: Metadata = Metadata()
 
@@ -83,7 +83,7 @@ class SemanticFeature(BaseModel):
         grouped_features: dict[Tuple[str, str, str], list[SemanticFeature]] = {}
 
         for f in features:
-            key = (f.type, f.tag, f.feature)
+            key = (f.category, f.tag, f.feature_name)
 
             if key not in grouped_features:
                 grouped_features[key] = []
@@ -99,7 +99,7 @@ class SemanticFeature(BaseModel):
         grouped_features: dict[Tuple[str, str], list[SemanticFeature]] = {}
 
         for f in features:
-            key = (f.tag, f.feature)
+            key = (f.tag, f.feature_name)
 
             if key not in grouped_features:
                 grouped_features[key] = []
@@ -109,7 +109,7 @@ class SemanticFeature(BaseModel):
         return grouped_features
 
 
-class SemanticType(BaseModel):
+class SemanticCategory(BaseModel):
     """Defines a semantic feature category, its allowed tags, and prompt strategy."""
 
     id: Optional[int] = None
@@ -120,11 +120,11 @@ class SemanticType(BaseModel):
 
 
 class Resources(BaseModel):
-    """Resource bundle (embedder, language model, semantic types) for a set_id."""
+    """Resource bundle (embedder, language model, semantic categories) for a set_id."""
 
     embedder: InstanceOf[Embedder]
     language_model: InstanceOf[LanguageModel]
-    semantic_types: list[InstanceOf[SemanticType]]
+    semantic_categories: list[InstanceOf[SemanticCategory]]
 
 
 @runtime_checkable

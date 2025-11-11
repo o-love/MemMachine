@@ -92,7 +92,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        type_name: str,
+        category_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -106,7 +106,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             entry = _FeatureEntry(
                 id=feature_id,
                 set_id=set_id,
-                semantic_type_id=type_name,
+                semantic_type_id=category_name,
                 tag=tag,
                 feature=feature,
                 value=value,
@@ -122,7 +122,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         feature_id: int,
         *,
         set_id: Optional[str] = None,
-        type_name: Optional[str] = None,
+        category_name: Optional[str] = None,
         feature: Optional[str] = None,
         value: Optional[str] = None,
         tag: Optional[str] = None,
@@ -143,8 +143,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 self._feature_ids_by_set.setdefault(set_id, []).append(feature_id)
                 entry.set_id = set_id
 
-            if type_name is not None:
-                entry.semantic_type_id = type_name
+            if category_name is not None:
+                entry.semantic_type_id = category_name
             if feature is not None:
                 entry.feature = feature
             if value is not None:
@@ -177,7 +177,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         k: Optional[int] = None,
@@ -188,7 +188,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         async with self._lock:
             entries = self._filter_features(
                 set_ids=set_ids,
-                type_names=type_names,
+                type_names=category_names,
                 feature_names=feature_names,
                 tags=tags,
                 k=k,
@@ -204,7 +204,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_ids: Optional[list[str]] = None,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         tags: Optional[list[str]] = None,
         thresh: Optional[int] = None,
@@ -214,7 +214,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         async with self._lock:
             to_remove = self._filter_features(
                 set_ids=set_ids,
-                type_names=type_names,
+                type_names=category_names,
                 feature_names=feature_names,
                 tags=tags,
                 k=k,
@@ -426,9 +426,9 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
         return SemanticFeature(
             set_id=entry.set_id,
-            type=entry.semantic_type_id,
+            category=entry.semantic_type_id,
             tag=entry.tag,
-            feature=entry.feature,
+            feature_name=entry.feature,
             value=entry.value,
             metadata=SemanticFeature.Metadata(
                 id=entry.id,

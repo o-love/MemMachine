@@ -8,7 +8,7 @@ from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     Resources,
     SemanticPrompt,
-    SemanticType,
+    SemanticCategory,
 )
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockResourceRetriever,
@@ -77,8 +77,8 @@ def semantic_prompt() -> SemanticPrompt:
 
 
 @pytest.fixture
-def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
-    return SemanticType(
+def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
+    return SemanticCategory(
         name="Profile",
         tags={"general"},
         prompt=semantic_prompt,
@@ -86,11 +86,11 @@ def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
 
 
 @pytest.fixture
-def resources(spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticType):
+def resources(spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticCategory):
     return Resources(
         embedder=spy_embedder,
         language_model=mock_llm_model,
-        semantic_types=[semantic_type],
+        semantic_categories=[semantic_type],
     )
 
 
@@ -133,7 +133,7 @@ async def test_add_new_feature_stores_entry(
     # Given a fresh semantic service
     feature_id = await semantic_service.add_new_feature(
         set_id="user-123",
-        type_name="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha voice",
         tag="writing_style",
@@ -152,7 +152,7 @@ async def test_add_new_feature_stores_entry(
     feature = features[0]
     assert feature.metadata.id == feature_id
     assert feature.set_id == "user-123"
-    assert feature.feature == "tone"
+    assert feature.feature_name == "tone"
     assert feature.value == "Alpha voice"
     assert feature.tag == "writing_style"
 
@@ -163,14 +163,14 @@ async def test_get_set_features_filters_by_tag(
     # Given multiple features under a single set
     await semantic_service.add_new_feature(
         set_id="user-42",
-        type_name="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha friendly",
         tag="writing_style",
     )
     await semantic_service.add_new_feature(
         set_id="user-42",
-        type_name="Profile",
+        category_name="Profile",
         feature="favorite_color",
         value="Blue",
         tag="personal_info",
@@ -186,7 +186,7 @@ async def test_get_set_features_filters_by_tag(
 
     # Then only matching features are returned
     assert len(filtered) == 1
-    assert filtered[0].feature == "tone"
+    assert filtered[0].feature_name == "tone"
     assert filtered[0].tag == "writing_style"
 
 
@@ -197,7 +197,7 @@ async def test_update_feature_changes_value_and_embedding(
     # Given an existing feature
     feature_id = await semantic_service.add_new_feature(
         set_id="user-7",
-        type_name="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha calm",
         tag="writing_style",
@@ -207,7 +207,7 @@ async def test_update_feature_changes_value_and_embedding(
     await semantic_service.update_feature(
         feature_id,
         set_id="user-7",
-        type_id="Profile",
+        category_name="Profile",
         value="Alpha energetic",
         tag="writing_style",
     )
@@ -225,14 +225,14 @@ async def test_delete_features_removes_selected_entries(
     # Given two stored features
     to_remove = await semantic_service.add_new_feature(
         set_id="user-55",
-        type_name="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha calm",
         tag="writing_style",
     )
     to_keep = await semantic_service.add_new_feature(
         set_id="user-55",
-        type_name="Profile",
+        category_name="Profile",
         feature="hobby",
         value="Gardening",
         tag="personal_info",
@@ -252,14 +252,14 @@ async def test_delete_feature_set_applies_filters(
     # Given two features with different tags
     await semantic_service.add_new_feature(
         set_id="user-88",
-        type_name="Profile",
+        category_name="Profile",
         feature="tone",
         value="Alpha calm",
         tag="writing_style",
     )
     await semantic_service.add_new_feature(
         set_id="user-88",
-        type_name="Profile",
+        category_name="Profile",
         feature="favorite_color",
         value="Blue",
         tag="personal_info",
@@ -278,7 +278,7 @@ async def test_delete_feature_set_applies_filters(
         SemanticService.FeatureSearchOpts(set_ids=["user-88"])
     )
     assert len(remaining) == 1
-    assert remaining[0].feature == "favorite_color"
+    assert remaining[0].feature_name == "favorite_color"
 
 
 async def test_add_messages_tracks_uningested_counts(
@@ -326,14 +326,14 @@ async def test_search_returns_matching_features(
     # Given a set with two features
     await semantic_service.add_new_feature(
         set_id="user-search",
-        type_name="Profile",
+        category_name="Profile",
         feature="alpha_fact",
         value="Alpha prefers calm conversations.",
         tag="facts",
     )
     await semantic_service.add_new_feature(
         set_id="user-search",
-        type_name="Profile",
+        category_name="Profile",
         feature="beta_fact",
         value="Beta enjoys debates.",
         tag="facts",
@@ -348,4 +348,4 @@ async def test_search_returns_matching_features(
     # Then only the matching feature is returned using the query embedding
     assert spy_embedder.search_calls == [["Why does alpha prefer quiet chats?"]]
     assert len(results) == 1
-    assert results[0].feature == "alpha_fact"
+    assert results[0].feature_name == "alpha_fact"

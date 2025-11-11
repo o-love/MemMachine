@@ -97,7 +97,7 @@ class SemanticService:
         query: str,
         *,
         min_distance: float = 0.7,
-        type_names: Optional[list[str]] = None,
+        category_names: Optional[list[str]] = None,
         tag_names: Optional[list[str]] = None,
         feature_names: Optional[list[str]] = None,
         k: Optional[int] = 30,
@@ -112,7 +112,7 @@ class SemanticService:
                 query_embedding=np.array(query_embedding),
                 min_distance=min_distance,
             ),
-            type_names=type_names,
+            category_names=category_names,
             tags=tag_names,
             feature_names=feature_names,
             k=k,
@@ -158,7 +158,7 @@ class SemanticService:
         self,
         *,
         set_id: str,
-        type_name: str,
+        category_name: str,
         feature: str,
         value: str,
         tag: str,
@@ -170,7 +170,7 @@ class SemanticService:
 
         f_id = await self._semantic_storage.add_feature(
             set_id=set_id,
-            type_name=type_name,
+            category_name=category_name,
             feature=feature,
             value=value,
             tag=tag,
@@ -194,7 +194,7 @@ class SemanticService:
         """Filters controlling which features are read or deleted from storage."""
 
         set_ids: list[str] | None = None
-        type_names: list[str] | None = None
+        category_names: list[str] | None = None
         feature_names: list[str] | None = None
         tags: list[str] | None = None
         k: int = 100
@@ -206,7 +206,7 @@ class SemanticService:
     ) -> list[SemanticFeature]:
         return await self._semantic_storage.get_feature_set(
             set_ids=opts.set_ids,
-            type_names=opts.type_names,
+            category_names=opts.category_names,
             feature_names=opts.feature_names,
             tags=opts.tags,
             k=opts.k,
@@ -218,7 +218,7 @@ class SemanticService:
         feature_id: int,
         *,
         set_id: Optional[str] = None,
-        type_id: Optional[str] = None,
+        category_name: Optional[str] = None,
         feature: Optional[str] = None,
         value: Optional[str] = None,
         tag: Optional[str] = None,
@@ -243,7 +243,7 @@ class SemanticService:
         await self._semantic_storage.update_feature(
             feature_id=feature_id,
             set_id=set_id,
-            type_name=type_id,
+            category_name=category_name,
             feature=feature,
             value=value,
             tag=tag,
@@ -257,7 +257,7 @@ class SemanticService:
     async def delete_feature_set(self, opts: FeatureSearchOpts):
         await self._semantic_storage.delete_feature_set(
             set_ids=opts.set_ids,
-            type_names=opts.type_names,
+            category_names=opts.category_names,
             feature_names=opts.feature_names,
             tags=opts.tags,
         )

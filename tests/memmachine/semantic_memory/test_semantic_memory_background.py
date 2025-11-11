@@ -10,7 +10,7 @@ from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     Resources,
     SemanticPrompt,
-    SemanticType,
+    SemanticCategory,
 )
 from tests.memmachine.semantic_memory.mock_semantic_memory_objects import (
     MockEmbedder,
@@ -32,8 +32,8 @@ def semantic_prompt() -> SemanticPrompt:
 
 
 @pytest.fixture
-def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
-    return SemanticType(
+def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
+    return SemanticCategory(
         name="Profile",
         tags={"general"},
         prompt=semantic_prompt,
@@ -46,11 +46,11 @@ def embedder() -> MockEmbedder:
 
 
 @pytest.fixture
-def resources(embedder: MockEmbedder, mock_llm_model, semantic_type: SemanticType):
+def resources(embedder: MockEmbedder, mock_llm_model, semantic_type: SemanticCategory):
     return Resources(
         embedder=embedder,
         language_model=mock_llm_model,
-        semantic_types=[semantic_type],
+        semantic_categories=[semantic_type],
     )
 
 
@@ -157,7 +157,7 @@ async def test_stop_when_not_started(
 async def test_background_ingestion_processes_messages_on_message_limit(
     storage: InMemorySemanticStorage,
     resource_retriever: MockResourceRetriever,
-    semantic_type: SemanticType,
+    semantic_type: SemanticCategory,
     monkeypatch,
 ):
     from memmachine.semantic_memory.semantic_model import SemanticCommand
@@ -215,7 +215,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     # Verify features were created
     features = await storage.get_feature_set(
         set_ids=["user-123"],
-        type_names=[semantic_type.name],
+        category_names=[semantic_type.name],
     )
 
     await service.stop()
@@ -228,7 +228,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
 async def test_background_ingestion_with_time_based_trigger(
     storage: InMemorySemanticStorage,
     resource_retriever: MockResourceRetriever,
-    semantic_type: SemanticType,
+    semantic_type: SemanticCategory,
     monkeypatch,
 ):
     from memmachine.semantic_memory.semantic_model import SemanticCommand
@@ -272,7 +272,7 @@ async def test_background_ingestion_with_time_based_trigger(
     # Verify features were created despite not hitting message limit
     features = await storage.get_feature_set(
         set_ids=["user-456"],
-        type_names=[semantic_type.name],
+        category_names=[semantic_type.name],
     )
 
     assert len(features) >= 1
@@ -313,7 +313,7 @@ async def test_background_ingestion_handles_errors_gracefully(
 async def test_consolidation_threshold_not_reached(
     semantic_service: SemanticService,
     storage: InMemorySemanticStorage,
-    semantic_type: SemanticType,
+    semantic_type: SemanticCategory,
 ):
     # Given a service with high consolidation threshold
     # (default is 20 in the fixture)
@@ -321,7 +321,7 @@ async def test_consolidation_threshold_not_reached(
     # Add a few features (less than threshold)
     await storage.add_feature(
         set_id="user-consolidate",
-        type_name=semantic_type.name,
+        category_name=semantic_type.name,
         feature="color1",
         value="red",
         tag="colors",
@@ -329,7 +329,7 @@ async def test_consolidation_threshold_not_reached(
     )
     await storage.add_feature(
         set_id="user-consolidate",
-        type_name=semantic_type.name,
+        category_name=semantic_type.name,
         feature="color2",
         value="blue",
         tag="colors",
@@ -339,7 +339,7 @@ async def test_consolidation_threshold_not_reached(
     # Get initial count
     features_before = await storage.get_feature_set(
         set_ids=["user-consolidate"],
-        type_names=[semantic_type.name],
+        category_names=[semantic_type.name],
     )
     count_before = len(features_before)
 
@@ -355,7 +355,7 @@ async def test_consolidation_threshold_not_reached(
     # Features should not be consolidated
     features_after = await storage.get_feature_set(
         set_ids=["user-consolidate"],
-        type_names=[semantic_type.name],
+        category_names=[semantic_type.name],
     )
 
     # Should have same or more features (no consolidation)
@@ -365,7 +365,7 @@ async def test_consolidation_threshold_not_reached(
 async def test_multiple_sets_processed_independently(
     storage: InMemorySemanticStorage,
     resource_retriever: MockResourceRetriever,
-    semantic_type: SemanticType,
+    semantic_type: SemanticCategory,
     monkeypatch,
 ):
     from memmachine.semantic_memory.semantic_model import SemanticCommand
@@ -436,11 +436,11 @@ async def test_multiple_sets_processed_independently(
     # Verify both sets were processed independently
     features_a = await storage.get_feature_set(
         set_ids=["user-a"],
-        type_names=[semantic_type.name],
+        category_names=[semantic_type.name],
     )
     features_b = await storage.get_feature_set(
         set_ids=["user-b"],
-        type_names=[semantic_type.name],
+        category_names=[semantic_type.name],
     )
 
     await service.stop()

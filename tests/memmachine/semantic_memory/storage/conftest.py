@@ -8,7 +8,7 @@ from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 async def with_multiple_features(storage: SemanticStorageBase):
     idx_a = await storage.add_feature(
         set_id="user",
-        type_name="test_type",
+        category_name="test_type",
         feature="likes",
         value="pizza",
         tag="food",
@@ -16,7 +16,7 @@ async def with_multiple_features(storage: SemanticStorageBase):
     )
     idx_b = await storage.add_feature(
         set_id="user",
-        type_name="test_type",
+        category_name="test_type",
         feature="likes",
         value="sushi",
         tag="food",
@@ -48,7 +48,7 @@ async def with_multiple_features(storage: SemanticStorageBase):
 async def with_multiple_sets(storage: SemanticStorageBase):
     idx_a = await storage.add_feature(
         set_id="user1",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="pizza",
         tag="food",
@@ -56,7 +56,7 @@ async def with_multiple_sets(storage: SemanticStorageBase):
     )
     idx_b = await storage.add_feature(
         set_id="user1",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="sushi",
         tag="food",
@@ -64,7 +64,7 @@ async def with_multiple_sets(storage: SemanticStorageBase):
     )
     idx_c = await storage.add_feature(
         set_id="user2",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="fish",
         tag="food",
@@ -72,7 +72,7 @@ async def with_multiple_sets(storage: SemanticStorageBase):
     )
     idx_d = await storage.add_feature(
         set_id="user2",
-        type_name="default",
+        category_name="default",
         feature="likes",
         value="chips",
         tag="food",

@@ -18,33 +18,33 @@ class TestSemanticFeatureGrouping:
     def sample_features(self):
         return [
             SemanticFeature(
-                type="Profile",
+                category="Profile",
                 tag="food",
-                feature="favorite_pizza",
+                feature_name="favorite_pizza",
                 value="pepperoni",
             ),
             SemanticFeature(
-                type="Profile",
+                category="Profile",
                 tag="food",
-                feature="favorite_pizza",
+                feature_name="favorite_pizza",
                 value="margherita",
             ),
             SemanticFeature(
-                type="Profile",
+                category="Profile",
                 tag="food",
-                feature="favorite_drink",
+                feature_name="favorite_drink",
                 value="water",
             ),
             SemanticFeature(
-                type="Preferences",
+                category="Preferences",
                 tag="food",
-                feature="favorite_pizza",
+                feature_name="favorite_pizza",
                 value="hawaiian",
             ),
             SemanticFeature(
-                type="Profile",
+                category="Profile",
                 tag="music",
-                feature="favorite_genre",
+                feature_name="favorite_genre",
                 value="jazz",
             ),
         ]
@@ -88,9 +88,9 @@ class TestSemanticFeatureGrouping:
     def test_group_features_single_item(self):
         features = [
             SemanticFeature(
-                type="Profile",
+                category="Profile",
                 tag="hobby",
-                feature="activity",
+                feature_name="activity",
                 value="reading",
             )
         ]
@@ -134,9 +134,9 @@ class TestSemanticFeatureGrouping:
     def test_group_features_by_tag_single_item(self):
         features = [
             SemanticFeature(
-                type="Profile",
+                category="Profile",
                 tag="color",
-                feature="favorite",
+                feature_name="favorite",
                 value="blue",
             )
         ]
@@ -243,15 +243,15 @@ class TestSemanticFeature:
 
     def test_semantic_feature_with_minimal_fields(self):
         feature = SemanticFeature(
-            type="Profile",
+            category="Profile",
             tag="food",
-            feature="favorite_meal",
+            feature_name="favorite_meal",
             value="pasta",
         )
 
-        assert feature.type == "Profile"
+        assert feature.category == "Profile"
         assert feature.tag == "food"
-        assert feature.feature == "favorite_meal"
+        assert feature.feature_name == "favorite_meal"
         assert feature.value == "pasta"
         assert feature.set_id is None
         assert feature.metadata.id is None
@@ -270,9 +270,9 @@ class TestSemanticFeature:
 
         feature = SemanticFeature(
             set_id="user-123",
-            type="Profile",
+            category="Profile",
             tag="food",
-            feature="favorite_meal",
+            feature_name="favorite_meal",
             value="pasta",
             metadata=SemanticFeature.Metadata(
                 id=789,
@@ -282,9 +282,9 @@ class TestSemanticFeature:
         )
 
         assert feature.set_id == "user-123"
-        assert feature.type == "Profile"
+        assert feature.category == "Profile"
         assert feature.tag == "food"
-        assert feature.feature == "favorite_meal"
+        assert feature.feature_name == "favorite_meal"
         assert feature.value == "pasta"
         assert feature.metadata.id == 789
         assert len(feature.metadata.citations) == 1

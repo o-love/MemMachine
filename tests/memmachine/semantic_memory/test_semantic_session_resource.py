@@ -5,7 +5,7 @@ import pytest
 from memmachine.semantic_memory.semantic_model import (
     Resources,
     SemanticPrompt,
-    SemanticType,
+    SemanticCategory,
 )
 from memmachine.semantic_memory.semantic_session_resource import (
     IsolationType,
@@ -31,8 +31,8 @@ def semantic_prompt() -> SemanticPrompt:
 
 
 @pytest.fixture
-def profile_semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
-    return SemanticType(
+def profile_semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
+    return SemanticCategory(
         name="Profile",
         tags={"profile_tag"},
         prompt=semantic_prompt,
@@ -40,8 +40,8 @@ def profile_semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
 
 
 @pytest.fixture
-def session_semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
-    return SemanticType(
+def session_semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
+    return SemanticCategory(
         name="Session",
         tags={"session_tag"},
         prompt=semantic_prompt,
@@ -50,25 +50,25 @@ def session_semantic_type(semantic_prompt: SemanticPrompt) -> SemanticType:
 
 @pytest.fixture
 def profile_resources(
-    profile_semantic_type: SemanticType,
+    profile_semantic_type: SemanticCategory,
     mock_llm_model,
 ) -> Resources:
     return Resources(
         embedder=MockEmbedder(),
         language_model=mock_llm_model,
-        semantic_types=[profile_semantic_type],
+        semantic_categories=[profile_semantic_type],
     )
 
 
 @pytest.fixture
 def session_resources(
-    session_semantic_type: SemanticType,
+    session_semantic_type: SemanticCategory,
     mock_llm_model,
 ) -> Resources:
     return Resources(
         embedder=MockEmbedder(),
         language_model=mock_llm_model,
-        semantic_types=[session_semantic_type],
+        semantic_categories=[session_semantic_type],
     )
 
 
@@ -166,7 +166,7 @@ class TestSessionResourceRetriever:
         resources = retriever.get_resources("mem_session_test123")
 
         assert resources == session_resources
-        assert resources.semantic_types[0].name == "Session"
+        assert resources.semantic_categories[0].name == "Session"
 
     def test_get_resources_for_profile_id(
         self,
@@ -185,7 +185,7 @@ class TestSessionResourceRetriever:
         resources = retriever.get_resources("mem_user_test456")
 
         assert resources == profile_resources
-        assert resources.semantic_types[0].name == "Profile"
+        assert resources.semantic_categories[0].name == "Profile"
 
     def test_get_resources_with_invalid_id_raises_error(
         self,
@@ -222,8 +222,8 @@ class TestSessionResourceRetriever:
         session_res = retriever.get_resources("mem_session_session1")
 
         assert profile_res != session_res
-        assert profile_res.semantic_types[0].name == "Profile"
-        assert session_res.semantic_types[0].name == "Session"
+        assert profile_res.semantic_categories[0].name == "Profile"
+        assert session_res.semantic_categories[0].name == "Session"
 
     def test_custom_resources_returns_none(
         self,

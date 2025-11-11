@@ -9,6 +9,7 @@ Create Date: 2025-11-04 20:32:38.622715
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql as pg
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -19,32 +20,75 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema from legacy prof/history tables to SQLAlchemy layout."""
-    # Drop old citations table (schema changes make it incompatible)
-    op.execute("DROP TABLE IF EXISTS citations CASCADE")
+    # Vector extension (no-op if already installed)
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    # Rename prof table to feature and align columns
-    op.execute("ALTER TABLE prof RENAME TO feature")
-    op.execute("ALTER TABLE feature RENAME COLUMN user_id TO set_id")
-    op.execute("ALTER TABLE feature RENAME COLUMN tag TO tag_id")
-    op.execute("ALTER TABLE feature RENAME COLUMN create_at TO created_at")
-    op.execute("ALTER TABLE feature RENAME COLUMN update_at TO updated_at")
+    # 1) prof -> feature (rename), all inside TX
+    # Guarded rename to avoid errors if already renamed by earlier runs
     op.execute(
-        "ALTER TABLE feature ADD COLUMN semantic_type_id VARCHAR DEFAULT 'default'"
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name='prof'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name='feature'
+            ) THEN
+                ALTER TABLE prof RENAME TO feature;
+            END IF;
+        END$$;
+        """
     )
-    op.execute("ALTER TABLE feature DROP COLUMN IF EXISTS isolations")
-    op.execute(
-        "ALTER TABLE feature ALTER COLUMN created_at TYPE TIMESTAMP USING created_at::TIMESTAMP"
-    )
-    op.execute(
-        "ALTER TABLE feature ALTER COLUMN updated_at TYPE TIMESTAMP USING updated_at::TIMESTAMP"
-    )
-    op.execute(
-        "ALTER TABLE feature ALTER COLUMN metadata TYPE JSONB USING metadata::JSONB"
-    )
-    op.execute("ALTER TABLE feature ALTER COLUMN metadata SET DEFAULT '{}'::JSONB")
 
-    # Rebuild feature indexes
+    # Column renames & transformations on feature
+    with op.batch_alter_table("feature", schema=None) as b:
+        # If a column is already renamed, PostgreSQL will error. Use IF EXISTS via two-step try blocks.
+        # batch_alter_table doesn't support IF EXISTS directly, so rely on presence tests via SQL.
+        b.alter_column("user_id", new_column_name="set_id", existing_type=sa.TEXT())
+        b.alter_column("tag", new_column_name="tag_id", existing_type=sa.TEXT())
+        b.alter_column(
+            "create_at",
+            new_column_name="created_at",
+            existing_type=pg.TIMESTAMP(timezone=True),
+        )
+        b.alter_column(
+            "update_at",
+            new_column_name="updated_at",
+            existing_type=pg.TIMESTAMP(timezone=True),
+        )
+        b.add_column(
+            sa.Column(
+                "semantic_type_id", sa.String(), server_default=sa.text("'default'")
+            )
+        )
+        b.drop_column("isolations")
+
+    # Type fixes / defaults
+    op.alter_column(
+        "feature",
+        "created_at",
+        type_=sa.TIMESTAMP(timezone=False),
+        postgresql_using="created_at::timestamp",
+        existing_type=pg.TIMESTAMP(timezone=True),
+    )
+    op.alter_column(
+        "feature",
+        "updated_at",
+        type_=sa.TIMESTAMP(timezone=False),
+        postgresql_using="updated_at::timestamp",
+        existing_type=pg.TIMESTAMP(timezone=True),
+    )
+    op.alter_column(
+        "feature",
+        "metadata",
+        type_=pg.JSONB(),
+        postgresql_using="metadata::jsonb",
+        server_default=sa.text("'{}'::jsonb"),
+    )
+
+    # Indexes
     op.execute("DROP INDEX IF EXISTS prof_user_idx")
     op.create_index("idx_feature_set_id", "feature", ["set_id"])
     op.create_index(
@@ -61,105 +105,258 @@ def upgrade() -> None:
         ["set_id", "semantic_type_id", "tag_id", "feature"],
     )
 
-    # Align history table
-    op.execute("ALTER TABLE history RENAME COLUMN create_at TO created_at")
-    op.execute(
-        "ALTER TABLE history ALTER COLUMN created_at TYPE TIMESTAMP USING created_at::TIMESTAMP"
+    # 2) history changes
+    with op.batch_alter_table("history", schema=None) as b:
+        b.alter_column(
+            "create_at",
+            new_column_name="created_at",
+            existing_type=pg.TIMESTAMP(timezone=True),
+        )
+    op.alter_column(
+        "history",
+        "created_at",
+        type_=sa.TIMESTAMP(timezone=False),
+        postgresql_using="created_at::timestamp",
+        existing_type=pg.TIMESTAMP(timezone=True),
     )
-    op.execute(
-        "ALTER TABLE history ALTER COLUMN metadata TYPE JSONB USING metadata::JSONB"
+    op.alter_column(
+        "history",
+        "metadata",
+        type_=pg.JSONB(),
+        postgresql_using="metadata::jsonb",
+        server_default=sa.text("'{}'::jsonb"),
     )
-    op.execute("ALTER TABLE history ALTER COLUMN metadata SET DEFAULT '{}'::JSONB")
-    op.execute("ALTER TABLE history DROP COLUMN IF EXISTS user_id")
-    op.execute("ALTER TABLE history DROP COLUMN IF EXISTS ingested")
-    op.execute("ALTER TABLE history DROP COLUMN IF EXISTS isolations")
-    op.execute("DROP INDEX IF EXISTS history_user_idx")
-    op.execute("DROP INDEX IF EXISTS history_user_ingested_idx")
-    op.execute("DROP INDEX IF EXISTS history_user_ingested_ts_desc")
 
-    # Create set_ingested_history helper table
+    # 2a) New join table and backfill
     op.create_table(
         "set_ingested_history",
         sa.Column("set_id", sa.String(), nullable=False),
         sa.Column("history_id", sa.Integer(), nullable=False),
         sa.Column(
-            "ingested", sa.Boolean(), nullable=True, server_default=sa.text("false")
+            "ingested", sa.Boolean(), server_default=sa.text("false"), nullable=True
         ),
         sa.ForeignKeyConstraint(
             ["history_id"], ["history.id"], ondelete="CASCADE", onupdate="CASCADE"
         ),
         sa.PrimaryKeyConstraint("set_id", "history_id"),
     )
-
-    # Recreate citations table with new structure
-    op.create_table(
-        "citations",
-        sa.Column("feature_id", sa.Integer(), nullable=False),
-        sa.Column("history_id", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["feature_id"], ["feature.id"], ondelete="CASCADE", onupdate="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["history_id"], ["history.id"], ondelete="CASCADE", onupdate="CASCADE"
-        ),
-        sa.PrimaryKeyConstraint("feature_id", "history_id"),
+    op.execute(
+        """
+        INSERT INTO set_ingested_history (set_id, history_id, ingested)
+        SELECT user_id, id, COALESCE(ingested, false)
+        FROM history
+        WHERE user_id IS NOT NULL
+        ON CONFLICT DO NOTHING
+        """
     )
+
+    # 2b) Drop legacy columns / indexes
+    with op.batch_alter_table("history", schema=None) as b:
+        b.drop_column("user_id")
+        b.drop_column("ingested")
+        b.drop_column("isolations")
+    op.execute("DROP INDEX IF EXISTS history_user_idx")
+    op.execute("DROP INDEX IF EXISTS history_user_ingested_idx")
+    op.execute("DROP INDEX IF EXISTS history_user_ingested_ts_desc")
+
+    # 3) citations column renames (preserve data) + rebuild FKs
+    with op.batch_alter_table("citations", schema=None) as b:
+        # rename legacy columns if present
+        try:
+            b.alter_column(
+                "profile_id", new_column_name="feature_id", existing_type=sa.Integer
+            )
+        except Exception:
+            pass
+        try:
+            b.alter_column(
+                "content_id", new_column_name="history_id", existing_type=sa.Integer
+            )
+        except Exception:
+            pass
+
+    # Drop existing FKs (unknown names) and recreate with explicit names
+    op.execute(
+        """
+        DO $$
+        DECLARE r record;
+        BEGIN
+            FOR r IN
+                SELECT conname
+                FROM pg_constraint
+                WHERE conrelid = 'citations'::regclass
+                  AND contype = 'f'
+            LOOP
+                EXECUTE format('ALTER TABLE citations DROP CONSTRAINT IF EXISTS %I', r.conname);
+            END LOOP;
+        END$$;
+        """
+    )
+    with op.batch_alter_table("citations", schema=None) as b:
+        b.create_foreign_key(
+            "fk_citations_feature",
+            "feature",
+            local_cols=["feature_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        )
+        b.create_foreign_key(
+            "fk_citations_history",
+            "history",
+            local_cols=["history_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+            onupdate="CASCADE",
+        )
 
 
 def downgrade() -> None:
-    """Downgrade schema back to legacy layout."""
-    op.execute("DROP TABLE IF EXISTS citations CASCADE")
-    op.execute("DROP TABLE IF EXISTS set_ingested_history CASCADE")
+    # citations back
+    with op.batch_alter_table("citations", schema=None) as b:
+        try:
+            b.drop_constraint("fk_citations_history", type_="foreignkey")
+        except Exception:
+            pass
+        try:
+            b.drop_constraint("fk_citations_feature", type_="foreignkey")
+        except Exception:
+            pass
+    with op.batch_alter_table("citations", schema=None) as b:
+        try:
+            b.alter_column(
+                "history_id", new_column_name="content_id", existing_type=sa.Integer
+            )
+        except Exception:
+            pass
+        try:
+            b.alter_column(
+                "feature_id", new_column_name="profile_id", existing_type=sa.Integer
+            )
+        except Exception:
+            pass
 
-    # Restore history table
-    op.execute(
-        "ALTER TABLE history ALTER COLUMN metadata TYPE JSONB USING metadata::JSONB"
-    )
-    op.execute("ALTER TABLE history ALTER COLUMN metadata SET DEFAULT '{}'::JSONB")
-    op.execute(
-        "ALTER TABLE history ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::TIMESTAMPTZ"
-    )
-    op.execute("ALTER TABLE history RENAME COLUMN created_at TO create_at")
-    op.execute("ALTER TABLE history ADD COLUMN user_id TEXT NOT NULL DEFAULT 'unknown'")
-    op.execute("ALTER TABLE history ADD COLUMN ingested BOOLEAN NOT NULL DEFAULT FALSE")
-    op.execute("ALTER TABLE history ADD COLUMN isolations JSONB NOT NULL DEFAULT '{}'")
-    op.create_index("history_user_idx", "history", ["user_id"])
-    op.create_index("history_user_ingested_idx", "history", ["user_id", "ingested"])
-    op.execute(
-        "CREATE INDEX history_user_ingested_ts_desc ON history (user_id, ingested, create_at DESC)"
-    )
-
-    # Restore feature table
-    op.execute(
-        "ALTER TABLE feature ALTER COLUMN metadata TYPE JSONB USING metadata::JSONB"
-    )
-    op.execute("ALTER TABLE feature ALTER COLUMN metadata SET DEFAULT '{}'::JSONB")
-    op.execute(
-        "ALTER TABLE feature ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at::TIMESTAMPTZ"
-    )
-    op.execute(
-        "ALTER TABLE feature ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::TIMESTAMPTZ"
-    )
-    op.execute("DROP INDEX IF EXISTS idx_feature_set_semantic_type_tag_feature")
-    op.execute("DROP INDEX IF EXISTS idx_feature_set_semantic_type_tag")
-    op.execute("DROP INDEX IF EXISTS idx_feature_set_id_semantic_type")
-    op.execute("DROP INDEX IF EXISTS idx_feature_set_id")
-    op.execute("ALTER TABLE feature DROP COLUMN IF EXISTS semantic_type_id")
-    op.execute("ALTER TABLE feature ADD COLUMN isolations JSONB NOT NULL DEFAULT '{}'")
-    op.execute("ALTER TABLE feature RENAME COLUMN updated_at TO update_at")
-    op.execute("ALTER TABLE feature RENAME COLUMN created_at TO create_at")
-    op.execute("ALTER TABLE feature RENAME COLUMN tag_id TO tag")
-    op.execute("ALTER TABLE feature RENAME COLUMN set_id TO user_id")
-    op.execute("ALTER TABLE feature RENAME TO prof")
-    op.create_index("prof_user_idx", "prof", ["user_id"])
-
-    # Recreate legacy citations table
+    # history: add back legacy cols & data
+    with op.batch_alter_table("history", schema=None) as b:
+        b.add_column(sa.Column("user_id", sa.TEXT(), nullable=True))
+        b.add_column(
+            sa.Column(
+                "ingested",
+                sa.Boolean(),
+                server_default=sa.text("false"),
+                nullable=False,
+            )
+        )
+        b.add_column(
+            sa.Column(
+                "isolations",
+                pg.JSONB(),
+                server_default=sa.text("'{}'::jsonb"),
+                nullable=False,
+            )
+        )
     op.execute(
         """
-        CREATE TABLE citations (
-            profile_id INTEGER REFERENCES prof(id) ON DELETE CASCADE,
-            content_id INTEGER REFERENCES history(id) ON DELETE CASCADE,
-            PRIMARY KEY (profile_id, content_id)
+        UPDATE history h
+        SET user_id = s.set_id,
+            ingested = s.ingested
+        FROM set_ingested_history s
+        WHERE s.history_id = h.id
+        """
+    )
+    op.execute("CREATE INDEX IF NOT EXISTS history_user_idx ON history (user_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS history_user_ingested_idx ON history (user_id, ingested)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS history_user_ingested_ts_desc ON history (user_id, ingested, created_at DESC)"
+    )
+    op.drop_table("set_ingested_history")
+
+    # history type back
+    op.alter_column(
+        "history",
+        "metadata",
+        type_=pg.JSONB(),
+        postgresql_using="metadata::jsonb",
+        server_default=sa.text("'{}'::jsonb"),
+    )
+    op.alter_column(
+        "history",
+        "created_at",
+        type_=pg.TIMESTAMP(timezone=True),
+        postgresql_using="created_at::timestamptz",
+    )
+    with op.batch_alter_table("history", schema=None) as b:
+        b.alter_column(
+            "created_at",
+            new_column_name="create_at",
+            existing_type=pg.TIMESTAMP(timezone=True),
         )
+
+    # feature -> prof back
+    op.alter_column(
+        "feature",
+        "metadata",
+        type_=pg.JSONB(),
+        postgresql_using="metadata::jsonb",
+        server_default=sa.text("'{}'::jsonb"),
+    )
+    op.alter_column(
+        "feature",
+        "updated_at",
+        type_=pg.TIMESTAMP(timezone=True),
+        postgresql_using="updated_at::timestamptz",
+    )
+    op.alter_column(
+        "feature",
+        "created_at",
+        type_=pg.TIMESTAMP(timezone=True),
+        postgresql_using="created_at::timestamptz",
+    )
+    with op.batch_alter_table("feature", schema=None) as b:
+        b.add_column(
+            sa.Column(
+                "isolations",
+                pg.JSONB(),
+                server_default=sa.text("'{}'::jsonb"),
+                nullable=False,
+            )
+        )
+        b.drop_column("semantic_type_id")
+        b.alter_column(
+            "updated_at",
+            new_column_name="update_at",
+            existing_type=pg.TIMESTAMP(timezone=True),
+        )
+        b.alter_column(
+            "created_at",
+            new_column_name="create_at",
+            existing_type=pg.TIMESTAMP(timezone=True),
+        )
+        b.alter_column("tag_id", new_column_name="tag", existing_type=sa.TEXT())
+        b.alter_column("set_id", new_column_name="user_id", existing_type=sa.TEXT())
+
+    op.execute("DROP INDEX IF EXISTS idx_feature_set_id")
+    op.execute("DROP INDEX IF EXISTS idx_feature_set_id_semantic_type")
+    op.execute("DROP INDEX IF EXISTS idx_feature_set_semantic_type_tag")
+    op.execute("DROP INDEX IF EXISTS idx_feature_set_semantic_type_tag_feature")
+    op.execute("CREATE INDEX IF NOT EXISTS prof_user_idx ON feature (user_id)")
+
+    # rename back to prof (transaction-safe)
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name='feature'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name='prof'
+            ) THEN
+                ALTER TABLE feature RENAME TO prof;
+            END IF;
+        END$$;
         """
     )
