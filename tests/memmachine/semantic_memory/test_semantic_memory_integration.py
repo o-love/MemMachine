@@ -13,7 +13,7 @@ from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
     Resources,
     SemanticCategory,
-    SemanticPrompt,
+    SemanticPrompt, RawSemanticPrompt,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -49,7 +49,7 @@ def load_types_from_modules(module_names):
             f"memmachine.server.prompt.{module_name}",
             __package__,
         )
-        prompt = SemanticPrompt.load_from_module(prompt_module)
+        prompt = RawSemanticPrompt.load_from_module(prompt_module)
         semantic_type = SemanticCategory(
             name=module_name,
             tags={"unknown"},

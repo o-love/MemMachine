@@ -491,6 +491,53 @@ async def test_delete_history_with_citations(
     feature = await storage.get_feature(feature_id=feature_id, load_citations=True)
     assert len(feature.metadata.citations) == len(citations) - 1
 
+@pytest.mark.asyncio
+async def test_add_history_with_current_time(
+        storage: SemanticStorageBase,
+):
+    h1_id = await storage.add_history(
+        content="first",
+        metadata={},
+    )
+    await storage.add_history_to_set(
+        set_id="user",
+        history_id=h1_id,
+    )
+    h2_id = await storage.add_history(
+        content="second",
+        metadata={},
+    )
+    await storage.add_history_to_set(
+        set_id="user",
+        history_id=h2_id,
+    )
+    await asyncio.sleep(0.5)
+    cutoff = datetime.now(UTC)
+    await asyncio.sleep(0.5)
+    h3_id = await storage.add_history(
+        content="third",
+        metadata={},
+    )
+    await storage.add_history_to_set(
+        set_id="user",
+        history_id=h3_id,
+    )
+
+    window = await storage.get_history_messages(
+        set_ids=["user"],
+        end_time=cutoff,
+    )
+    assert [h.content for h in window] == ["first", "second"]
+
+    await storage.delete_history_messages(
+        end_time=cutoff,
+    )
+    remaining = await storage.get_history_messages(set_ids=["user"])
+    assert remaining[0].content == "third"
+    assert len(remaining) == 1
+
+    await storage.delete_history_messages()
+    assert await storage.get_history_messages(set_ids=["user"]) == []
 
 @pytest.mark.asyncio
 async def test_get_history_message_count_set_id(

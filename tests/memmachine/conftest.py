@@ -8,7 +8,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
 
-from memmachine.common.embedder.openai_embedder import OpenAIEmbedder
+from memmachine.common.embedder.openai_embedder import OpenAIEmbedder, OpenAIEmbedderParams
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.language_model.amazon_bedrock_language_model import (
     AmazonBedrockLanguageModel,
@@ -63,12 +63,18 @@ def openai_integration_config():
 
 
 @pytest.fixture(scope="session")
-def openai_embedder(openai_integration_config):
+def openai_client(openai_integration_config):
+    import openai
+    return openai.AsyncOpenAI(api_key=openai_integration_config["api_key"])
+
+@pytest.fixture(scope="session")
+def openai_embedder(openai_client, openai_integration_config):
     return OpenAIEmbedder(
-        {
-            "api_key": openai_integration_config["api_key"],
-            "model": openai_integration_config["embedding_model"],
-        }
+        OpenAIEmbedderParams(
+            client=openai_client,
+            model=openai_integration_config["embedding_model"],
+            dimensions=1536,
+        )
     )
 
 

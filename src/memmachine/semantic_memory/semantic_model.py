@@ -42,7 +42,7 @@ class HistoryMessage(BaseModel):
 
 
 @dataclass
-class SemanticPrompt:
+class RawSemanticPrompt:
     """Pair of prompt templates driving update and consolidation LLM calls."""
 
     update_prompt: str
@@ -53,7 +53,7 @@ class SemanticPrompt:
         update_prompt = getattr(prompt_module, "UPDATE_PROMPT", "")
         consolidation_prompt = getattr(prompt_module, "CONSOLIDATION_PROMPT", "")
 
-        return SemanticPrompt(
+        return RawSemanticPrompt(
             update_prompt=update_prompt,
             consolidation_prompt=consolidation_prompt,
         )
@@ -109,6 +109,17 @@ class SemanticFeature(BaseModel):
         return grouped_features
 
 
+@runtime_checkable
+class SemanticPrompt(Protocol):
+    @property
+    def update_prompt(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def consolidation_prompt(self) -> str:
+        raise NotImplementedError
+
+
 class SemanticCategory(BaseModel):
     """Defines a semantic feature category, its allowed tags, and prompt strategy."""
 
@@ -116,7 +127,7 @@ class SemanticCategory(BaseModel):
 
     name: str
     tags: set[str]
-    prompt: SemanticPrompt
+    prompt: InstanceOf[SemanticPrompt]
 
 
 class Resources(BaseModel):

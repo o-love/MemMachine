@@ -21,6 +21,7 @@ from sqlalchemy import (
     select,
     text,
     update,
+    DateTime,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -35,13 +36,6 @@ from sqlalchemy.sql import func
 
 from memmachine.semantic_memory.semantic_model import HistoryMessage, SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
-
-
-def _to_naive_utc(dt: AwareDatetime) -> datetime:
-    """Convert aware datetimes to naive UTC for TIMESTAMP WITHOUT TIME ZONE columns."""
-    if dt.tzinfo is None:
-        return dt
-    return dt.astimezone(UTC).replace(tzinfo=None)
 
 
 class BaseSemanticStorage(DeclarativeBase):
@@ -75,27 +69,30 @@ class Feature(BaseSemanticStorage):
     id = mapped_column(Integer, primary_key=True)
 
     # Feature data
-    set_id = mapped_column(String)
-    semantic_category_id = mapped_column(String)
-    tag_id = mapped_column(String)
-    feature = mapped_column(String)
-    value = mapped_column(String)
+    set_id = mapped_column(String, nullable=False)
+    semantic_category_id = mapped_column(String, nullable=False)
+    tag_id = mapped_column(String, nullable=False)
+    feature = mapped_column(String, nullable=False)
+    value = mapped_column(String, nullable=False)
 
     # metadata
     created_at = mapped_column(
-        TIMESTAMP,
+        DateTime(timezone=True),
         server_default=func.now(),
+        nullable=False,
     )
     updated_at = mapped_column(
-        TIMESTAMP,
+        DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
+        nullable=False,
     )
     embedding = mapped_column(Vector)
     json_metadata = mapped_column(
         JSONB,
         name="metadata",
         server_default=text("'{}'::jsonb"),
+        nullable=False,
     )
 
     citations: Mapped[set["History"]] = relationship(
@@ -146,7 +143,7 @@ class History(BaseSemanticStorage):
     __tablename__ = "history"
     id = mapped_column(Integer, primary_key=True)
 
-    content = mapped_column(String)
+    content = mapped_column(String, nullable=False)
 
     json_metadata = mapped_column(
         JSONB,
@@ -154,8 +151,9 @@ class History(BaseSemanticStorage):
         server_default=text("'{}'::jsonb"),
     )
     created_at = mapped_column(
-        TIMESTAMP,
+        DateTime(timezone=True),
         server_default=func.now(),
+        nullable=False,
     )
 
     def to_typed_model(self) -> HistoryMessage:
@@ -179,7 +177,7 @@ class SetIngestedHistory(BaseSemanticStorage):
         ForeignKey("history.id", ondelete="CASCADE", onupdate="CASCADE"),
         primary_key=True,
     )
-    ingested = mapped_column(Boolean, default=False)
+    ingested = mapped_column(Boolean, default=False, nullable=False)
 
 
 async def apply_alembic_migrations(engine: AsyncEngine):
@@ -422,7 +420,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             stmt = stmt.values(json_metadata=metadata)
 
         if created_at is not None:
-            stmt = stmt.values(created_at=_to_naive_utc(created_at))
+            stmt = stmt.values(created_at=created_at)
 
         async with self._create_session() as session:
             result = await session.execute(stmt)
@@ -564,9 +562,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         is_ingested: bool | None = None,
     ):
         if start_time is not None:
-            stmt = stmt.where(History.created_at >= _to_naive_utc(start_time))
+            stmt = stmt.where(History.created_at >= start_time)
         if end_time is not None:
-            stmt = stmt.where(History.created_at <= _to_naive_utc(end_time))
+            stmt = stmt.where(History.created_at <= end_time)
         if k is not None:
             stmt = stmt.limit(k)
 
