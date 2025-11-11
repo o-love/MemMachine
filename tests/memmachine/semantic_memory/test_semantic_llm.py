@@ -198,7 +198,7 @@ async def test_consolidate_with_valid_memories(
     )
 
     assert result is not None
-    assert result.keep_memories == [1, 2]
+    assert result.keep_memories == ["1", "2"]
     assert len(result.consolidated_memories) == 2
     assert result.consolidated_memories[0].feature == "favorite_pizza"
     assert result.consolidated_memories[1].feature == "favorite_drink"

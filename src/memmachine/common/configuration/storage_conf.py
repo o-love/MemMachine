@@ -107,7 +107,5 @@ class StorageConf(BaseModel):
                 )
 
         return cls(
-            neo4j_confs=neo4j_dict,
-            postgres_confs=pg_dict,
-            sqlite_confs=sqlite_dict
+            neo4j_confs=neo4j_dict, postgres_confs=pg_dict, sqlite_confs=sqlite_dict
         )

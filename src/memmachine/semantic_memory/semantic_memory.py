@@ -13,8 +13,10 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel, InstanceOf
 
+from ..history_store.history_model import HistoryIdT
+from ..history_store.history_storage import HistoryStorage
 from .semantic_ingestion import IngestionService
-from .semantic_model import ResourceRetriever, SemanticFeature
+from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
 from .semantic_tracker import SemanticUpdateTrackerManager
 from .storage.storage_base import SemanticStorageBase
 
@@ -34,6 +36,7 @@ class SemanticService:
         """Infrastructure dependencies and background-update configuration."""
 
         semantic_storage: InstanceOf[SemanticStorageBase]
+        history_storage: InstanceOf[HistoryStorage]
         consolidation_threshold: int = 20
 
         feature_update_interval_sec: float = 2.0
@@ -62,6 +65,7 @@ class SemanticService:
         params: Params,
     ):
         self._semantic_storage = params.semantic_storage
+        self._history_storage = params.history_storage
         self._background_ingestion_interval_sec = params.feature_update_interval_sec
 
         self._resource_retriever: ResourceRetriever = params.resource_retriever
@@ -93,7 +97,7 @@ class SemanticService:
 
     async def search(
         self,
-        set_ids: list[str],
+        set_ids: list[SetIdT],
         query: str,
         *,
         min_distance: float = 0.7,
@@ -119,7 +123,7 @@ class SemanticService:
             load_citations=load_citations,
         )
 
-    async def add_messages(self, set_id: str, history_ids: list[int]):
+    async def add_messages(self, set_id: SetIdT, history_ids: list[HistoryIdT]):
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -134,7 +138,7 @@ class SemanticService:
 
         await self._dirty_sets.mark_update([set_id])
 
-    async def add_message_to_sets(self, history_id: int, set_ids: list[str]):
+    async def add_message_to_sets(self, history_id: HistoryIdT, set_ids: list[SetIdT]):
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -157,14 +161,14 @@ class SemanticService:
     async def add_new_feature(
         self,
         *,
-        set_id: str,
+        set_id: SetIdT,
         category_name: str,
         feature: str,
         value: str,
         tag: str,
         metadata: dict[str, str] | None = None,
-        citations: list[int] | None = None,
-    ) -> int:
+        citations: list[HistoryIdT] | None = None,
+    ) -> FeatureIdT:
         resources = self._resource_retriever.get_resources(set_id)
         embedding = (await resources.embedder.ingest_embed([value]))[0]
 
@@ -184,7 +188,7 @@ class SemanticService:
         return f_id
 
     async def get_feature(
-        self, feature_id: int, load_citations: bool
+        self, feature_id: FeatureIdT, load_citations: bool
     ) -> SemanticFeature | None:
         return await self._semantic_storage.get_feature(
             feature_id, load_citations=load_citations
@@ -267,6 +271,7 @@ class SemanticService:
             params=IngestionService.Params(
                 semantic_storage=self._semantic_storage,
                 resource_retriever=self._resource_retriever,
+                history_store=self._history_storage,
             )
         )
 

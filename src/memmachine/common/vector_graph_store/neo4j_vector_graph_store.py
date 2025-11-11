@@ -19,9 +19,9 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.utils import async_locked, async_with
 
+from ..data_types import SimilarityMetric
 from .data_types import Edge, Node, Property
 from .vector_graph_store import VectorGraphStore
-from ..data_types import SimilarityMetric
 
 logger = logging.getLogger(__name__)
 
@@ -409,7 +409,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
     ):
         async with self._semaphore:
             await self._driver.execute_query(
-                """delete
+                """
                 UNWIND $node_uuids AS node_uuid
                 MATCH (n {uuid: node_uuid})
                 DETACH DELETE n

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Final, Protocol, runtime_checkable
 
-from memmachine.semantic_memory.semantic_model import Resources
+from memmachine.semantic_memory.semantic_model import Resources, SetIdT
 
 
 class IsolationType(Enum):
@@ -19,13 +19,13 @@ ALL_MEMORY_TYPES: Final[list[IsolationType]] = [m for m in IsolationType]
 class SessionData(Protocol):
     """Protocol exposing the identifiers used to derive set_ids."""
 
-    def user_profile_id(self) -> str | None:
+    def user_profile_id(self) -> SetIdT | None:
         raise NotImplementedError
 
-    def session_id(self) -> str | None:
+    def session_id(self) -> SetIdT | None:
         raise NotImplementedError
 
-    def role_profile_id(self) -> str | None:
+    def role_profile_id(self) -> SetIdT | None:
         raise NotImplementedError
 
 
@@ -33,7 +33,7 @@ class SessionData(Protocol):
 class SessionIdIsolationTypeChecker(Protocol):
     """Protocol for determining the isolation type associated with a set_id."""
 
-    def set_id_isolation_type(self, set_id: str) -> IsolationType:
+    def set_id_isolation_type(self, set_id: SetIdT) -> IsolationType:
         raise NotImplementedError
 
 
