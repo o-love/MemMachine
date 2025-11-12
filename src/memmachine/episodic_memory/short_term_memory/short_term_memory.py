@@ -13,10 +13,11 @@ import logging
 import uuid
 from collections import deque
 
+from memmachine.common.configuration.episodic_config import ShortTermMemoryParams
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
-from memmachine.common.configuration.episodic_config import ShortTermMemoryParams
 from memmachine.session_manager_interface import SessionDataManager
+
 from ..data_types import Episode
 
 logger = logging.getLogger(__name__)

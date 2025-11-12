@@ -1,7 +1,7 @@
 from typing import Any, Self
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator, SecretStr, InstanceOf
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from memmachine.common.configuration.metrics_conf import WithMetricsFactoryId
 from memmachine.common.data_types import SimilarityMetric
@@ -129,7 +129,7 @@ class AwsBedrockModelConf(WithMetricsFactoryId):
     )
     inference_config: AmazonBedrockConverseInferenceConfig | None = Field(
         default=None,
-        description=("Inference configuration for the Bedrock Converse API."),
+        description="Inference configuration for the Bedrock Converse API.",
     )
     additional_model_request_fields: dict[str, Any] | None = Field(
         None,
@@ -141,25 +141,32 @@ class AwsBedrockModelConf(WithMetricsFactoryId):
     )
     max_retry_interval_seconds: int = Field(
         default=120,
-        description=("Maximal retry interval in seconds when retrying API calls."),
+        description="Maximal retry interval in seconds when retrying API calls.",
         gt=0,
     )
 
 
 class OpenAICompatibleModelConf(WithMetricsFactoryId):
     model: str = Field(
-        default="nomic-embed-text", min_length=1, description="Ollama embedding model"
+        default="nomic-embed-text",
+        min_length=1,
+        description="OpenAI Compatible models such as Ollama, vLLM, SGLang",
     )
-    api_key: SecretStr = Field(..., description="Ollama API key", min_length=1)
+    api_key: SecretStr = Field(
+        ...,
+        description="API key for OpenAI Compatible models such as Ollama, vLLM, SGLang",
+        min_length=1,
+    )
     base_url: str = Field(
         ...,
-        description="Ollama API base URL",
+        description="API base URL for OpenAI Compatible models such as Ollama, vLLM, SGLang",
+        min_length=1,
         examples=["http://host.docker.internal:11434/v1"],
     )
     dimensions: int = Field(default=768, description="Embedding dimensions")
     max_retry_interval_seconds: int = Field(
         default=120,
-        description=("Maximal retry interval in seconds when retrying API calls."),
+        description="Maximal retry interval in seconds when retrying API calls.",
         gt=0,
     )
 
@@ -169,21 +176,22 @@ class OpenAICompatibleModelConf(WithMetricsFactoryId):
         if v is not None:
             parsed_url = urlparse(v)
             if not parsed_url.scheme or not parsed_url.netloc:
-                raise ValueError(f"Invalid base URL: {v}")
+                raise ValueError(f"Invalid base URL: base_url={v}")
         return v
 
 
 class LanguageModelConf(BaseModel):
-    openaiConfs: dict[str, OpenAIModelConf] = {}
-    awsBedrockConfs: dict[str, AwsBedrockModelConf] = {}
-    openaiCompatibleConfs: dict[str, OpenAICompatibleModelConf] = {}
+    openai_confs: dict[str, OpenAIModelConf] = {}
+    aws_bedrock_confs: dict[str, AwsBedrockModelConf] = {}
+    openai_compatible_confs: dict[str, OpenAICompatibleModelConf] = {}
 
     @classmethod
     def parse_language_model_conf(cls, input_dict: dict) -> Self:
         lm = input_dict
-        for key in ["language_model", "LanguageModel", "Model", "model"]:
+        for key in ["language_model", "model", "language-model"]:
             if key in lm:
                 lm = input_dict.get(key, {})
+                break
 
         openai_dict, aws_bedrock_dict, openai_compatible_dict = {}, {}, {}
         for lm_id, conf in lm.items():
@@ -200,7 +208,7 @@ class LanguageModelConf(BaseModel):
                 )
 
         return cls(
-            openaiConfs=openai_dict,
-            awsBedrockConfs=aws_bedrock_dict,
-            openaiCompatibleConfs=openai_compatible_dict,
+            openai_confs=openai_dict,
+            aws_bedrock_confs=aws_bedrock_dict,
+            openai_compatible_confs=openai_compatible_dict,
         )

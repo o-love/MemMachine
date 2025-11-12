@@ -1,19 +1,21 @@
-from ..configuration.episodic_config import EpisodicMemoryManagerParams
 from ...common.configuration import Configuration
 from ...common.embedder import Embedder
 from ...common.language_model import LanguageModel
 from ...common.resource_mgr.embedder_mgr import EmbedderMgr
 from ...common.resource_mgr.language_model_mgr import LanguageModelMgr
 from ...common.resource_mgr.storage_mgr import StorageMgr
+from ...episodic_memory_manager import EpisodicMemoryManager
+from ...profile_memory.profile_memory import ProfileMemory
+from ...profile_memory.storage.asyncpg_profile import (
+    AsyncPgProfileStorage,
+    AsyncPgProfileStorageParams,
+)
+from ...session_manager import SessionDataManagerImpl
+from ...session_manager_interface import SessionDataManager
+from ..configuration.episodic_config import EpisodicMemoryManagerParams
 from ..reranker import Reranker
 from ..vector_graph_store import VectorGraphStore
 from .reranker_mgr import RerankerMgr
-from ...episodic_memory_manager import EpisodicMemoryManager
-from ...profile_memory.profile_memory import ProfileMemory
-from ...profile_memory.storage.asyncpg_profile import AsyncPgProfileStorageParams, \
-    AsyncPgProfileStorage
-from ...session_manager import SessionDataManagerImpl
-from ...session_manager_interface import SessionDataManager
 
 
 class ResourceMgr:

@@ -8,14 +8,14 @@ from collections.abc import Callable
 
 from rank_bm25 import BM25Okapi
 
-from .reranker import Reranker
 from ..configuration.reranker_conf import BM25RerankerConf
+from .reranker import Reranker
 
 
 def get_tokenizer(name: str, language: str) -> Callable[[str], list[str]]:
     if name == "default":
-        from nltk.corpus import stopwords
         from nltk import word_tokenize
+        from nltk.corpus import stopwords
 
         stop_words = stopwords.words(language)
 

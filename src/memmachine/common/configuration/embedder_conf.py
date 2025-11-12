@@ -48,7 +48,7 @@ class AmazonBedrockEmbedderConfig(BaseModel):
     )
     max_retry_interval_seconds: int = Field(
         default=120,
-        description=("Maximal retry interval in seconds when retrying API calls."),
+        description="Maximal retry interval in seconds when retrying API calls.",
         gt=0,
     )
 
@@ -66,7 +66,7 @@ class OpenAIEmbedderConf(WithMetricsFactoryId):
     )
     dimensions: int | None = Field(
         default=1536,
-        description=("Dimensionality of the embeddings (default: model-specific)."),
+        description="Dimensionality of the embeddings (default: model-specific).",
         gt=0,
     )
     base_url: str | None = Field(
@@ -79,7 +79,7 @@ class OpenAIEmbedderConf(WithMetricsFactoryId):
     )
     max_retry_interval_seconds: int = Field(
         default=120,
-        description=("Maximal retry interval in seconds when retrying API calls."),
+        description="Maximal retry interval in seconds when retrying API calls.",
         gt=0,
     )
 
@@ -97,22 +97,22 @@ class EmbedderConf(BaseModel):
 
     @classmethod
     def parse_embedder_conf(cls, input_dict: dict) -> Self:
-        embedder = input_dict["embedder"]
-        for key in ["embedder", "Embedder"]:
-            if key in input_dict:
-                embedder = input_dict.get(key, {})
+        embedder = input_dict
+        if "embedder" in embedder:
+            embedder = embedder["embedder"]
 
         amazon_bedrock_dict = {}
         openai_dict = {}
         sentence_transformer_dict = {}
 
-        for embedder_id, conf in embedder.items():
-            name = conf.get("name")
+        for embedder_id, value in embedder.items():
+            name = value.get("provider")
+            conf = value.get("config", {})
             if name == "openai":
                 openai_dict[embedder_id] = OpenAIEmbedderConf(**conf)
-            elif name == "amazon_bedrock":
+            elif name == "amazon-bedrock":
                 amazon_bedrock_dict[embedder_id] = AmazonBedrockEmbedderConfig(**conf)
-            elif name == "sentence_transformer":
+            elif name == "sentence-transformer":
                 sentence_transformer_dict[embedder_id] = (
                     SentenceTransformerEmbedderConfig(**conf)
                 )

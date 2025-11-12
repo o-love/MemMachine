@@ -3,10 +3,10 @@ from pydantic import SecretStr
 
 from memmachine.common.configuration.reranker_conf import (
     AmazonBedrockRerankerConf,
+    BM25RerankerConf,
     CrossEncoderRerankerConf,
     RerankerConf,
     RRFHybridRerankerConf,
-    BM25RerankerConf,
 )
 from memmachine.common.resource_mgr.reranker_mgr import RerankerMgr
 

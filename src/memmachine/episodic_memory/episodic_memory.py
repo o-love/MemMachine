@@ -18,16 +18,14 @@ Key responsibilities include:
 
 import asyncio
 import logging
-import uuid
-from datetime import datetime
 import time
+import uuid
 from typing import cast
 
-
-from .data_types import ContentType, Episode, EpisodeType
+from ..common.configuration.episodic_config import EpisodicMemoryParams
+from .data_types import Episode
 from .long_term_memory.long_term_memory import LongTermMemory
 from .short_term_memory.short_term_memory import ShortTermMemory
-from ..common.configuration.episodic_config import EpisodicMemoryParams
 
 logger = logging.getLogger(__name__)
 

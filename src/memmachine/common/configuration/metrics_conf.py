@@ -1,4 +1,4 @@
-from typing import Dict, ClassVar
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -28,7 +28,7 @@ class WithMetricsFactoryId(BaseModel):
         description="User-defined labels for metrics.",
     )
 
-    _factories: ClassVar[Dict[str, MetricsFactory]] = {}
+    _factories: ClassVar[dict[str, MetricsFactory]] = {}
 
     def get_metrics_factory(self) -> MetricsFactory | None:
         factory_id = self.metrics_factory_id

@@ -2,10 +2,10 @@ import os.path
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, Self, Any
+from typing import Any, Self
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator, model_validator
 
 from ...common.configuration.embedder_conf import EmbedderConf
 from ...common.configuration.log_conf import LogConf
@@ -30,19 +30,19 @@ class LongTermMemoryConfPartial(BaseModel):
 
     All fields are optional. Used for updates."""
 
-    embedder: Optional[str] = Field(
+    embedder: str | None = Field(
         default=None,
         description="The embedder to use for long-term memory",
     )
-    reranker: Optional[str] = Field(
+    reranker: str | None = Field(
         default=None,
         description="The reranker to use for long-term memory",
     )
-    vector_graph_store: Optional[str] = Field(
+    vector_graph_store: str | None = Field(
         default=None,
         description="The vector graph store to use for long-term memory",
     )
-    enabled: Optional[bool] = Field(
+    enabled: bool | None = Field(
         default=None,
         description="Whether long-term memory is enabled",
     )
@@ -78,7 +78,7 @@ class LongTermMemoryConf(BaseModel):
 
 
 class ProfileMemoryConf(BaseModel):
-    llm_moel: str = Field(
+    llm_model: str = Field(
         ...,
         description="The language model to use for profile memory",
     )
@@ -97,26 +97,26 @@ class ProfileMemoryConf(BaseModel):
 
 
 class SessionMemoryConfPartial(BaseModel):
-    model_name: Optional[str] = Field(
+    model_name: str | None = Field(
         default=None,
         description="The language model to use for session memory",
     )
-    message_capacity: Optional[int] = Field(
+    message_capacity: int | None = Field(
         default=None,
         description="The maximum number of messages to retain in session memory",
         gt=0,
     )
-    max_message_length: Optional[int] = Field(
+    max_message_length: int | None = Field(
         default=None,
         description="The maximum length of each message in characters",
         gt=0,
     )
-    max_token_num: Optional[int] = Field(
+    max_token_num: int | None = Field(
         default=None,
         description="The maximum number of tokens to retain in session memory",
         gt=0,
     )
-    enabled: Optional[bool] = Field(
+    enabled: bool | None = Field(
         default=None,
         description="Whether session memory is enabled",
     )
@@ -253,18 +253,18 @@ class PromptConf(BaseModel):
 
 
 class EpisodicMemoryConfPartial(BaseModel):
-    sessionMemory: Optional[SessionMemoryConfPartial] = Field(
+    sessionMemory: SessionMemoryConfPartial | None = Field(
         default=None,
         description="Partial configuration for session memory in episodic memory",
     )
-    long_term_memory: Optional[LongTermMemoryConfPartial] = Field(
+    long_term_memory: LongTermMemoryConfPartial | None = Field(
         default=None,
         description="Partial configuration for long-term memory in episodic memory",
     )
 
 
 class EpisodicMemoryConf(BaseModel):
-    sessionMemory: SessionMemoryConf = Field(
+    sessionmemory: SessionMemoryConf = Field(
         ...,
         description="Configuration for session memory in episodic memory",
     )
@@ -294,9 +294,17 @@ class Configuration(EpisodicMemoryConf):
     model: LanguageModelConf
     storage: StorageConf
     profile_memory: ProfileMemoryConf
-    embeder: EmbedderConf
+    embedder: EmbedderConf
     reranker: RerankerConf
     prompt: PromptConf
+
+    def __init__(self, **data):
+        data = data.copy()  # avoid mutating caller's dict
+        super().__init__(**data)
+        self.model = LanguageModelConf.parse_language_model_conf(data)
+        self.storage = StorageConf.parse_storage_conf(data)
+        self.embedder = EmbedderConf.parse_embedder_conf(data)
+        self.reranker = RerankerConf.parse_reranker_conf(data)
 
 
 def load_config_yml_file(config_file: str) -> Configuration:

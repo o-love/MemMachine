@@ -94,10 +94,9 @@ class RerankerConf(BaseModel):
 
     @classmethod
     def parse_reranker_conf(cls, input_dict: dict) -> Self:
-        reranker = input_dict["reranker"]
-        for key in ["reranker", "Reranker"]:
-            if key in input_dict:
-                reranker = input_dict.get(key, {})
+        reranker = input_dict
+        if "reranker" in input_dict:
+            reranker = input_dict.get("reranker")
 
         bm25_dict = {}
         amazon_bedrock_dict = {}
@@ -105,8 +104,9 @@ class RerankerConf(BaseModel):
         embedder_dict = {}
         identity_dict = {}
         rrf_hybrid_dict = {}
-        for reranker_id, conf in reranker.items():
-            vendor = conf.get("type").lower()
+        for reranker_id, value in reranker.items():
+            vendor = value.get("provider").lower()
+            conf = value.get("config", {})
             if vendor == "bm25":
                 bm25_dict[reranker_id] = BM25RerankerConf(**conf)
             elif vendor == "amazon-bedrock":

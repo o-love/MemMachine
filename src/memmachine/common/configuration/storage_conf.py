@@ -20,29 +20,19 @@ class Neo4JConf(BaseModel):
 
 
 class PostgresConf(BaseModel):
-    host: str = Field(
-        default="localhost",
-        description="PostgreSQL connection host")
-    port: int = Field(
-        default=5432,
-        description="PostgreSQL connection port")
-    user: str = Field(
-        default="memmachine",
-        description="PostgreSQL username")
+    host: str = Field(default="localhost", description="PostgreSQL connection host")
+    port: int = Field(default=5432, description="PostgreSQL connection port")
+    user: str = Field(default="memmachine", description="PostgreSQL username")
     password: SecretStr = Field(
         default=SecretStr("memmachine_password"),
         description="PostgreSQL database password",
     )
-    db_name: str = Field(
-        default="memmachine",
-        description="PostgreSQL database name")
+    db_name: str = Field(default="memmachine", description="PostgreSQL database name")
     vector_schema: str = Field(
-        default="public",
-        description="PostgreSQL schema for vector data"
+        default="public", description="PostgreSQL schema for vector data"
     )
     statement_cache_size: int = Field(
-        default=0,
-        description="PostgreSQL statement cache size (0 to disable)"
+        default=0, description="PostgreSQL statement cache size (0 to disable)"
     )
 
 
@@ -90,9 +80,9 @@ class DBConf(BaseModel):
 
 
 class StorageConf(BaseModel):
-    neo4jConfs: dict[str, Neo4JConf] = {}
-    postgresConfs: dict[str, PostgresConf] = {}
-    sqliteConfs: dict[str, SqliteConf] = {}
+    neo4j_confs: dict[str, Neo4JConf] = {}
+    postgres_confs: dict[str, PostgresConf] = {}
+    sqlite_confs: dict[str, SqliteConf] = {}
 
     @classmethod
     def parse_storage_conf(cls, input_dict: dict) -> Self:
@@ -117,5 +107,7 @@ class StorageConf(BaseModel):
                 )
 
         return cls(
-            neo4jConfs=neo4j_dict, postgresConfs=pg_dict, sqliteConfs=sqlite_dict
+            neo4j_confs=neo4j_dict,
+            postgres_confs=pg_dict,
+            sqlite_confs=sqlite_dict
         )

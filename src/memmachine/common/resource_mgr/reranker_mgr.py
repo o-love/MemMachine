@@ -1,10 +1,8 @@
-from typing import Self
-
 import boto3
 
-from ..embedder import Embedder
 from ...common.configuration.reranker_conf import RerankerConf
 from ...common.reranker import Reranker
+from ..embedder import Embedder
 
 
 class RerankerMgr:

@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock
 
 import numpy as np
 
-from memmachine.common.embedder import Embedder, SimilarityMetric
+from memmachine.common.data_types import SimilarityMetric
+from memmachine.common.embedder import Embedder
 from memmachine.semantic_memory.semantic_model import (
     HistoryMessage,
     Resources,

@@ -2,7 +2,6 @@ import asyncio
 import json
 from importlib import import_module
 
-import openai
 import pytest
 import pytest_asyncio
 
