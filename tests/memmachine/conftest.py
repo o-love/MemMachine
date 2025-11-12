@@ -8,6 +8,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
 
+from memmachine.common.configuration.model_conf import AwsBedrockModelConf
 from memmachine.common.embedder.openai_embedder import (
     OpenAIEmbedder,
     OpenAIEmbedderParams,
@@ -15,7 +16,6 @@ from memmachine.common.embedder.openai_embedder import (
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.language_model.amazon_bedrock_language_model import (
     AmazonBedrockLanguageModel,
-    AmazonBedrockLanguageModelConfig,
 )
 from memmachine.common.language_model.openai_compatible_language_model import (
     OpenAICompatibleLanguageModel,
@@ -134,7 +134,7 @@ def bedrock_integration_config():
 @pytest.fixture(scope="session")
 def bedrock_llm_model(bedrock_integration_config):
     return AmazonBedrockLanguageModel(
-        AmazonBedrockLanguageModelConfig(
+        AwsBedrockModelConf(
             aws_access_key_id=bedrock_integration_config["aws_access_key_id"],
             aws_secret_access_key=bedrock_integration_config["aws_secret_access_key"],
             model_id=bedrock_integration_config["model"],

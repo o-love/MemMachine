@@ -1,6 +1,7 @@
 from typing import Any
 
-from memmachine.common.embedder import Embedder, SimilarityMetric
+from memmachine.common.data_types import SimilarityMetric
+from memmachine.common.embedder import Embedder
 
 
 class FakeEmbedder(Embedder):
