@@ -2,10 +2,10 @@ import pytest
 from pydantic import SecretStr
 
 from memmachine.common.configuration.model_conf import (
-    LanguageModelConf,
-    OpenAIModelConf,
     AwsBedrockModelConf,
+    LanguageModelConf,
     OpenAICompatibleModelConf,
+    OpenAIModelConf,
 )
 from memmachine.common.resource_mgr.language_model_mgr import LanguageModelMgr
 

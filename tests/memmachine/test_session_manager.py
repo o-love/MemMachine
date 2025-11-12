@@ -4,8 +4,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from memmachine.common.metrics_factory import MetricsFactory
 from memmachine.common.configuration.episodic_config import EpisodicMemoryParams
+from memmachine.common.metrics_factory import MetricsFactory
 from memmachine.session_manager import SessionDataManagerImpl
 
 

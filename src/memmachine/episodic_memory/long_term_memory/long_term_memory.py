@@ -1,18 +1,12 @@
 from typing import Any, cast
 
-from pydantic import BaseModel, Field, InstanceOf
-
-from memmachine.common.embedder.embedder import Embedder
-from memmachine.common.reranker.reranker import Reranker
-from memmachine.common.vector_graph_store import VectorGraphStore
-
-from ..data_types import ContentType, Episode, MemoryContext
+from ...common.configuration.episodic_config import LongTermMemoryParams
+from ..data_types import ContentType, Episode
 from ..declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
 from ..declarative_memory.data_types import (
     ContentType as DeclarativeMemoryContentType,
 )
 from ..declarative_memory.data_types import Episode as DeclarativeMemoryEpisode
-from ...common.configuration.episodic_config import LongTermMemoryParams
 
 content_type_to_declarative_memory_content_type_map = {
     ContentType.STRING: DeclarativeMemoryContentType.STRING,

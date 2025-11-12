@@ -8,9 +8,8 @@ import pytest
 import yaml
 
 from memmachine.common.embedder import Embedder
-from memmachine.common.language_model import LanguageModel, LanguageModelBuilder
+from memmachine.common.language_model import LanguageModel
 from memmachine.episodic_memory_manager import EpisodicMemoryManager
-
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
@@ -35,13 +34,9 @@ def mock_dependencies(monkeypatch):
     mock_sqlalchemy_engine = MagicMock()
     mock_semantic_storage = MagicMock()
 
-    mock_llm_builder = MagicMock(spec=LanguageModelBuilder)
-    mock_llm_builder.build.return_value = mock_llm
-
     mock_embedder_builder = MagicMock()
     mock_embedder_builder.build.return_value = mock_embedder
 
-    monkeypatch.setattr("memmachine.server.app.LanguageModelBuilder", mock_llm_builder)
     monkeypatch.setattr("memmachine.server.app.EmbedderBuilder", mock_embedder_builder)
     monkeypatch.setattr(
         "memmachine.server.app.MetricsFactoryBuilder", mock_metrics_builder
@@ -86,7 +81,7 @@ def mock_dependencies(monkeypatch):
     mock_import_module.return_value = mock_prompt_module
 
     return {
-        "llm_builder": mock_llm_builder,
+        "llm_model": mock_llm,
         "embedder_builder": mock_embedder_builder,
         "metrics_builder": mock_metrics_builder,
         "semantic_service": mock_semantic_service,

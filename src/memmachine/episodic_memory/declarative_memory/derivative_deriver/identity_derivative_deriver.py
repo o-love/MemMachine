@@ -5,7 +5,7 @@ identical to the episodes in the episode cluster.
 
 from uuid import uuid4
 
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 
 from ..data_types import Derivative, EpisodeCluster
 from .derivative_deriver import DerivativeDeriver

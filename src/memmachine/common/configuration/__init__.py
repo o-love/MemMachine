@@ -2,7 +2,7 @@ import os.path
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, Self, Any
+from typing import Any, Self
 
 import yaml
 from pydantic import BaseModel, Field
@@ -30,19 +30,19 @@ class LongTermMemoryConfPartial(BaseModel):
 
     All fields are optional. Used for updates."""
 
-    embedder: Optional[str] = Field(
+    embedder: str | None = Field(
         default=None,
         description="The embedder to use for long-term memory",
     )
-    reranker: Optional[str] = Field(
+    reranker: str | None = Field(
         default=None,
         description="The reranker to use for long-term memory",
     )
-    vector_graph_store: Optional[str] = Field(
+    vector_graph_store: str | None = Field(
         default=None,
         description="The vector graph store to use for long-term memory",
     )
-    enabled: Optional[bool] = Field(
+    enabled: bool | None = Field(
         default=None,
         description="Whether long-term memory is enabled",
     )
@@ -97,26 +97,26 @@ class ProfileMemoryConf(BaseModel):
 
 
 class SessionMemoryConfPartial(BaseModel):
-    model_name: Optional[str] = Field(
+    model_name: str | None = Field(
         default=None,
         description="The language model to use for session memory",
     )
-    message_capacity: Optional[int] = Field(
+    message_capacity: int | None = Field(
         default=None,
         description="The maximum number of messages to retain in session memory",
         gt=0,
     )
-    max_message_length: Optional[int] = Field(
+    max_message_length: int | None = Field(
         default=None,
         description="The maximum length of each message in characters",
         gt=0,
     )
-    max_token_num: Optional[int] = Field(
+    max_token_num: int | None = Field(
         default=None,
         description="The maximum number of tokens to retain in session memory",
         gt=0,
     )
-    enabled: Optional[bool] = Field(
+    enabled: bool | None = Field(
         default=None,
         description="Whether session memory is enabled",
     )
@@ -253,11 +253,11 @@ class PromptConf(BaseModel):
 
 
 class EpisodicMemoryConfPartial(BaseModel):
-    sessionMemory: Optional[SessionMemoryConfPartial] = Field(
+    sessionMemory: SessionMemoryConfPartial | None = Field(
         default=None,
         description="Partial configuration for session memory in episodic memory",
     )
-    long_term_memory: Optional[LongTermMemoryConfPartial] = Field(
+    long_term_memory: LongTermMemoryConfPartial | None = Field(
         default=None,
         description="Partial configuration for long-term memory in episodic memory",
     )

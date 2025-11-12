@@ -4,7 +4,7 @@ import sys
 from enum import Enum
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 

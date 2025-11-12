@@ -1,8 +1,8 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import asyncpg
 import neo4j
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-
 import sqlalchemy
 
 from memmachine.common.configuration.storage_conf import StorageConf

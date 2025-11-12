@@ -13,9 +13,8 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.data_types import ExternalServiceAPIError, SimilarityMetric
 
-from ..configuration.embedder_conf import OpenAIEmbedderConf
-from .embedder import Embedder
 from ..metrics_factory import MetricsFactory
+from .embedder import Embedder
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 from typing import Any, Self
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator, SecretStr, InstanceOf
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from memmachine.common.configuration.metrics_conf import WithMetricsFactoryId
 from memmachine.common.data_types import SimilarityMetric

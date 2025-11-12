@@ -1,28 +1,28 @@
 import functools
-from typing import Dict, Self
+from typing import Self
 
 import asyncpg
 from asyncpg import Pool
-from neo4j import AsyncDriver, AsyncGraphDatabase
+from neo4j import AsyncGraphDatabase
 from pgvector.asyncpg import register_vector
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sympy import false
 
 from memmachine.common.configuration.storage_conf import StorageConf
 from memmachine.common.vector_graph_store import VectorGraphStore
 from memmachine.common.vector_graph_store.neo4j_vector_graph_store import (
-    Neo4jVectorGraphStoreParams,
     Neo4jVectorGraphStore,
+    Neo4jVectorGraphStoreParams,
 )
 
 
 class StorageMgr:
     def __init__(self, conf: StorageConf):
         self.conf = conf
-        self.graph_stores: Dict[str, VectorGraphStore] = {}
-        self.postgres_pools: Dict[str, Pool] = {}
-        self.sql_engines: Dict[str, AsyncEngine] = {}
+        self.graph_stores: dict[str, VectorGraphStore] = {}
+        self.postgres_pools: dict[str, Pool] = {}
+        self.sql_engines: dict[str, AsyncEngine] = {}
 
     def build_all(self, validate=false) -> Self:
         """Build and verify all configured database connections."""

@@ -13,15 +13,12 @@ It includes:
 import argparse
 import asyncio
 import contextvars
-import copy
 import logging
 import os
 from contextlib import asynccontextmanager
-from importlib import import_module
 from typing import Any, Self, cast
 
 import uvicorn
-import yaml
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -31,15 +28,10 @@ from fastmcp import FastMCP
 from fastmcp.server.http import StarletteWithLifespan
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy.engine import URL
-from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
 from memmachine.common.configuration import load_config_yml_file
-from memmachine.common.embedder import EmbedderBuilder
-from memmachine.common.language_model import LanguageModelBuilder
-from memmachine.common.metrics_factory import MetricsFactoryBuilder
 from memmachine.common.resource_mgr import ResourceMgr
 from memmachine.episodic_memory.data_types import ContentType
 from memmachine.episodic_memory.episodic_memory import (
@@ -49,18 +41,9 @@ from memmachine.episodic_memory.episodic_memory import (
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-from memmachine.semantic_memory.semantic_memory import SemanticService
-from memmachine.semantic_memory.semantic_model import (
-    Resources,
-)
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
-    IsolationType,
     SessionIdManager,
-    SessionResourceRetriever,
-)
-from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
-    SqlAlchemyPgVectorSemanticStorage,
 )
 
 logger = logging.getLogger(__name__)
@@ -855,9 +838,7 @@ async def _add_memory(episode: NewEpisode):
     See the docstring for add_memory() for details."""
     session = episode.get_session()
     group_id = session.group_id
-    inst: EpisodicMemory | None = await cast(
-        EpisodicMemoryManager, episodic_memory
-    ).get_episodic_memory_instance(
+    inst: EpisodicMemory | None = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
         group_id=group_id if group_id is not None else "",
         agent_id=session.agent_id,
         user_id=session.user_id,
@@ -922,9 +903,7 @@ async def _add_episodic_memory(episode: NewEpisode):
     """
     session = episode.get_session()
     group_id = session.group_id
-    inst: EpisodicMemory | None = await cast(
-        EpisodicMemoryManager, episodic_memory
-    ).get_episodic_memory_instance(
+    inst: EpisodicMemory | None = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
         group_id=group_id if group_id is not None else "",
         agent_id=session.agent_id,
         user_id=session.user_id,

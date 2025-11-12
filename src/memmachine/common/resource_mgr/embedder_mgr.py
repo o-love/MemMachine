@@ -1,6 +1,3 @@
-import configparser
-from typing import Self
-
 from sentence_transformers import SentenceTransformer
 
 from memmachine.common.configuration.embedder_conf import EmbedderConf
@@ -62,6 +59,7 @@ class EmbedderMgr:
     def _build_openai_embedders(self):
         for name, conf in self.conf.openai.items():
             import openai
+
             from ..embedder.openai_embedder import OpenAIEmbedder, OpenAIEmbedderParams
 
             params = OpenAIEmbedderParams(

@@ -1,13 +1,13 @@
 import pytest
-from pydantic import ValidationError, SecretStr
+from pydantic import SecretStr, ValidationError
 
 from memmachine.common.configuration.storage_conf import (
-    SupportedDB,
     DBConf,
-    StorageConf,
     Neo4JConf,
     PostgresConf,
     SqliteConf,
+    StorageConf,
+    SupportedDB,
 )
 
 

@@ -2,8 +2,6 @@
 Builder for LanguageModel instances.
 """
 
-from typing import Dict, Self
-
 from memmachine.common.configuration.model_conf import LanguageModelConf
 from memmachine.common.language_model.amazon_bedrock_language_model import (
     AmazonBedrockLanguageModel,
@@ -18,11 +16,11 @@ from memmachine.common.language_model.openai_language_model import OpenAILanguag
 class LanguageModelMgr:
     def __init__(self, conf: LanguageModelConf):
         self.conf = conf
-        self.openai_model: Dict[str, OpenAILanguageModel] = {}
-        self.aws_bedrock_model: Dict[str, AmazonBedrockLanguageModel] = {}
-        self.openai_compatible_model: Dict[str, OpenAICompatibleLanguageModel] = {}
+        self.openai_model: dict[str, OpenAILanguageModel] = {}
+        self.aws_bedrock_model: dict[str, AmazonBedrockLanguageModel] = {}
+        self.openai_compatible_model: dict[str, OpenAICompatibleLanguageModel] = {}
 
-    def build_all(self) -> Dict[str, LanguageModel]:
+    def build_all(self) -> dict[str, LanguageModel]:
         self._build_openai_model()
         self._build_aws_bedrock_model()
         self._build_openai_compatible_model()
@@ -34,8 +32,8 @@ class LanguageModelMgr:
         return self.language_models[name]
 
     @property
-    def language_models(self) -> Dict[str, LanguageModel]:
-        all_models: Dict[str, LanguageModel] = {}
+    def language_models(self) -> dict[str, LanguageModel]:
+        all_models: dict[str, LanguageModel] = {}
         all_models.update(self.openai_model)
         all_models.update(self.aws_bedrock_model)
         all_models.update(self.openai_compatible_model)

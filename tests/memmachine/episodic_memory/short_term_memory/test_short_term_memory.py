@@ -6,19 +6,19 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
-from memmachine.common.language_model import LanguageModel
 from memmachine.common.configuration.episodic_config import (
-    ShortTermMemoryParams,
     EpisodicMemoryParams,
+    ShortTermMemoryParams,
 )
+from memmachine.common.language_model import LanguageModel
 from memmachine.episodic_memory.data_types import (
     ContentType,
     Episode,
 )
-from memmachine.session_manager_interface import SessionDataManager
 from memmachine.episodic_memory.short_term_memory.short_term_memory import (
     ShortTermMemory,
 )
+from memmachine.session_manager_interface import SessionDataManager
 
 
 def create_test_episode(**kwargs):
