@@ -36,7 +36,7 @@ def test_logconf_level_validation_from_str():
 
 
 def test_logconf_level_validation_invalid():
-    with pytest.raises(ValueError, match="Invalid log level: BAD"):
+    with pytest.raises(ValueError, match="not a valid LogLevel"):
         LogConf(level=LogLevel("BAD"))
 
 
@@ -59,9 +59,8 @@ def test_logconf_format_validation_invalid(badfmt):
         LogConf(format=badfmt)
 
 
-# --- Tests for path validation ---
 def test_logconf_path_none_or_empty():
-    assert LogConf(path=None).path is None
+    assert LogConf().path == "/tmp/MemMachine.log"
     assert LogConf(path="").path is None
 
 
