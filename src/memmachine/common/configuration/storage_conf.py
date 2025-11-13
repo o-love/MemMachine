@@ -80,9 +80,9 @@ class DBConf(BaseModel):
 
 
 class StorageConf(BaseModel):
-    neo4jConfs: dict[str, Neo4JConf] = {}
-    postgresConfs: dict[str, PostgresConf] = {}
-    sqliteConfs: dict[str, SqliteConf] = {}
+    neo4j_confs: dict[str, Neo4JConf] = {}
+    postgres_confs: dict[str, PostgresConf] = {}
+    sqlite_confs: dict[str, SqliteConf] = {}
 
     @classmethod
     def parse_storage_conf(cls, input_dict: dict) -> Self:
@@ -107,5 +107,7 @@ class StorageConf(BaseModel):
                 )
 
         return cls(
-            neo4jConfs=neo4j_dict, postgresConfs=pg_dict, sqliteConfs=sqlite_dict
+            neo4j_confs=neo4j_dict,
+            postgres_confs=pg_dict,
+            sqlite_confs=sqlite_dict
         )

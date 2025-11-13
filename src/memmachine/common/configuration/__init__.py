@@ -5,7 +5,7 @@ from types import ModuleType
 from typing import Any, Self
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator, model_validator
 
 from ...common.configuration.embedder_conf import EmbedderConf
 from ...common.configuration.log_conf import LogConf
@@ -78,7 +78,7 @@ class LongTermMemoryConf(BaseModel):
 
 
 class ProfileMemoryConf(BaseModel):
-    llm_moel: str = Field(
+    llm_model: str = Field(
         ...,
         description="The language model to use for profile memory",
     )
@@ -264,7 +264,7 @@ class EpisodicMemoryConfPartial(BaseModel):
 
 
 class EpisodicMemoryConf(BaseModel):
-    sessionMemory: SessionMemoryConf = Field(
+    sessionmemory: SessionMemoryConf = Field(
         ...,
         description="Configuration for session memory in episodic memory",
     )
@@ -294,9 +294,17 @@ class Configuration(EpisodicMemoryConf):
     model: LanguageModelConf
     storage: StorageConf
     profile_memory: ProfileMemoryConf
-    embeder: EmbedderConf
+    embedder: EmbedderConf
     reranker: RerankerConf
     prompt: PromptConf
+
+    def __init__(self, **data):
+        data = data.copy()  # avoid mutating caller's dict
+        super().__init__(**data)
+        self.model = LanguageModelConf.parse_language_model_conf(data)
+        self.storage = StorageConf.parse_storage_conf(data)
+        self.embedder = EmbedderConf.parse_embedder_conf(data)
+        self.reranker = RerankerConf.parse_reranker_conf(data)
 
 
 def load_config_yml_file(config_file: str) -> Configuration:

@@ -60,7 +60,7 @@ class StorageMgr:
         return self.sql_engines[name]
 
     async def _build_neo4j(self):
-        for name, conf in self.conf.neo4jConfs.items():
+        for name, conf in self.conf.neo4j_confs.items():
             neo4j_host = conf.host
             if "neo4j+s://" in neo4j_host:
                 neo4j_uri = neo4j_host
@@ -79,7 +79,7 @@ class StorageMgr:
             self.graph_stores[name] = Neo4jVectorGraphStore(params)
 
     async def _validate_neo4j(self):
-        for name, driver in self.conf.neo4jConfs.items():
+        for name, driver in self.conf.neo4j_confs.items():
             try:
                 async with driver.session() as session:
                     result = await session.run("RETURN 1 AS ok")
@@ -93,7 +93,7 @@ class StorageMgr:
                 raise ConnectionError(f"Neo4J config '{name}' failed verification: {e}")
 
     async def _build_postgres(self):
-        for name, conf in self.conf.postgresConfs.items():
+        for name, conf in self.conf.postgres_confs.items():
             pool = asyncpg.create_pool(
                 host=conf.host,
                 port=conf.port,
@@ -125,7 +125,7 @@ class StorageMgr:
 
     async def _build_sql_engines(self):
         schema = "sqlite+aiosqlite:///"
-        for name, conf in self.conf.sqliteConfs.items():
+        for name, conf in self.conf.sqlite_confs.items():
             db_url = conf.file_path
             if not conf.file_path.startswith(schema):
                 db_url = f"sqlite+aiosqlite:///{db_url}"

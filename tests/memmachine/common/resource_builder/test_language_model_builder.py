@@ -14,7 +14,7 @@ from memmachine.common.resource_mgr.language_model_mgr import LanguageModelMgr
 def mock_conf():
     """Mock LanguageModelConf with dummy configurations."""
     conf = LanguageModelConf(
-        openaiConfs={
+        openai_confs={
             "openai_4o_mini": OpenAIModelConf(
                 model="gpt-4o-mini",
                 api_key=SecretStr("DUMMY_OPENAI_API_KEY_1"),
@@ -24,7 +24,7 @@ def mock_conf():
                 api_key=SecretStr("DUMMY_OPENAI_API_KEY_2"),
             ),
         },
-        awsBedrockConfs={
+        aws_bedrock_confs={
             "aws_model": AwsBedrockModelConf(
                 region="us-west-2",
                 aws_access_key_id=SecretStr("DUMMY_AWS_ACCESS_KEY_ID"),
@@ -33,7 +33,7 @@ def mock_conf():
                 additional_model_request_fields={},
             ),
         },
-        openaiCompatibleConfs={
+        openai_compatible_confs={
             "ollama_model": OpenAICompatibleModelConf(
                 model="llama3",
                 api_key=SecretStr("DUMMY_OLLAMA_API_KEY"),

@@ -838,7 +838,9 @@ async def _add_memory(episode: NewEpisode):
     See the docstring for add_memory() for details."""
     session = episode.get_session()
     group_id = session.group_id
-    inst: EpisodicMemory | None = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
+    inst: (
+        EpisodicMemory | None
+    ) = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
         group_id=group_id if group_id is not None else "",
         agent_id=session.agent_id,
         user_id=session.user_id,
@@ -903,7 +905,9 @@ async def _add_episodic_memory(episode: NewEpisode):
     """
     session = episode.get_session()
     group_id = session.group_id
-    inst: EpisodicMemory | None = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
+    inst: (
+        EpisodicMemory | None
+    ) = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
         group_id=group_id if group_id is not None else "",
         agent_id=session.agent_id,
         user_id=session.user_id,
