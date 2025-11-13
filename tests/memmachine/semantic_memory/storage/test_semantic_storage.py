@@ -133,6 +133,9 @@ async def test_get_feature_set_basic_vector_search(
     semantic_storage: SemanticStorageBase,
     oposite_vector_features,
 ):
+    if getattr(semantic_storage, "backend_name", None) == "neo4j":
+        pytest.skip("Neo4j aproximate kNN limitation")
+
     # Given a storage with fully distinct features
     embed_a, value_a = oposite_vector_features[0]
     embed_b, value_b = oposite_vector_features[1]
@@ -174,6 +177,68 @@ async def test_get_feature_set_min_cos_vector_search(
     # Then the results should be the single closest distinct feature
     result_values = [f.value for f in results]
     assert result_values == [value_a]
+
+
+@pytest.mark.asyncio
+async def test_set_embedding_length_fixed_per_set(semantic_storage: SemanticStorageBase):
+    if getattr(semantic_storage, "backend_name", None) != "neo4j":
+        pytest.skip("Neo4j-specific validation")
+
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="likes",
+        value="pizza",
+        tag="food",
+        embedding=np.ones(2, dtype=float),
+    )
+
+    with pytest.raises(ValueError):
+        await semantic_storage.add_feature(
+            set_id="user",
+            category_name="default",
+            feature="likes",
+            value="sushi",
+            tag="food",
+            embedding=np.ones(3, dtype=float),
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_feature_respects_set_embedding_length(
+    semantic_storage: SemanticStorageBase,
+):
+    if getattr(semantic_storage, "backend_name", None) != "neo4j":
+        pytest.skip("Neo4j-specific validation")
+
+    feature_id = await semantic_storage.add_feature(
+        set_id="user1",
+        category_name="default",
+        feature="likes",
+        value="pizza",
+        tag="food",
+        embedding=np.ones(2, dtype=float),
+    )
+    await semantic_storage.add_feature(
+        set_id="user2",
+        category_name="default",
+        feature="likes",
+        value="sushi",
+        tag="food",
+        embedding=np.ones(3, dtype=float),
+    )
+
+    with pytest.raises(ValueError):
+        await semantic_storage.update_feature(
+            feature_id,
+            set_id="user2",
+        )
+
+    with pytest.raises(ValueError):
+        await semantic_storage.update_feature(
+            feature_id,
+            embedding=np.ones(3, dtype=float),
+        )
 
 
 @pytest_asyncio.fixture

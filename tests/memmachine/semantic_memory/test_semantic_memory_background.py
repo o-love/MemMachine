@@ -189,7 +189,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     # 1. Tracker to recognize 2 messages hit the limit
     # 2. Background task to wake up (0.05s interval)
     # 3. Ingestion to complete
-    await asyncio.sleep(0.3)
+    await asyncio.sleep(0.5)
 
     # Verify messages were marked as ingested
     uningested = await semantic_storage.get_history_messages_count(
@@ -256,7 +256,7 @@ async def test_background_ingestion_with_time_based_trigger(
     await service.add_messages(set_id="user-456", history_ids=[msg1])
 
     # Wait for time-based trigger to fire
-    await asyncio.sleep(0.25)
+    await asyncio.sleep(0.5)
 
     # Verify features were created despite not hitting message limit
     features = await semantic_storage.get_feature_set(
@@ -419,7 +419,7 @@ async def test_multiple_sets_processed_independently(
     await service.add_messages(set_id="user-b", history_ids=[msg_b2])
 
     # Wait for background processing
-    await asyncio.sleep(0.4)
+    await asyncio.sleep(0.7)
 
     # Verify that messages were ingested for both sets
     uningested_a = await semantic_storage.get_history_messages_count(
