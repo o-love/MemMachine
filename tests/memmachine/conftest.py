@@ -8,7 +8,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
 
-from memmachine.common.configuration.model_conf import AwsBedrockModelConf
+from memmachine.common.configuration.model_conf import AwsBedrockModelConf, OpenAIModelConf
 from memmachine.common.embedder.openai_embedder import (
     OpenAIEmbedder,
     OpenAIEmbedderParams,
@@ -86,10 +86,10 @@ def openai_embedder(openai_client, openai_integration_config):
 @pytest.fixture(scope="session")
 def openai_llm_model(openai_integration_config):
     return OpenAILanguageModel(
-        {
-            "api_key": openai_integration_config["api_key"],
-            "model": openai_integration_config["llm_model"],
-        }
+        OpenAIModelConf(
+            api_key=openai_integration_config["api_key"],
+            model=openai_integration_config["llm_model"],
+        ),
     )
 
 
