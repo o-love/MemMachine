@@ -5,9 +5,9 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
+
 from .common.configuration.episodic_config import EpisodicMemoryConf
 from .common.resource_mgr import ResourceMgrProto
-
 from .instance_lru_cache import MemoryInstanceCache
 from .session_manager_interface import SessionDataManager
 
@@ -103,9 +103,7 @@ class EpisodicMemoryManager:
                 # load from the database
                 _, _, _, param = await self.session_mgr.get_session_info(session_key)
                 # TODO: callback to instantiate the param
-                instance = await EpisodicMemory.create(
-                    self._resource_mgr,
-                    param)
+                instance = await EpisodicMemory.create(self._resource_mgr, param)
                 await self._instance_cache.add(session_key, instance)
         try:
             yield instance
@@ -175,12 +173,8 @@ class EpisodicMemoryManager:
             self._instance_cache.erase(session_key)
             if instance is None:
                 # Open it
-                _, _, _, param = await self.session_mgr.get_session_info(
-                    session_key
-                )
-                instance = await EpisodicMemory.create(
-                    self._resource_mgr,
-                    param)
+                _, _, _, param = await self.session_mgr.get_session_info(session_key)
+                instance = await EpisodicMemory.create(self._resource_mgr, param)
             await instance.delete_data()
             await instance.close()
             await self.session_mgr.delete_session(session_key)

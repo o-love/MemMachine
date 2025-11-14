@@ -4,17 +4,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, InstanceOf
 
-from ..data_types import ContentType, Episode
 from memmachine.common.data_types import FilterablePropertyValue
 from memmachine.common.embedder import Embedder
 from memmachine.common.reranker import Reranker
 from memmachine.common.vector_graph_store import VectorGraphStore
-from memmachine.common.resource_mgr import ResourceMgrProto
 
 from ..data_types import ContentType, Episode, EpisodeType
 from ..declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
 from ..declarative_memory.data_types import (
     ContentType as DeclarativeMemoryContentType,
+)
+from ..declarative_memory.data_types import (
     Episode as DeclarativeMemoryEpisode,
 )
 

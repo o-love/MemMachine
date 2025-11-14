@@ -7,12 +7,12 @@ from typing import Any, Self
 import yaml
 from pydantic import BaseModel, Field, model_validator, root_validator
 
-from .episodic_config import EpisodicMemoryConfPartial
 from ...common.configuration.embedder_conf import EmbedderConf
 from ...common.configuration.log_conf import LogConf
 from ...common.configuration.model_conf import LanguageModelConf
 from ...common.configuration.reranker_conf import RerankerConf
 from ...common.configuration.storage_conf import StorageConf
+from .episodic_config import EpisodicMemoryConfPartial
 
 
 class SessionDBConf(BaseModel):
@@ -26,11 +26,12 @@ class SessionDBConf(BaseModel):
     )
 
 
-class  SemanticMemoryCategoryConf(BaseModel):
+class SemanticMemoryCategoryConf(BaseModel):
     prompt: str = Field(
         ...,
         description="The prompt template to use for profile memory",
     )
+
 
 class SemanticMemoryConf(BaseModel):
     database: str = Field(
@@ -60,7 +61,6 @@ class SemanticMemoryConf(BaseModel):
     )
 
 
-
 def _read_txt(filename: str) -> str:
     """
     Reads a text file and returns its contents as a string.
@@ -83,11 +83,18 @@ def _read_txt(filename: str) -> str:
         return f.read()
 
 
-
 class PromptConf(BaseModel):
-    profile: str = Field(
+    profile: list[str] = Field(
         default="profile_prompt",
-        description="The prompt template to use for profile memory",
+        description="The default prompts to use for semantic user memory",
+    )
+    role: list[str] = Field(
+        default="role_prompt",
+        description="The default prompts to use for semantic role memory",
+    )
+    session: list[str] = Field(
+        default="session_prompt",
+        description="The default prompts to use for semantic session memory",
     )
     episode_summary_system_prompt_path: str = Field(
         default="",

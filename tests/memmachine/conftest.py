@@ -4,9 +4,9 @@ from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import StaticPool, text
+from sqlalchemy import StaticPool
 from sqlalchemy.engine import URL
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.configuration.model_conf import (
@@ -225,12 +225,16 @@ async def sqlalchemy_sqlite_engine():
     yield engine
     await engine.dispose()
 
-@pytest.fixture(params=[
-    "sqlalchemy_sqlite_engine",
-    pytest.param("sqlalchemy_pg_engine", marks=pytest.mark.integration)
-])
+
+@pytest.fixture(
+    params=[
+        "sqlalchemy_sqlite_engine",
+        pytest.param("sqlalchemy_pg_engine", marks=pytest.mark.integration),
+    ]
+)
 def sqlalchemy_engine(request):
     return request.getfixturevalue(request.param)
+
 
 @pytest_asyncio.fixture
 async def pgvector_semantic_storage(sqlalchemy_pg_engine):

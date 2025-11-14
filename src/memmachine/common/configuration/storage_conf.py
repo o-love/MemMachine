@@ -105,5 +105,6 @@ class StorageConf(BaseModel):
                 )
 
         return cls(
-            neo4j_confs=neo4j_dict, relational_db_confs=relational_db_dict,
+            neo4j_confs=neo4j_dict,
+            relational_db_confs=relational_db_dict,
         )

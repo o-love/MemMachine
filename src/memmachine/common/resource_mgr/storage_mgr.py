@@ -1,10 +1,6 @@
-import functools
 from typing import Self
 
-import asyncpg
-from asyncpg import Pool
 from neo4j import AsyncGraphDatabase
-from pgvector.asyncpg import register_vector
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sympy import false

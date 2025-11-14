@@ -21,8 +21,6 @@ from memmachine.common.language_model import LanguageModel
 from memmachine.session_manager_interface import SessionDataManager
 
 from ..data_types import Episode
-from memmachine.common.configuration.episodic_config import ShortTermMemoryConf
-from memmachine.common.resource_mgr import ResourceMgrProto
 
 logger = logging.getLogger(__name__)
 

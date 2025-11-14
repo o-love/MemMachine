@@ -23,14 +23,15 @@ from typing import Self, cast
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.common.resource_mgr import ResourceMgrProto
+
 from .data_types import Episode
 from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryParams
 from .long_term_memory.service_locator import long_term_memory_params_from_config
 from .short_term_memory.service_locator import short_term_memory_params_from_config
 from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
-from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
-from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.common.resource_mgr import ResourceMgrProto
 
 logger = logging.getLogger(__name__)
 
@@ -137,17 +138,21 @@ class EpisodicMemory:
 
     @classmethod
     async def create(
-        cls,
-        resource_mgr: ResourceMgrProto,
-        param: EpisodicMemoryConf
+        cls, resource_mgr: ResourceMgrProto, param: EpisodicMemoryConf
     ) -> Self:
         short_term_memory: ShortTermMemory | None = None
         if param.short_term_memory and param.short_term_memory.enabled:
-            short_term_memory = await ShortTermMemory.create(short_term_memory_params_from_config(resource_mgr, param.short_term_memory))
+            short_term_memory = await ShortTermMemory.create(
+                short_term_memory_params_from_config(resource_mgr, param.short_term_memory
+            ))
 
         long_term_memory: LongTermMemory | None = None
         if param.long_term_memory and param.long_term_memory.enabled:
-            long_term_memory = LongTermMemory(long_term_memory_params_from_config(resource_mgr, param.long_term_memory))
+            long_term_memory = LongTermMemory(
+                long_term_memory_params_from_config(
+                    resource_mgr, param.long_term_memory
+                )
+            )
 
         return EpisodicMemory(param, short_term_memory, long_term_memory)
 
@@ -329,8 +334,10 @@ class EpisodicMemory:
                 property_filter,
             )
         elif self._long_term_memory is None:
-            session_result = await self._short_term_memory.get_short_term_memory_context(
-                query, limit=search_limit, filter=property_filter
+            session_result = (
+                await self._short_term_memory.get_short_term_memory_context(
+                    query, limit=search_limit, filter=property_filter
+                )
             )
             long_episode = []
             short_episode, short_summary = session_result

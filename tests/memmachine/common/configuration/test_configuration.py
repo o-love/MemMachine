@@ -8,11 +8,8 @@ from memmachine.common.configuration import (
     load_config_yml_file,
 )
 from memmachine.common.configuration.episodic_config import (
-    LongTermMemoryConf,
     LongTermMemoryConfPartial,
-    ShortTermMemoryConf,
     ShortTermMemoryConfPartial,
-    EpisodicMemoryConf,
 )
 from memmachine.common.configuration.log_conf import LogLevel
 
@@ -67,7 +64,7 @@ def test_update_session_memory_conf(short_term_memory_conf: ShortTermMemoryConfP
 
 def test_update_episodic_memory_conf(
     long_term_memory_conf: LongTermMemoryConfPartial,
-    short_term_memory_conf: ShortTermMemoryConfPartial
+    short_term_memory_conf: ShortTermMemoryConfPartial,
 ):
     base = EpisodicMemoryConfPartial(
         short_term_memory=short_term_memory_conf,
@@ -76,7 +73,7 @@ def test_update_episodic_memory_conf(
     )
     specific = EpisodicMemoryConfPartial(
         session_key="session_123",
-        long_term_memory=LongTermMemoryConfPartial(embedder="embedder_v2")
+        long_term_memory=LongTermMemoryConfPartial(embedder="embedder_v2"),
     )
 
     updated = specific.merge(base)

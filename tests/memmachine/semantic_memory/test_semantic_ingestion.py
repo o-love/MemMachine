@@ -53,6 +53,7 @@ def embedder_double() -> MockEmbedder:
 def llm_model(mock_llm_model):
     return mock_llm_model
 
+
 async def add_history(history_storage: HistoryStorage, content: str):
     return await history_storage.add_history(
         content=content,
@@ -60,6 +61,7 @@ async def add_history(history_storage: HistoryStorage, content: str):
         producer_id="profile_id",
         producer_role="dev",
     )
+
 
 @pytest.fixture
 def resources(

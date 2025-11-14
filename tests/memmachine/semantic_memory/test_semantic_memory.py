@@ -120,6 +120,7 @@ async def semantic_service(
     yield service
     await service.stop()
 
+
 async def add_history(history_storage: HistoryStorage, content: str):
     history_id = await history_storage.add_history(
         content=content,
@@ -128,6 +129,7 @@ async def add_history(history_storage: HistoryStorage, content: str):
         producer_role="dev",
     )
     return history_id
+
 
 async def test_add_new_feature_stores_entry(
     semantic_service: SemanticService,
@@ -291,7 +293,9 @@ async def test_add_messages_tracks_uningested_counts(
     history_storage: HistoryStorage,
 ):
     # Given a stored history message
-    history_id = await add_history(history_storage=history_storage, content="Alpha memory")
+    history_id = await add_history(
+        history_storage=history_storage, content="Alpha memory"
+    )
 
     # When associating the message to a set
     await semantic_service.add_messages(set_id="user-21", history_ids=[history_id])
@@ -314,7 +318,9 @@ async def test_add_message_to_sets_supports_multiple_targets(
     history_storage: HistoryStorage,
 ):
     # Given a history entry
-    history_id = await add_history(history_storage=history_storage, content="Alpha shared memory")
+    history_id = await add_history(
+        history_storage=history_storage, content="Alpha shared memory"
+    )
 
     # When linking the message to multiple sets
     await semantic_service.add_message_to_sets(

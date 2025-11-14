@@ -50,6 +50,7 @@ def episodic_memory_params(mock_metrics_factory):
         session_key="test_session", metrics_factory=mock_metrics_factory, enabled=False
     )
 
+
 @pytest_asyncio.fixture
 async def session_manager(sqlalchemy_engine: AsyncEngine):
     """Fixture for SessionDataManagerImpl, with tables created."""

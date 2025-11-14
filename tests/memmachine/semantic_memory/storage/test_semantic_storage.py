@@ -392,7 +392,6 @@ async def test_complex_semantic_search_and_citations(
         session_key="session_key",
         producer_id="profile_id",
         producer_role="dev",
-
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
@@ -478,7 +477,8 @@ async def test_history_ingestion_tracking(
             session_key="session_id",
             producer_id="profile_id",
             producer_role="dev",
-        ) for idx in range(3)
+        )
+        for idx in range(3)
     ]
 
     for h_id in history_ids:

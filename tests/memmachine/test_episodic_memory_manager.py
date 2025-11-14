@@ -5,8 +5,14 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.episodic_memory.episodic_memory import EpisodicMemory, EpisodicMemoryParams
-from memmachine.episodic_memory_manager import EpisodicMemoryManager, EpisodicMemoryManagerParams
+from memmachine.episodic_memory.episodic_memory import (
+    EpisodicMemory,
+    EpisodicMemoryParams,
+)
+from memmachine.episodic_memory_manager import (
+    EpisodicMemoryManager,
+    EpisodicMemoryManagerParams,
+)
 from memmachine.session_manager import SessionDataManagerImpl
 
 

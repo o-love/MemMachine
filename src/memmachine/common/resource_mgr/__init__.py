@@ -1,3 +1,5 @@
+from typing import Protocol, runtime_checkable
+
 from ...common.configuration import Configuration
 from ...common.embedder import Embedder
 from ...common.language_model import LanguageModel
@@ -12,13 +14,15 @@ from ...history_store.history_sqlalchemy_store import SqlAlchemyHistoryStore
 from ...history_store.history_storage import HistoryStorage
 from ...semantic_memory.semantic_memory import SemanticService
 from ...semantic_memory.semantic_session_manager import SemanticSessionManager
-from ...semantic_memory.storage.sqlalchemy_pgvector_semantic import SqlAlchemyPgVectorSemanticStorage
+from ...semantic_memory.storage.sqlalchemy_pgvector_semantic import (
+    SqlAlchemyPgVectorSemanticStorage,
+)
 from ...session_manager import SessionDataManagerImpl
 from ...session_manager_interface import SessionDataManager
 from ..reranker import Reranker
 from ..vector_graph_store import VectorGraphStore
 from .reranker_mgr import RerankerMgr
-from typing import Protocol, runtime_checkable
+
 
 @runtime_checkable
 class ResourceMgrProto(Protocol):
@@ -30,7 +34,7 @@ class ResourceMgrProto(Protocol):
     def get_reranker(self, name: str) -> Reranker: ...
 
     @property
-    def session_data_manager(self) -> SessionDataManager:...
+    def session_data_manager(self) -> SessionDataManager: ...
 
 
 class ResourceMgr:

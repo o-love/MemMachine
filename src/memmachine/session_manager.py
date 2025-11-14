@@ -38,6 +38,7 @@ class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
     Base class for declarative class definitions.
     """
 
+
 JSON_AUTO = JSON().with_variant(JSONB, "postgresql")
 
 IntColumn = Annotated[int, mapped_column(Integer)]
