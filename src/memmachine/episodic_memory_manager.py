@@ -104,9 +104,14 @@ class EpisodicMemoryManager:
             instance = self._instance_cache.get(session_key)
             if instance is None:
                 # load from the database
-                _, _, _, param = await self.session_mgr.get_session_info(session_key)
+                (
+                    _,
+                    _,
+                    _,
+                    episodic_memory_config,
+                ) = await self.session_mgr.get_session_info(session_key)
                 episodic_memory_params = await epsiodic_memory_params_from_config(
-                    param, self._resource_mgr
+                    episodic_memory_config, self._resource_mgr
                 )
                 instance = EpisodicMemory(episodic_memory_params)
                 await self._instance_cache.add(session_key, instance)
@@ -121,7 +126,7 @@ class EpisodicMemoryManager:
     async def create_episodic_memory(
         self,
         session_key: str,
-        param: EpisodicMemoryConf,
+        episodic_memory_config: EpisodicMemoryConf,
         description: str,
         metadata: dict,
         config: dict | None = None,
@@ -146,9 +151,12 @@ class EpisodicMemoryManager:
                 raise RuntimeError(f"Memory is closed {session_key}")
 
             await self.session_mgr.create_new_session(
-                session_key, config, param, description, metadata
+                session_key, config, episodic_memory_config, description, metadata
             )
-            instance = await EpisodicMemory.create(self._resource_mgr, param)
+            episodic_memory_params = await epsiodic_memory_params_from_config(
+                episodic_memory_config, self._resource_mgr
+            )
+            instance = await EpisodicMemory(episodic_memory_params)
             await self._instance_cache.add(session_key, instance)
         try:
             yield instance
@@ -178,8 +186,16 @@ class EpisodicMemoryManager:
             self._instance_cache.erase(session_key)
             if instance is None:
                 # Open it
-                _, _, _, param = await self.session_mgr.get_session_info(session_key)
-                instance = await EpisodicMemory.create(self._resource_mgr, param)
+                (
+                    _,
+                    _,
+                    _,
+                    episodic_memory_config,
+                ) = await self.session_mgr.get_session_info(session_key)
+                params = await epsiodic_memory_params_from_config(
+                    episodic_memory_config, self._resource_mgr
+                )
+                instance = await EpisodicMemory(params)
             await instance.delete_data()
             await instance.close()
             await self.session_mgr.delete_session(session_key)
