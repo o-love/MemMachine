@@ -23,11 +23,12 @@ from typing import Self, cast
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
-from .data_types import Episode, ResourceMgrProto
+from .data_types import Episode
 from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryParams
 from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
-from ..common.configuration.episodic_config import EpisodicMemoryConf
-from ..common.metrics_factory import MetricsFactory
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.common.resource_mgr import ResourceMgrProto
 
 logger = logging.getLogger(__name__)
 

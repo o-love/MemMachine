@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from .common.configuration.episodic_config import EpisodicMemoryConf
-from .episodic_memory.data_types import ResourceMgrProto
+from .common.resource_mgr import ResourceMgrProto
 
 from .instance_lru_cache import MemoryInstanceCache
 from .session_manager_interface import SessionDataManager

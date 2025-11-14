@@ -18,6 +18,19 @@ from ...session_manager_interface import SessionDataManager
 from ..reranker import Reranker
 from ..vector_graph_store import VectorGraphStore
 from .reranker_mgr import RerankerMgr
+from typing import Protocol, runtime_checkable
+
+@runtime_checkable
+class ResourceMgrProto(Protocol):
+    """Protocol for resource manager classes."""
+
+    def get_vector_graph_store(self, name: str) -> VectorGraphStore: ...
+    def get_embedder(self, name: str) -> Embedder: ...
+    def get_model(self, name: str) -> LanguageModel: ...
+    def get_reranker(self, name: str) -> Reranker: ...
+
+    @property
+    def session_data_manager(self) -> SessionDataManager:...
 
 
 class ResourceMgr:
