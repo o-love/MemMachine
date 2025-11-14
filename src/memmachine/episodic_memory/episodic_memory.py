@@ -12,15 +12,14 @@ Key responsibilities include:
   memory.
 - Retrieving relevant context for a query by searching both memory types.
 - Interacting with a language model for memory-related tasks.
-- Each instance is uniquely identified by a `MemoryContext` and managed by the
-  `EpisodicMemoryManager`.
+- Each instance is managed by the `EpisodicMemoryManager`.
 """
 
 import asyncio
 import logging
 import time
 import uuid
-from typing import cast, Self
+from typing import Self, cast
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
@@ -41,6 +40,8 @@ class EpisodicMemoryParams(BaseModel):
         metrics_factory (MetricsFactory): The metrics factory.
         short_term_memory (ShortTermMemoryParams): The short-term memory parameters.
         long_term_memory (LongTermMemoryParams): The long-term memory parameters.
+        short_term_memory_enabled (bool): Whether the short-term memory is enabled.
+        long_term_memory_enabled (bool): Whether the long-term memory is enabled.
         enabled (bool): Whether the episodic memory is enabled.
     """
 
@@ -55,6 +56,12 @@ class EpisodicMemoryParams(BaseModel):
     )
     long_term_memory: LongTermMemoryParams | None = Field(
         default=None, description="The long-term memory parameters"
+    )
+    long_term_memory_enabled: bool = Field(
+        default=True, description="Whether the long-term memory is enabled"
+    )
+    short_term_memory_enabled: bool = Field(
+        default=True, description="Whether the short-term memory is enabled"
     )
     enabled: bool = Field(
         default=True, description="Whether the episodic memory is enabled"
@@ -87,7 +94,7 @@ class EpisodicMemory:
     def __init__(
         self,
         param: EpisodicMemoryConf,
-        session_memory: ShortTermMemory | None = None,
+        short_term_memory: ShortTermMemory | None = None,
         long_term_memory: LongTermMemory | None = None,
     ):
         # pylint: disable=too-many-instance-attributes
@@ -98,9 +105,11 @@ class EpisodicMemory:
             manager: The EpisodicMemoryManager that created this instance.
             param: The paraters required to initialize the episodic memory
         """
-        self._session_key = param.session_key
         self._closed = False
-        self._short_term_memory: ShortTermMemory | None = session_memory
+
+        self._session_key = param.session_key
+
+        self._short_term_memory: ShortTermMemory | None = short_term_memory
         self._long_term_memory: LongTermMemory | None = long_term_memory
         metrics_manager = param.get_metrics_factory()
         self._enabled = param.enabled
@@ -124,16 +133,20 @@ class EpisodicMemory:
         )
 
     @classmethod
-    async def create(cls,
-                     resource_mgr: ResourceMgrProto,
-                     param: EpisodicMemoryConf) -> Self:
-        session_memory: ShortTermMemory | None = None
+    async def create(
+        cls,
+        resource_mgr: ResourceMgrProto,
+        param: EpisodicMemoryConf
+    ) -> Self:
+        short_term_memory: ShortTermMemory | None = None
         if param.short_term_memory and param.short_term_memory.enabled:
-            session_memory = await ShortTermMemory.create(resource_mgr, param.short_term_memory)
+            short_term_memory = await ShortTermMemory.create(resource_mgr, param.short_term_memory)
+
         long_term_memory: LongTermMemory | None = None
         if param.long_term_memory and param.long_term_memory.enabled:
             long_term_memory = LongTermMemory(resource_mgr, param.long_term_memory)
-        return EpisodicMemory(param, session_memory, long_term_memory)
+
+        return EpisodicMemory(param, short_term_memory, long_term_memory)
 
     @property
     def short_term_memory(self) -> ShortTermMemory | None:
@@ -214,7 +227,7 @@ class EpisodicMemory:
         if self._short_term_memory:
             tasks.append(self._short_term_memory.add_episode(episode))
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.add_episode(episode))
+            tasks.append(self._long_term_memory.add_episodes([episode]))
         await asyncio.gather(
             *tasks,
         )
@@ -251,7 +264,7 @@ class EpisodicMemory:
         if self._short_term_memory:
             tasks.append(self._short_term_memory.delete_episode(uuid))
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.delete_episode(uuid))
+            tasks.append(self._long_term_memory.delete_episodes([uuid]))
         await asyncio.gather(*tasks)
         return
 
@@ -267,7 +280,7 @@ class EpisodicMemory:
         if self._short_term_memory:
             tasks.append(self._short_term_memory.clear_memory())
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.forget_session())
+            tasks.append(self._long_term_memory.delete_matching_episodes())
         await asyncio.gather(*tasks)
         return
 
@@ -313,7 +326,7 @@ class EpisodicMemory:
                 property_filter,
             )
         elif self._long_term_memory is None:
-            session_result = await self._short_term_memory.get_session_memory_context(
+            session_result = await self._short_term_memory.get_short_term_memory_context(
                 query, limit=search_limit, filter=property_filter
             )
             long_episode = []
@@ -321,7 +334,7 @@ class EpisodicMemory:
         else:
             # Concurrently search both memory stores
             session_result, long_episode = await asyncio.gather(
-                self._short_term_memory.get_session_memory_context(
+                self._short_term_memory.get_short_term_memory_context(
                     query, limit=search_limit
                 ),
                 self._long_term_memory.search(query, search_limit, property_filter),
