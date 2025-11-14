@@ -1,7 +1,7 @@
 import boto3
 
-from ...common.configuration.reranker_conf import RerankerConf
-from ...common.reranker import Reranker
+from ..configuration.reranker_conf import RerankerConf
+from ..reranker import Reranker
 from ..embedder import Embedder
 
 
@@ -60,7 +60,7 @@ class RerankerManager:
             self.rerankers[name] = AmazonBedrockReranker(params)
 
     def _build_embedder_rerankers(self, embedders: dict[str, Embedder]):
-        from ...common.reranker.embedder_reranker import (
+        from ..reranker.embedder_reranker import (
             EmbedderReranker,
             EmbedderRerankerParams,
         )
@@ -77,7 +77,7 @@ class RerankerManager:
 
     def _build_identity_rerankers(self):
         for name, conf in self.conf.identity.items():
-            from ...common.reranker.identity_reranker import IdentityReranker
+            from ..reranker.identity_reranker import IdentityReranker
 
             self.rerankers[name] = IdentityReranker()
 
@@ -87,7 +87,7 @@ class RerankerManager:
         This method must be called after all individual rerankers have been built,
         """
         for name, conf in self.conf.rrf_hybrid.items():
-            from ...common.reranker.rrf_hybrid_reranker import (
+            from ..reranker.rrf_hybrid_reranker import (
                 RRFHybridReranker,
                 RRFHybridRerankerParams,
             )

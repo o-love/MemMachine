@@ -1,5 +1,5 @@
 from memmachine.common.configuration.episodic_config import ShortTermMemoryConf
-from memmachine.common.resource_mgr import ResourceManager
+from memmachine.common.resource_manager import ResourceManager
 
 from .short_term_memory import ShortTermMemoryParams
 

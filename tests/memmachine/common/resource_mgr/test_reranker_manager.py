@@ -8,7 +8,7 @@ from memmachine.common.configuration.reranker_conf import (
     RerankerConf,
     RRFHybridRerankerConf,
 )
-from memmachine.common.resource_mgr.reranker_mgr import RerankerManager
+from memmachine.common.resource_manager.reranker_manager import RerankerManager
 
 
 @pytest.fixture

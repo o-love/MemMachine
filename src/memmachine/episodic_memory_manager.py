@@ -10,7 +10,7 @@ from memmachine.episodic_memory.service_locator import (
 )
 
 from .common.configuration.episodic_config import EpisodicMemoryConf
-from .common.resource_mgr import ResourceManager
+from .common.resource_manager import ResourceManager
 from .instance_lru_cache import MemoryInstanceCache
 from .session_manager_interface import SessionDataManager
 

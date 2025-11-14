@@ -5,9 +5,9 @@ from pydantic import InstanceOf
 from ...common.configuration import Configuration
 from ...common.embedder import Embedder
 from ...common.language_model import LanguageModel
-from ...common.resource_mgr.embedder_mgr import EmbedderManager
-from ...common.resource_mgr.language_model_mgr import LanguageModelManager
-from ...common.resource_mgr.storage_mgr import StorageManager
+from .embedder_manager import EmbedderManager
+from .language_model_manager import LanguageModelManager
+from .storage_manager import StorageManager
 from ...episodic_memory_manager import (
     EpisodicMemoryManager,
     EpisodicMemoryManagerParams,
@@ -25,7 +25,7 @@ from ...session_manager import SessionDataManagerImpl
 from ...session_manager_interface import SessionDataManager
 from ..reranker import Reranker
 from ..vector_graph_store import VectorGraphStore
-from .reranker_mgr import RerankerManager
+from .reranker_manager import RerankerManager
 
 
 class ResourceManager:

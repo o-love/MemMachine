@@ -1,5 +1,5 @@
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
-from memmachine.common.resource_mgr import ResourceManager
+from memmachine.common.resource_manager import ResourceManager
 
 from .episodic_memory import EpisodicMemoryParams
 from .long_term_memory.long_term_memory import LongTermMemory

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.configuration.storage_conf import StorageConf
-from memmachine.common.resource_mgr.storage_mgr import StorageManager
+from memmachine.common.resource_manager.storage_manager import StorageManager
 from memmachine.common.vector_graph_store import VectorGraphStore
 
 
