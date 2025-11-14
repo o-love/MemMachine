@@ -7,7 +7,6 @@ from memmachine.common.configuration.storage_conf import (
 )
 
 
-
 def test_parse_valid_storage_dict():
     input_dict = {
         "storage": {

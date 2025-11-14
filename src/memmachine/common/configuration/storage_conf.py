@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import Self
 
-from pydantic import BaseModel, Field, SecretStr, model_validator
-from sqlalchemy import URL
+from pydantic import BaseModel, Field, SecretStr
 
 
 class Neo4JConf(BaseModel):

@@ -15,7 +15,7 @@ from ...episodic_memory_manager import (
 from ...history_store.history_sqlalchemy_store import SqlAlchemyHistoryStore
 from ...history_store.history_storage import HistoryStorage
 from ...semantic_memory.semantic_memory import SemanticService
-from ...semantic_memory.semantic_model import ResourceRetriever, SetIdT, Resources
+from ...semantic_memory.semantic_model import ResourceRetriever, Resources, SetIdT
 from ...semantic_memory.semantic_session_manager import SemanticSessionManager
 from ...semantic_memory.semantic_session_resource import SessionIdManager
 from ...semantic_memory.storage.sqlalchemy_pgvector_semantic import (
@@ -53,7 +53,9 @@ class ResourceMgr:
         self._episodic_memory_manager: EpisodicMemoryManager | None = None
         self._history_storage: HistoryStorage | None = None
         self._simple_semantic_session_id_manager: SessionIdManager | None = None
-        self._semantic_session_resource_manager: InstanceOf[ResourceRetriever] | None = None
+        self._semantic_session_resource_manager: (
+            InstanceOf[ResourceRetriever] | None
+        ) = None
         self._semantic_service: SemanticService | None = None
         self._semantic_session_manager: SemanticSessionManager | None = None
 
@@ -140,12 +142,13 @@ class ResourceMgr:
                 return Resources(
                     language_model=default_model,
                     embedder=default_embedder,
-                    semantic_categories=semantic_categories_by_isolation[isolation_type],
+                    semantic_categories=semantic_categories_by_isolation[
+                        isolation_type
+                    ],
                 )
 
         self._semantic_session_resource_manager = SemanticResourceRetriever()
         return self._semantic_session_resource_manager
-
 
     @property
     def semantic_service(self) -> SemanticService:
@@ -176,4 +179,3 @@ class ResourceMgr:
             self.semantic_service,
         )
         return self._semantic_session_manager
-

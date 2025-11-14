@@ -5,17 +5,17 @@ from types import ModuleType
 from typing import Any, Self
 
 import yaml
-from pydantic import BaseModel, Field, model_validator, root_validator, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, root_validator
 
 from ...common.configuration.embedder_conf import EmbedderConf
 from ...common.configuration.log_conf import LogConf
 from ...common.configuration.model_conf import LanguageModelConf
 from ...common.configuration.reranker_conf import RerankerConf
 from ...common.configuration.storage_conf import StorageConf
-from .episodic_config import EpisodicMemoryConfPartial
 from ...semantic_memory.semantic_model import SemanticCategory
 from ...semantic_memory.semantic_session_resource import IsolationType
 from ...server.prompt.default_prompts import PREDEFINED_SEMANTIC_CATEGORIES
+from .episodic_config import EpisodicMemoryConfPartial
 
 
 class SessionDBConf(BaseModel):
@@ -42,6 +42,7 @@ class SemanticMemoryConf(BaseModel):
         ...,
         description="The embedding model to use for semantic memory",
     )
+
 
 def _read_txt(filename: str) -> str:
     """
@@ -91,14 +92,13 @@ class PromptConf(BaseModel):
     def prompt_exists(cls, prompt_name: str) -> bool:
         return prompt_name in PREDEFINED_SEMANTIC_CATEGORIES
 
-    @field_validator('profile', 'session', 'role', check_fields=True)
+    @field_validator("profile", "session", "role", check_fields=True)
     @classmethod
     def validate_profile(cls, v: list[str]) -> list[str]:
         for prompt_name in v:
             if not cls.prompt_exists(prompt_name):
                 raise ValueError(f"Prompt {prompt_name} does not exist")
         return v
-
 
     @property
     def episode_summary_system_prompt(self) -> str:
@@ -117,13 +117,19 @@ class PromptConf(BaseModel):
         return _read_txt(file_path)
 
     @property
-    def default_semantic_categories(self) -> dict[IsolationType, list[SemanticCategory]]:
+    def default_semantic_categories(
+        self,
+    ) -> dict[IsolationType, list[SemanticCategory]]:
         semantic_categories = PREDEFINED_SEMANTIC_CATEGORIES
 
         return {
-            IsolationType.SESSION: [semantic_categories[s_name] for s_name in self.session],
+            IsolationType.SESSION: [
+                semantic_categories[s_name] for s_name in self.session
+            ],
             IsolationType.ROLE: [semantic_categories[s_name] for s_name in self.role],
-            IsolationType.USER: [semantic_categories[s_name] for s_name in self.profile],
+            IsolationType.USER: [
+                semantic_categories[s_name] for s_name in self.profile
+            ],
         }
 
 
