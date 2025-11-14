@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from .common.configuration.episodic_config import EpisodicMemoryConf
+from .episodic_memory.data_types import ResourceMgrProto
 
 from .instance_lru_cache import MemoryInstanceCache
 from .session_manager_interface import SessionDataManager
@@ -17,7 +18,7 @@ class EpisodicMemoryManagerParams(BaseModel):
     Attributes:
         instance_cache_size (int): The maximum number of instances to cache.
         max_life_time (int): The maximum idle lifetime of an instance in seconds.
-        session_storage (SessionDataManager): The session storage.
+        resource_mgr (ResourceMgrProto): The resource manager.
     """
 
     instance_cache_size: int = Field(
@@ -28,8 +29,8 @@ class EpisodicMemoryManagerParams(BaseModel):
         gt=0,
         description="The maximum idle lifetime of an instance in seconds",
     )
-    session_storage: InstanceOf[SessionDataManager] = Field(
-        ..., description="Session storage"
+    resource_mgr: InstanceOf[ResourceMgrProto] = Field(
+        ..., description="Resource manager"
     )
 
 
@@ -49,12 +50,12 @@ class EpisodicMemoryManager:
         Initializes the SemanticMemoryManager.
 
         Args:
-            config: The overall MemMachine configuration.
+            param: The configuration parameters for the manager.
         """
         self._instance_cache: MemoryInstanceCache = MemoryInstanceCache(
             param.instance_cache_size, param.max_life_time
         )
-        self._session_storage = param.session_storage
+        self._resource_mgr = param.resource_mgr
         self._lock = asyncio.Lock()
         self._closed = False
         self._check_instance_task = asyncio.create_task(
@@ -66,6 +67,10 @@ class EpisodicMemoryManager:
             await asyncio.sleep(2)
             async with self._lock:
                 await self._instance_cache.clean_old_instance()
+
+    @property
+    def session_mgr(self) -> SessionDataManager:
+        return self._resource_mgr.session_data_manager
 
     @asynccontextmanager
     async def open_episodic_memory(
@@ -96,11 +101,11 @@ class EpisodicMemoryManager:
             instance = self._instance_cache.get(session_key)
             if instance is None:
                 # load from the database
-                _, _, _, param = await self._session_storage.get_session_info(
-                    session_key
-                )
+                _, _, _, param = await self.session_mgr.get_session_info(session_key)
                 # TODO: callback to instantiate the param
-                instance = await EpisodicMemory.create(param)
+                instance = await EpisodicMemory.create(
+                    self._resource_mgr,
+                    param)
                 await self._instance_cache.add(session_key, instance)
         try:
             yield instance
@@ -137,10 +142,10 @@ class EpisodicMemoryManager:
             if self._closed:
                 raise RuntimeError(f"Memory is closed {session_key}")
 
-            await self._session_storage.create_new_session(
+            await self.session_mgr.create_new_session(
                 session_key, config, param, description, metadata
             )
-            instance = await EpisodicMemory.create(param)
+            instance = await EpisodicMemory.create(self._resource_mgr, param)
             await self._instance_cache.add(session_key, instance)
         try:
             yield instance
@@ -170,13 +175,15 @@ class EpisodicMemoryManager:
             self._instance_cache.erase(session_key)
             if instance is None:
                 # Open it
-                _, _, _, param = await self._session_storage.get_session_info(
+                _, _, _, param = await self.session_mgr.get_session_info(
                     session_key
                 )
-                instance = await EpisodicMemory.create(param)
+                instance = await EpisodicMemory.create(
+                    self._resource_mgr,
+                    param)
             await instance.delete_data()
             await instance.close()
-            await self._session_storage.delete_session(session_key)
+            await self.session_mgr.delete_session(session_key)
 
     async def get_episodic_memory_keys(
         self, filter: dict[str, str] | None
@@ -187,7 +194,7 @@ class EpisodicMemoryManager:
         Returns:
             A list of session keys.
         """
-        return await self._session_storage.get_sessions(filter)
+        return await self.session_mgr.get_sessions(filter)
 
     async def get_session_configuration(
         self, session_key: str
@@ -195,7 +202,7 @@ class EpisodicMemoryManager:
         """
         Retrieves the configuration, description, and metadata for a given session.
         """
-        return await self._session_storage.get_session_info(session_key)
+        return await self.session_mgr.get_session_info(session_key)
 
     async def close_session(self, session_key: str):
         """
@@ -229,7 +236,7 @@ class EpisodicMemoryManager:
             for key in self._instance_cache.keys():
                 tasks.append(self._instance_cache.get(key).close())
             await asyncio.gather(*tasks)
-            await self._session_storage.close()
+            await self.session_mgr.close()
             self._instance_cache.clear()
             self._closed = True
 

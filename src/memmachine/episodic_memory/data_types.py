@@ -1,12 +1,29 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
+
+from memmachine.common.embedder import Embedder
+from memmachine.common.language_model import LanguageModel
+from memmachine.common.reranker import Reranker
+from memmachine.common.vector_graph_store import VectorGraphStore
+from memmachine.session_manager_interface import SessionDataManager
 
 # Type alias for JSON-compatible data structures.
 JSONValue = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
 
+
+class ResourceMgrProto(Protocol):
+    """Protocol for resource manager classes."""
+
+    def get_graph_store(self, name: str) -> VectorGraphStore: ...
+    def get_embedder(self, name: str) -> Embedder: ...
+    def get_model(self, name: str) -> LanguageModel: ...
+    def get_reranker(self, name: str) -> Reranker: ...
+
+    @property
+    def session_data_manager(self) -> SessionDataManager:...
 
 class ContentType(Enum):
     """Enumeration for the type of content within an Episode."""

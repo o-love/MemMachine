@@ -2,12 +2,13 @@ from typing import Any, cast
 
 from pydantic import BaseModel, Field, InstanceOf
 
-from ..data_types import ContentType, Episode
+from ..data_types import ContentType, Episode, ResourceMgrProto
 from ..declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
 from ..declarative_memory.data_types import (
     ContentType as DeclarativeMemoryContentType,
 )
 from ..declarative_memory.data_types import Episode as DeclarativeMemoryEpisode
+from ...common.configuration.episodic_config import LongTermMemoryConf
 from ...common.embedder import Embedder
 from ...common.reranker import Reranker
 from ...common.vector_graph_store import VectorGraphStore
@@ -67,16 +68,22 @@ class LongTermMemoryParams(BaseModel):
 class LongTermMemory:
     _shared_resources: dict[str, Any] = {}
 
-    def __init__(self, params: LongTermMemoryParams):
+    def __init__(self,
+                 resource_mgr: ResourceMgrProto,
+                 conf: LongTermMemoryConf):
         # Note: Things look a bit weird during refactor...
         # Internal session_id is used for external group_id. This is intentional.
+        embedder = resource_mgr.get_embedder(conf.embedder)
+        reranker = resource_mgr.get_reranker(conf.reranker)
+        graph_store = resource_mgr.get_graph_store(conf.vector_graph_store)
+        self._conf = conf
         self._declarative_memory = DeclarativeMemory(
             DeclarativeMemoryParams(
-                session_id=params.session_id,
+                session_id=conf.session_id,
                 content_metadata_template="[$timestamp] $producer_id: $content",
-                vector_graph_store=params.vector_graph_store,
-                embedder=params.embedder,
-                reranker=params.reranker,
+                vector_graph_store=graph_store,
+                embedder=embedder,
+                reranker=reranker,
             )
         )
 
@@ -92,7 +99,7 @@ class LongTermMemory:
             filterable_properties={
                 key: value
                 for key, value in {
-                    "session_id": episode.session_id,
+                    "session_id": episode.session_key,
                     "producer_id": episode.producer_id,
                     "produced_for_id": episode.produced_for_id,
                 }.items()
@@ -128,8 +135,7 @@ class LongTermMemory:
                 ),
                 content=declarative_memory_episode.content,
                 timestamp=declarative_memory_episode.timestamp,
-                group_id=self._group_id,
-                session_id=cast(
+                session_key=cast(
                     str,
                     declarative_memory_episode.filterable_properties.get(
                         "session_id", ""
@@ -153,11 +159,14 @@ class LongTermMemory:
         ]
 
     async def clear(self):
-        self._declarative_memory.forget_all()
+        await self._declarative_memory.forget_all()
 
     async def forget_session(self):
         await self._declarative_memory.forget_filtered_episodes(
             property_filter={
-                "session_id": self._memory_context.session_id,
+                "session_id": self._conf.session_id,
             }
         )
+
+    def close(self):
+        pass

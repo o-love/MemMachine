@@ -24,9 +24,10 @@ from typing import cast, Self
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
-from .data_types import Episode
+from .data_types import Episode, ResourceMgrProto
 from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryParams
 from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
+from ..common.configuration.episodic_config import EpisodicMemoryConf
 from ..common.metrics_factory import MetricsFactory
 
 logger = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ class EpisodicMemory:
 
     def __init__(
         self,
-        param: EpisodicMemoryParams,
+        param: EpisodicMemoryConf,
         session_memory: ShortTermMemory | None = None,
         long_term_memory: LongTermMemory | None = None,
     ):
@@ -101,7 +102,7 @@ class EpisodicMemory:
         self._closed = False
         self._short_term_memory: ShortTermMemory | None = session_memory
         self._long_term_memory: LongTermMemory | None = long_term_memory
-        metrics_manager = param.metrics_factory
+        metrics_manager = param.get_metrics_factory()
         self._enabled = param.enabled
         if not self._enabled:
             return
@@ -123,13 +124,15 @@ class EpisodicMemory:
         )
 
     @classmethod
-    async def create(cls, param: EpisodicMemoryParams) -> Self:
+    async def create(cls,
+                     resource_mgr: ResourceMgrProto,
+                     param: EpisodicMemoryConf) -> Self:
         session_memory: ShortTermMemory | None = None
         if param.short_term_memory and param.short_term_memory.enabled:
-            session_memory = await ShortTermMemory.create(param.short_term_memory)
+            session_memory = await ShortTermMemory.create(resource_mgr, param.short_term_memory)
         long_term_memory: LongTermMemory | None = None
         if param.long_term_memory and param.long_term_memory.enabled:
-            long_term_memory = LongTermMemory(param.long_term_memory)
+            long_term_memory = LongTermMemory(resource_mgr, param.long_term_memory)
         return EpisodicMemory(param, session_memory, long_term_memory)
 
     @property

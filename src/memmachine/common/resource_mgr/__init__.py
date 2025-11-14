@@ -71,9 +71,7 @@ class ResourceMgr:
     def episodic_memory_manager(self) -> EpisodicMemoryManager:
         if self._episodic_memory_manager is not None:
             return self._episodic_memory_manager
-        params = EpisodicMemoryManagerParams(
-            session_storage=self.session_data_manager,
-        )
+        params = EpisodicMemoryManagerParams(resource_mgr=self)
         self._episodic_memory_manager = EpisodicMemoryManager(params)
         return self._episodic_memory_manager
 

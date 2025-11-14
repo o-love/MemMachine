@@ -2,6 +2,8 @@ from typing import Self, TypeVar
 
 from pydantic import BaseModel, Field
 
+from memmachine.common.configuration.metrics_conf import WithMetricsFactoryId
+
 TFull = TypeVar("TFull", bound=BaseModel)
 TPartial = TypeVar("TPartial", bound=BaseModel)
 
@@ -154,7 +156,7 @@ class LongTermMemoryConfPartial(BaseModel):
         return merge_partial_configs(self, other, LongTermMemoryConf)
 
 
-class EpisodicMemoryConf(BaseModel):
+class EpisodicMemoryConf(WithMetricsFactoryId):
     session_key: str = Field(
         ...,
         min_length=1,

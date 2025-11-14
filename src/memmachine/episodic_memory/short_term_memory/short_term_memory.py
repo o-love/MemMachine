@@ -20,7 +20,8 @@ from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
 from memmachine.session_manager_interface import SessionDataManager
 
-from ..data_types import Episode
+from ..data_types import Episode, ResourceMgrProto
+from ...common.configuration.episodic_config import ShortTermMemoryConf
 
 logger = logging.getLogger(__name__)
 
@@ -111,23 +112,36 @@ class ShortTermMemory:
                 self._current_message_len += len(e.content)
 
     @classmethod
-    async def create(cls, param: ShortTermMemoryParams) -> "ShortTermMemory":
+    async def create(cls,
+                     resource_mgr: ResourceMgrProto,
+                     conf: ShortTermMemoryConf) -> "ShortTermMemory":
         """
         Creates a new ShortTermMemory instance.
         """
-        if param.data_manager is not None:
+        data_manager = resource_mgr.session_data_manager
+        llm_model = resource_mgr.get_model(conf.llm_model)
+        param = ShortTermMemoryParams(
+                session_key=conf.session_key,
+                llm_model=llm_model,
+                data_manager=data_manager,
+                summary_prompt_system=conf.summary_prompt_system,
+                summary_prompt_user=conf.summary_prompt_user,
+                message_capacity=conf.message_capacity,
+                enabled=conf.enabled,
+            )
+
+        if data_manager is not None:
             try:
-                await param.data_manager.create_tables()
+                await data_manager.create_tables()
             except ValueError:
                 pass
             try:
                 (
                     summary,
-                    episodes,
-                    _,
-                    _,
-                ) = await param.data_manager.get_short_term_memory(param.session_key)
-                return ShortTermMemory(param, summary, episodes)
+                    num_episodes,
+                    seq_num,
+                ) = await data_manager.get_short_term_memory(param.session_key)
+                return ShortTermMemory(param, summary)
             except ValueError:
                 pass
         return ShortTermMemory(param)
