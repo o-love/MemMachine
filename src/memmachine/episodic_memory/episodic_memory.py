@@ -18,8 +18,9 @@ Key responsibilities include:
 import asyncio
 import logging
 import time
-import uuid
+from collections.abc import Iterable, Mapping
 from typing import Self, cast
+from uuid import UUID
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
@@ -32,6 +33,10 @@ from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryPar
 from .long_term_memory.service_locator import long_term_memory_params_from_config
 from .short_term_memory.service_locator import short_term_memory_params_from_config
 from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.common.resource_mgr import ResourceMgrProto
+from memmachine.common.data_types import FilterablePropertyValue
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +159,7 @@ class EpisodicMemory:
                 )
             )
 
-        return EpisodicMemory(param, short_term_memory, long_term_memory)
+        return EpisodicMemory(config, short_term_memory, long_term_memory)
 
     @property
     def short_term_memory(self) -> ShortTermMemory | None:
@@ -262,21 +267,22 @@ class EpisodicMemory:
         if self._long_term_memory:
             tasks.append(self._long_term_memory.close())
         await asyncio.gather(*tasks)
-        return
 
-    async def delete_episode(self, uuid: uuid.UUID):
+    async def delete_episodes(self, uuids: Iterable[UUID]):
         """Delete one episode by uuid"""
         if not self._enabled:
             return
+
+        uuids = list(uuids)
+
         tasks = []
         if self._short_term_memory:
-            tasks.append(self._short_term_memory.delete_episode(uuid))
+            tasks.extend(self._short_term_memory.delete_episode(uuid) for uuid in uuids)
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.delete_episodes([uuid]))
+            tasks.append(self._long_term_memory.delete_episodes(uuids))
         await asyncio.gather(*tasks)
-        return
 
-    async def delete_data(self):
+    async def delete_session_episodes(self):
         """
         Deletes all data from both session and declarative memory for this
         context.
@@ -290,13 +296,12 @@ class EpisodicMemory:
         if self._long_term_memory:
             tasks.append(self._long_term_memory.delete_matching_episodes())
         await asyncio.gather(*tasks)
-        return
 
     async def query_memory(
         self,
         query: str,
         limit: int | None = None,
-        property_filter: dict | None = None,
+        property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> tuple[list[Episode], list[Episode], list[str]]:
         """
         Retrieves relevant context for a given query from all memory stores.
@@ -371,7 +376,7 @@ class EpisodicMemory:
         self,
         query: str,
         limit: int | None = None,
-        property_filter: dict | None = None,
+        property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> str:
         """
         Constructs a finalized query string that includes context from memory.
