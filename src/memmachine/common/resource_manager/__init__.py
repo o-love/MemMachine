@@ -10,7 +10,7 @@ from memmachine.common.reranker import Reranker
 from memmachine.common.resource_manager.embedder_manager import EmbedderManager
 from memmachine.common.resource_manager.language_model_manager import LanguageModelManager
 from memmachine.common.resource_manager.reranker_manager import RerankerManager
-from memmachine.common.resource_manager.semantic_manager import SemanticManager
+from memmachine.common.resource_manager.semantic_manager import SemanticResourceManager
 from memmachine.common.resource_manager.storage_manager import StorageManager
 from memmachine.common.vector_graph_store import VectorGraphStore
 from memmachine.episodic_memory_manager import EpisodicMemoryManager, EpisodicMemoryManagerParams
@@ -32,7 +32,7 @@ class ResourceManager:
         self._session_data_manager: SessionDataManager | None = None
         self._episodic_memory_manager: EpisodicMemoryManager | None = None
         self._history_storage: HistoryStorage | None = None
-        self._semantic_manager: SemanticManager | None = None
+        self._semantic_manager: SemanticResourceManager | None = None
 
     def build(self):
         self._storage_manager.build_all(validate=True)
@@ -98,7 +98,7 @@ class ResourceManager:
         if self._semantic_manager is not None:
             return self._semantic_manager
 
-        self._semantic_manager = SemanticManager(
+        self._semantic_manager = SemanticResourceManager(
             semantic_conf=self._conf.semantic_memory,
             prompt_conf=self._conf.prompt,
             storage_manager=self._storage_manager,

@@ -35,7 +35,7 @@ def load_prompt(prompt_config: PromptConf, key: str, default_value: str) -> str:
             return f.read()
     return default_value
 
-class SemanticManager:
+class SemanticResourceManager:
     def __init__(
             self,
             semantic_conf: SemanticMemoryConf,
