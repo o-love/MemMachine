@@ -32,7 +32,7 @@ from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
 from memmachine.common.configuration import load_config_yml_file
-from memmachine.common.resource_mgr import ResourceMgr
+from memmachine.common.resource_mgr import ResourceManager
 from memmachine.episodic_memory import episodic_memory
 from memmachine.episodic_memory.data_types import ContentType
 from memmachine.episodic_memory.episodic_memory import (
@@ -475,13 +475,13 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-resource_mgr: ResourceMgr | None = None
+resource_mgr: ResourceManager | None = None
 
 
 # === Lifespan Management ===
 
 
-async def initialize_resource(config_file: str) -> ResourceMgr:
+async def initialize_resource(config_file: str) -> ResourceManager:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -496,7 +496,7 @@ async def initialize_resource(config_file: str) -> ResourceMgr:
     """
 
     config = load_config_yml_file(config_file)
-    ret = ResourceMgr(config)
+    ret = ResourceManager(config)
     await resource_mgr.profile_memory.startup()
     return ret
 

@@ -28,7 +28,7 @@ from ..vector_graph_store import VectorGraphStore
 from .reranker_mgr import RerankerMgr
 
 
-class ResourceMgr:
+class ResourceManager:
     def __init__(self, conf: Configuration):
         self._conf = conf
         self._conf.logging.apply()

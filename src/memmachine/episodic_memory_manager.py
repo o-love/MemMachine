@@ -10,7 +10,7 @@ from memmachine.episodic_memory.service_locator import (
 )
 
 from .common.configuration.episodic_config import EpisodicMemoryConf
-from .common.resource_mgr import ResourceMgr
+from .common.resource_mgr import ResourceManager
 from .instance_lru_cache import MemoryInstanceCache
 from .session_manager_interface import SessionDataManager
 
@@ -21,7 +21,7 @@ class EpisodicMemoryManagerParams(BaseModel):
     Attributes:
         instance_cache_size (int): The maximum number of instances to cache.
         max_life_time (int): The maximum idle lifetime of an instance in seconds.
-        resource_mgr (ResourceMgr): The resource manager.
+        resource_mgr (ResourceManager): The resource manager.
     """
 
     instance_cache_size: int = Field(
@@ -32,7 +32,7 @@ class EpisodicMemoryManagerParams(BaseModel):
         gt=0,
         description="The maximum idle lifetime of an instance in seconds",
     )
-    resource_mgr: InstanceOf[ResourceMgr] = Field(..., description="Resource manager")
+    resource_mgr: InstanceOf[ResourceManager] = Field(..., description="Resource manager")
 
 
 class EpisodicMemoryManager:
