@@ -9,7 +9,10 @@ from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
 
-from memmachine.common.configuration.model_conf import AwsBedrockModelConf, OpenAIModelConf
+from memmachine.common.configuration.model_conf import (
+    AwsBedrockModelConf,
+    OpenAIModelConf,
+)
 from memmachine.common.embedder.openai_embedder import (
     OpenAIEmbedder,
     OpenAIEmbedderParams,

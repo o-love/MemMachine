@@ -5,7 +5,7 @@ from types import ModuleType
 from typing import Any, Self
 
 import yaml
-from pydantic import BaseModel, Field, root_validator, model_validator
+from pydantic import BaseModel, Field, model_validator, root_validator
 
 from ...common.configuration.embedder_conf import EmbedderConf
 from ...common.configuration.log_conf import LogConf

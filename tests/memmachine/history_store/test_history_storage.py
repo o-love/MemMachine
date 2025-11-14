@@ -7,9 +7,8 @@ import pytest
 import pytest_asyncio
 
 from memmachine.episodic_memory.data_types import EpisodeType
-from memmachine.history_store.history_model import HistoryIdT, HistoryMessage
+from memmachine.history_store.history_model import HistoryIdT
 from memmachine.history_store.history_storage import HistoryStorage
-
 
 DEFAULT_HISTORY_ARGS = {
     "session_key": "session-default",

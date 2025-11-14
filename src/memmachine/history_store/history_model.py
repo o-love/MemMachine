@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Any
 
-from memmachine.episodic_memory.data_types import EpisodeType
 from pydantic import BaseModel
+
+from memmachine.episodic_memory.data_types import EpisodeType
 
 HistoryIdT = str
 

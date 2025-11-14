@@ -1,11 +1,10 @@
 from datetime import UTC
 
-from memmachine.episodic_memory.data_types import EpisodeType
 from pydantic import AwareDatetime, validate_call
 from sqlalchemy import (
     JSON,
     DateTime,
-    Enum as SAEnum,
+    Index,
     Integer,
     String,
     cast,
@@ -13,12 +12,15 @@ from sqlalchemy import (
     func,
     insert,
     select,
-    Index,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
+from memmachine.episodic_memory.data_types import EpisodeType
 from memmachine.history_store.history_model import HistoryMessage
 from memmachine.history_store.history_storage import HistoryIdT, HistoryStorage
 
@@ -45,7 +47,9 @@ class History(BaseHistoryStore):
     producer_role = mapped_column(String, nullable=False)
 
     produced_for_id = mapped_column(String, nullable=True)
-    episode_type = mapped_column(SAEnum(EpisodeType, name="episode_type"), nullable=True)
+    episode_type = mapped_column(
+        SAEnum(EpisodeType, name="episode_type"), nullable=True
+    )
 
     json_metadata = mapped_column(
         JSON_AUTO,
@@ -74,7 +78,11 @@ class History(BaseHistoryStore):
     )
 
     def to_typed_model(self) -> HistoryMessage:
-        created_at = self.created_at.replace(tzinfo=UTC) if self.created_at.tzinfo is None else self.created_at
+        created_at = (
+            self.created_at.replace(tzinfo=UTC)
+            if self.created_at.tzinfo is None
+            else self.created_at
+        )
         return HistoryMessage(
             metadata=HistoryMessage.Metadata(
                 id=HistoryIdT(self.id),

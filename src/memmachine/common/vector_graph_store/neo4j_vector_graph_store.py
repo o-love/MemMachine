@@ -19,9 +19,9 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.utils import async_locked, async_with
 
+from ..data_types import SimilarityMetric
 from .data_types import Edge, Node, Property
 from .vector_graph_store import VectorGraphStore
-from ..data_types import SimilarityMetric
 
 logger = logging.getLogger(__name__)
 

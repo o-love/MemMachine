@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.embedder import Embedder
 
-from .reranker import Reranker
 from ..data_types import SimilarityMetric
+from .reranker import Reranker
 
 
 class EmbedderRerankerParams(BaseModel):

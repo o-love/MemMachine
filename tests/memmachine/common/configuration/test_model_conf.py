@@ -1,5 +1,6 @@
 import pytest
 from pydantic import SecretStr, ValidationError
+
 from memmachine.common.configuration.model_conf import (
     AwsBedrockModelConf,
     LanguageModelConf,
