@@ -51,10 +51,10 @@ class EpisodicMemoryParams(BaseModel):
     metrics_factory: InstanceOf[MetricsFactory] = Field(
         ..., description="The metrics factory"
     )
-    long_term_memory: LongTermMemory | None = Field(
+    long_term_memory: InstanceOf[LongTermMemory] | None = Field(
         default=None, description="The long-term memory"
     )
-    short_term_memory: ShortTermMemory | None = Field(
+    short_term_memory: InstanceOf[ShortTermMemory] | None = Field(
         default=None, description="The short-term memory"
     )
     enabled: bool = Field(

@@ -32,9 +32,7 @@ class EpisodicMemoryManagerParams(BaseModel):
         gt=0,
         description="The maximum idle lifetime of an instance in seconds",
     )
-    resource_mgr: InstanceOf[ResourceMgr] = Field(
-        ..., description="Resource manager"
-    )
+    resource_mgr: InstanceOf[ResourceMgr] = Field(..., description="Resource manager")
 
 
 class EpisodicMemoryManager:
