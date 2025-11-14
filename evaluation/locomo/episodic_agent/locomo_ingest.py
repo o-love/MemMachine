@@ -6,12 +6,12 @@ from datetime import datetime
 from typing import cast
 
 from dotenv import load_dotenv
+
+from memmachine.episode_store.episode_model import ContentType
+from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-
-from memmachine.episodic_memory.data_types import ContentType
-from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 
 
 async def main():

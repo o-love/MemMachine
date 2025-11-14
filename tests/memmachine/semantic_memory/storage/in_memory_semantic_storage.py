@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
@@ -39,7 +40,7 @@ class _FeatureEntry:
     value: str
     embedding: np.ndarray
     metadata: dict[str, Any] | None = None
-    citations: list[HistoryIdT] = field(default_factory=list)
+    citations: list[EpisodeIdT] = field(default_factory=list)
     created_at: datetime = field(default_factory=_utcnow)
     updated_at: datetime = field(default_factory=_utcnow)
 
@@ -51,8 +52,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self._features_by_id: dict[FeatureIdT, _FeatureEntry] = {}
         self._feature_ids_by_set: dict[str, list[FeatureIdT]] = {}
         # History tracking mirrors the SetIngestedHistory table
-        self._set_history_map: dict[str, dict[HistoryIdT, bool]] = {}
-        self._history_to_sets: dict[HistoryIdT, dict[str, bool]] = {}
+        self._set_history_map: dict[str, dict[EpisodeIdT, bool]] = {}
+        self._history_to_sets: dict[EpisodeIdT, dict[str, bool]] = {}
         self._next_feature_id = 1
         self._next_history_id = 1
         self._lock = asyncio.Lock()
@@ -132,27 +133,16 @@ class InMemorySemanticStorage(SemanticStorageBase):
             if entry is None:
                 return
 
-            if set_id is not None and set_id != entry.set_id:
-                old_set_ids = self._feature_ids_by_set.get(entry.set_id, [])
-                if feature_id in old_set_ids:
-                    old_set_ids.remove(feature_id)
-                    if not old_set_ids:
-                        self._feature_ids_by_set.pop(entry.set_id, None)
-                self._feature_ids_by_set.setdefault(set_id, []).append(feature_id)
-                entry.set_id = set_id
-
-            if category_name is not None:
-                entry.semantic_type_id = category_name
-            if feature is not None:
-                entry.feature = feature
-            if value is not None:
-                entry.value = value
-            if tag is not None:
-                entry.tag = tag
-            if embedding is not None:
-                entry.embedding = np.array(embedding, dtype=float, copy=True)
-            if metadata is not None:
-                entry.metadata = dict(metadata) if metadata else None
+            self._handle_set_change(entry, feature_id, set_id)
+            self._update_entry_fields(
+                entry,
+                category_name=category_name,
+                feature=feature,
+                value=value,
+                tag=tag,
+                embedding=embedding,
+                metadata=metadata,
+            )
 
             entry.updated_at = _utcnow()
 
@@ -166,11 +156,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 entry = self._features_by_id.pop(feature_id, None)
                 if entry is None:
                     continue
-                ids = self._feature_ids_by_set.get(entry.set_id)
-                if ids and feature_id in ids:
-                    ids.remove(feature_id)
-                    if not ids:
-                        self._feature_ids_by_set.pop(entry.set_id, None)
+                self._remove_feature_from_index(entry)
 
     async def get_feature_set(
         self,
@@ -222,16 +208,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
             )
             for entry in to_remove:
                 self._features_by_id.pop(entry.id, None)
-                ids = self._feature_ids_by_set.get(entry.set_id)
-                if ids and entry.id in ids:
-                    ids.remove(entry.id)
-                    if not ids:
-                        self._feature_ids_by_set.pop(entry.set_id, None)
+                self._remove_feature_from_index(entry)
 
     async def add_citations(
         self,
         feature_id: FeatureIdT,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
     ):
         if not history_ids:
             return
@@ -242,9 +224,9 @@ class InMemorySemanticStorage(SemanticStorageBase):
             if entry is None:
                 return
 
-            existing: set[HistoryIdT] = set(entry.citations)
+            existing: set[EpisodeIdT] = set(entry.citations)
             for history_id in history_ids:
-                history_id = HistoryIdT(history_id)
+                history_id = EpisodeIdT(history_id)
                 if history_id not in existing:
                     entry.citations.append(history_id)
                     existing.add(history_id)
@@ -256,20 +238,10 @@ class InMemorySemanticStorage(SemanticStorageBase):
         set_ids: list[str] | None = None,
         limit: int | None = None,
         is_ingested: bool | None = None,
-    ) -> list[HistoryIdT]:
+    ) -> list[EpisodeIdT]:
         async with self._lock:
-            rows: list[tuple[HistoryIdT, bool]] = []
-            for set_id, history_map in self._set_history_map.items():
-                if set_ids is not None and set_id not in set_ids:
-                    continue
-                for history_id, ingested in history_map.items():
-                    rows.append((history_id, ingested))
-
-            rows.sort(key=lambda pair: pair[0])
-
-            if is_ingested is not None:
-                rows = [pair for pair in rows if pair[1] == is_ingested]
-
+            rows = self._history_rows_for_sets(set_ids)
+            rows = self._filter_history_rows(rows, is_ingested)
             history_ids = [history_id for history_id, _ in rows]
 
             if limit is not None:
@@ -284,26 +256,99 @@ class InMemorySemanticStorage(SemanticStorageBase):
         is_ingested: bool | None = None,
     ) -> int:
         async with self._lock:
-            count = 0
-            for set_id, history_map in self._set_history_map.items():
-                if set_ids is not None and set_id not in set_ids:
-                    continue
-                if is_ingested is None:
-                    count += len(history_map)
-                else:
-                    count += sum(
-                        1 for status in history_map.values() if status == is_ingested
-                    )
-            return count
+            rows = self._history_rows_for_sets(set_ids)
+            filtered_rows = self._filter_history_rows(rows, is_ingested)
+            return len(filtered_rows)
+
+    def _handle_set_change(
+        self,
+        entry: _FeatureEntry,
+        feature_id: FeatureIdT,
+        set_id: str | None,
+    ) -> None:
+        if set_id is None:
+            return
+        self._move_feature_to_set(entry, feature_id, set_id)
+
+    def _update_entry_fields(
+        self,
+        entry: _FeatureEntry,
+        *,
+        category_name: str | None,
+        feature: str | None,
+        value: str | None,
+        tag: str | None,
+        embedding: InstanceOf[np.ndarray] | None,
+        metadata: dict[str, Any] | None,
+    ) -> None:
+        simple_updates = {
+            "semantic_type_id": category_name,
+            "feature": feature,
+            "value": value,
+            "tag": tag,
+        }
+
+        for attr, new_value in simple_updates.items():
+            if new_value is None:
+                continue
+            setattr(entry, attr, new_value)
+
+        if embedding is not None:
+            entry.embedding = np.array(embedding, dtype=float, copy=True)
+
+        if metadata is not None:
+            entry.metadata = dict(metadata) if metadata else None
+
+    def _move_feature_to_set(
+        self, entry: _FeatureEntry, feature_id: FeatureIdT, new_set_id: str
+    ) -> None:
+        if new_set_id == entry.set_id:
+            return
+
+        current_ids = self._feature_ids_by_set.get(entry.set_id)
+        if current_ids and feature_id in current_ids:
+            current_ids.remove(feature_id)
+            if not current_ids:
+                self._feature_ids_by_set.pop(entry.set_id, None)
+
+        self._feature_ids_by_set.setdefault(new_set_id, []).append(feature_id)
+        entry.set_id = new_set_id
+
+    def _remove_feature_from_index(self, entry: _FeatureEntry) -> None:
+        ids = self._feature_ids_by_set.get(entry.set_id)
+        if ids and entry.id in ids:
+            ids.remove(entry.id)
+            if not ids:
+                self._feature_ids_by_set.pop(entry.set_id, None)
+
+    def _history_rows_for_sets(
+        self, set_ids: list[str] | None
+    ) -> list[tuple[EpisodeIdT, bool]]:
+        rows = [
+            (history_id, ingested)
+            for set_id, history_map in self._set_history_map.items()
+            if set_ids is None or set_id in set_ids
+            for history_id, ingested in history_map.items()
+        ]
+        rows.sort(key=lambda pair: pair[0])
+        return rows
+
+    @staticmethod
+    def _filter_history_rows(
+        rows: list[tuple[EpisodeIdT, bool]], is_ingested: bool | None
+    ) -> list[tuple[EpisodeIdT, bool]]:
+        if is_ingested is None:
+            return rows
+        return [pair for pair in rows if pair[1] == is_ingested]
 
     async def add_history_to_set(
         self,
         set_id: str,
-        history_id: HistoryIdT,
+        history_id: EpisodeIdT,
     ) -> None:
         async with self._lock:
             history_map = self._set_history_map.setdefault(set_id, {})
-            history_id = HistoryIdT(history_id)
+            history_id = EpisodeIdT(history_id)
             history_map[history_id] = history_map.get(history_id, False)
             self._history_to_sets.setdefault(history_id, {})[set_id] = history_map[
                 history_id
@@ -313,7 +358,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
     ) -> None:
         if not history_ids:
             raise ValueError("No ids provided")
@@ -324,7 +369,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 return
 
             for history_id in history_ids:
-                history_id = HistoryIdT(history_id)
+                history_id = EpisodeIdT(history_id)
                 if history_id in set_map:
                     set_map[history_id] = True
                     self._history_to_sets.setdefault(history_id, {})[set_id] = True
@@ -335,7 +380,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         *,
         load_citations: bool,
     ) -> SemanticFeature:
-        citations: list[HistoryIdT] | None = None
+        citations: list[EpisodeIdT] | None = None
         if load_citations:
             citations = list(entry.citations)
 
@@ -370,44 +415,89 @@ class InMemorySemanticStorage(SemanticStorageBase):
         vector_search_opts: SemanticStorageBase.VectorSearchOpts | None,
         tag_threshold: int | None,
     ) -> list[_FeatureEntry]:
-        entries: list[_FeatureEntry] = list(self._features_by_id.values())
-
-        if set_ids:
-            allowed = set(set_ids)
-            entries = [entry for entry in entries if entry.set_id in allowed]
-        if type_names:
-            allowed = set(type_names)
-            entries = [entry for entry in entries if entry.semantic_type_id in allowed]
-        if feature_names:
-            allowed = set(feature_names)
-            entries = [entry for entry in entries if entry.feature in allowed]
-        if tags:
-            allowed = set(tags)
-            entries = [entry for entry in entries if entry.tag in allowed]
-
-        if vector_search_opts is not None:
-            filtered: list[tuple[float, _FeatureEntry]] = []
-            for entry in entries:
-                similarity = _cosine_similarity(
-                    entry.embedding, vector_search_opts.query_embedding
-                )
-                if similarity is None:
-                    similarity = float("-inf")
-                min_cos = vector_search_opts.min_distance
-                if min_cos is not None and similarity < min_cos:
-                    continue
-                filtered.append((similarity, entry))
-
-            filtered.sort(key=lambda pair: pair[0], reverse=True)
-            entries = [entry for _, entry in filtered]
-        else:
-            entries.sort(key=lambda e: (e.created_at, e.id))
+        entries = list(self._features_by_id.values())
+        entries = self._apply_basic_filters(
+            entries,
+            set_ids=set_ids,
+            type_names=type_names,
+            feature_names=feature_names,
+            tags=tags,
+        )
+        entries = self._apply_vector_filter(entries, vector_search_opts)
 
         if k is not None:
             entries = entries[:k]
 
         if tag_threshold is not None:
-            counts = Counter(entry.tag for entry in entries)
-            entries = [entry for entry in entries if counts[entry.tag] >= tag_threshold]
+            return self._apply_tag_threshold(entries, tag_threshold)
 
         return entries
+
+    @staticmethod
+    def _apply_basic_filters(
+        entries: list[_FeatureEntry],
+        *,
+        set_ids: list[str] | None,
+        type_names: list[str] | None,
+        feature_names: list[str] | None,
+        tags: list[str] | None,
+    ) -> list[_FeatureEntry]:
+        filters: list[tuple[list[str] | None, Callable[[_FeatureEntry], str]]] = [
+            (set_ids, lambda entry: entry.set_id),
+            (type_names, lambda entry: entry.semantic_type_id),
+            (feature_names, lambda entry: entry.feature),
+            (tags, lambda entry: entry.tag),
+        ]
+
+        filtered_entries = entries
+        for allowed_values, getter in filters:
+            if not allowed_values:
+                continue
+            allowed = set(allowed_values)
+            filtered_entries = [
+                entry for entry in filtered_entries if getter(entry) in allowed
+            ]
+
+        return filtered_entries
+
+    def _apply_vector_filter(
+        self,
+        entries: list[_FeatureEntry],
+        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None,
+    ) -> list[_FeatureEntry]:
+        if vector_search_opts is None:
+            return sorted(entries, key=lambda e: (e.created_at, e.id))
+
+        scored_entries: list[tuple[float, _FeatureEntry]] = []
+        for entry in entries:
+            similarity = self._resolve_similarity(
+                entry.embedding, vector_search_opts.query_embedding
+            )
+            if not self._passes_min_distance(
+                similarity, vector_search_opts.min_distance
+            ):
+                continue
+            scored_entries.append((similarity, entry))
+
+        scored_entries.sort(key=lambda pair: pair[0], reverse=True)
+        return [entry for _, entry in scored_entries]
+
+    @staticmethod
+    def _apply_tag_threshold(
+        entries: list[_FeatureEntry], tag_threshold: int
+    ) -> list[_FeatureEntry]:
+        counts = Counter(entry.tag for entry in entries)
+        return [entry for entry in entries if counts[entry.tag] >= tag_threshold]
+
+    @staticmethod
+    def _resolve_similarity(
+        embedding: np.ndarray, query_embedding: np.ndarray
+    ) -> float:
+        similarity = _cosine_similarity(embedding, query_embedding)
+        return similarity if similarity is not None else float("-inf")
+
+    @staticmethod
+    def _passes_min_distance(similarity: float, min_distance: float | None) -> bool:
+        if min_distance is None:
+            return True
+        return similarity >= min_distance

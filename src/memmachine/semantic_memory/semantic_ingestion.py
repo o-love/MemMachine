@@ -7,8 +7,8 @@ import numpy as np
 from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
-from memmachine.history_store.history_model import HistoryIdT, HistoryMessage
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_model import Episode, EpisodeIdT
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_llm import (
     LLMReducedFeature,
     llm_consolidate_features,
@@ -21,6 +21,7 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticCommand,
     SemanticCommandType,
     SemanticFeature,
+    SetIdT,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -38,7 +39,7 @@ class IngestionService:
         """Dependencies and tuning knobs for the ingestion workflow."""
 
         semantic_storage: InstanceOf[SemanticStorageBase]
-        history_store: InstanceOf[HistoryStorage]
+        history_store: InstanceOf[EpisodeStorage]
         resource_retriever: InstanceOf[ResourceRetriever]
         consolidated_threshold: int = 20
         debug_fail_loudly: bool = False
@@ -50,7 +51,7 @@ class IngestionService:
         self._consolidation_threshold = params.consolidated_threshold
         self._debug_fail_loudly = params.debug_fail_loudly
 
-    async def process_set_ids(self, set_ids: list[str]) -> None:
+    async def process_set_ids(self, set_ids: list[SetIdT]) -> None:
         results = await asyncio.gather(
             *[self._process_single_set(set_id) for set_id in set_ids],
             return_exceptions=True,
@@ -85,13 +86,13 @@ class IngestionService:
         if len(raw_messages) != len([m for m in raw_messages if m is not None]):
             raise ValueError("Failed to retrieve messages. Invalid history_ids")
 
-        messages = TypeAdapter(list[HistoryMessage]).validate_python(raw_messages)
+        messages = TypeAdapter(list[Episode]).validate_python(raw_messages)
 
         async def process_semantic_type(
             semantic_category: InstanceOf[SemanticCategory],
         ):
             for message in messages:
-                if message.metadata.id is None:
+                if message.uuid is None:
                     raise ValueError(
                         "Message ID is None for message %s", message.model_dump()
                     )
@@ -110,7 +111,7 @@ class IngestionService:
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to process message {message.metadata.id} for semantic type {semantic_category.name}",
+                        f"Failed to process message {message.metadata.uuid} for semantic type {semantic_category.name}",
                         e,
                     )
                     if self._debug_fail_loudly:
@@ -122,13 +123,13 @@ class IngestionService:
                     commands=commands,
                     set_id=set_id,
                     category_name=semantic_category.name,
-                    citation_id=message.metadata.id,
+                    citation_id=message.uuid,
                     embedder=resources.embedder,
                 )
 
-                mark_messages.append(message.metadata.id)
+                mark_messages.append(message.uuid)
 
-        mark_messages: list[int] = []
+        mark_messages: list[EpisodeIdT] = []
         semantic_category_runners = []
         for t in resources.semantic_categories:
             task = process_semantic_type(t)
@@ -152,9 +153,9 @@ class IngestionService:
         self,
         *,
         commands: list[SemanticCommand],
-        set_id: str,
+        set_id: SetIdT,
         category_name: str,
-        citation_id: int | None,
+        citation_id: EpisodeIdT | None,
         embedder: InstanceOf[Embedder],
     ):
         for command in commands:
@@ -188,7 +189,7 @@ class IngestionService:
     async def _consolidate_set_memories_if_applicable(
         self,
         *,
-        set_id: str,
+        set_id: SetIdT,
         resources: InstanceOf[Resources],
     ):
         async def _consolidate_type(semantic_category: InstanceOf[SemanticCategory]):
@@ -258,14 +259,14 @@ class IngestionService:
             [m.metadata.id for m in memories_to_delete if m.metadata.id is not None]
         )
 
-        merged_citations: chain[HistoryMessage] = itertools.chain.from_iterable(
+        merged_citations: chain[EpisodeIdT] = itertools.chain.from_iterable(
             [
                 m.metadata.citations
                 for m in memories_to_delete
                 if m.metadata.citations is not None
             ]
         )
-        citation_ids = TypeAdapter(list[HistoryIdT]).validate_python(
+        citation_ids = TypeAdapter(list[EpisodeIdT]).validate_python(
             [c_id for c_id in merged_citations]
         )
 

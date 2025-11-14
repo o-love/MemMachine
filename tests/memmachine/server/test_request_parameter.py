@@ -75,8 +75,8 @@ def test_merge_session_data_with_default():
         session_id="session_b",
         agent_id=["my_agent", "another_agent"],
     )
-    dft_session = SessionData()
-    session.merge(dft_session)
+    default_session = SessionData()
+    session.merge(default_session)
     assert session.user_id == ["carol", "dave"]
     assert session.group_id == "group_a"
     assert session.session_id == "session_b"
@@ -89,8 +89,8 @@ def test_no_default_agent_if_user_exists():
         group_id="group_a",
         session_id="session_b",
     )
-    dft_session = SessionData()
-    session.merge(dft_session)
+    default_session = SessionData()
+    session.merge(default_session)
     assert session.user_id == ["carol", "dave"]
     assert session.group_id == "group_a"
     assert session.session_id == "session_b"
@@ -103,8 +103,8 @@ def test_no_default_user_if_agent_exists():
         session_id="session_b",
         agent_id=["my_agent", "another_agent"],
     )
-    dft_session = SessionData()
-    session.merge(dft_session)
+    default_session = SessionData()
+    session.merge(default_session)
     assert session.user_id == []
     assert session.group_id == "group_a"
     assert session.session_id == "session_b"

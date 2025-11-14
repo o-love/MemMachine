@@ -1,20 +1,19 @@
 import asyncio
 import json
-from importlib import import_module
 
 import pytest
 import pytest_asyncio
 
-from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.common.language_model.openai_responses_language_model import (
+    OpenAIResponsesLanguageModel,
+)
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import (
     SemanticService,
 )
 from memmachine.semantic_memory.semantic_model import (
-    RawSemanticPrompt,
     ResourceRetriever,
     Resources,
-    SemanticCategory,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -40,45 +39,6 @@ def llm_model(real_llm_model):
 def storage(pgvector_semantic_storage):
     yield pgvector_semantic_storage
     pgvector_semantic_storage.delete_all()
-
-
-def load_types_from_modules(module_names):
-    types = []
-    for module_name in module_names:
-        prompt_module = import_module(
-            f"memmachine.server.prompt.{module_name}",
-            __package__,
-        )
-        prompt = RawSemanticPrompt.load_from_module(prompt_module)
-        semantic_type = SemanticCategory(
-            name=module_name,
-            tags={"unknown"},
-            prompt=prompt,
-        )
-        types.append(semantic_type)
-    return types
-
-
-@pytest.fixture
-def session_types(openai_integration_config):
-    module_names = [
-        # "crm_prompt",
-        # "financial_analyst_prompt",
-        "profile_prompt",  # TODO: temporary until a proper session prompt is created
-    ]
-
-    return load_types_from_modules(module_names)
-
-
-@pytest.fixture
-def profile_types(openai_integration_config):
-    module_names = [
-        # "health_assistant_prompt",
-        # "writing_assistant_prompt",
-        "profile_prompt",
-    ]
-
-    return load_types_from_modules(module_names)
 
 
 @pytest.fixture
@@ -136,13 +96,13 @@ def basic_session_data(session_id_manager: SessionIdManager):
 @pytest_asyncio.fixture
 async def semantic_service(
     storage,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     resource_retriever: ResourceRetriever,
 ):
     mem = SemanticService(
         SemanticService.Params(
             semantic_storage=storage,
-            history_storage=history_storage,
+            history_storage=episode_storage,
             resource_retriever=resource_retriever,
             feature_update_interval_sec=0.05,
             feature_update_message_limit=10,
@@ -169,12 +129,17 @@ class TestLongMemEvalIngestion:
     async def ingest_question_convos(
         session_data: SessionData,
         semantic_memory: SemanticSessionManager,
-        history_storage: HistoryStorage,
+        history_storage: EpisodeStorage,
         conversation_sessions: list[list[dict[str, str]]],
     ):
         for convo in conversation_sessions:
             for turn in convo:
-                h_id = await history_storage.add_history(content=turn["content"])
+                h_id = await history_storage.add_history(
+                    content=turn["content"],
+                    session_key="session_id",
+                    producer_id="profile_id",
+                    producer_role="dev",
+                )
                 await semantic_memory.add_message(
                     session_data=session_data,
                     history_ids=[h_id],
@@ -185,7 +150,7 @@ class TestLongMemEvalIngestion:
         session_data: SessionData,
         semantic_memory: SemanticSessionManager,
         question_str: str,
-        llm_model: OpenAILanguageModel,
+        llm_model: OpenAIResponsesLanguageModel,
     ):
         semantic_search_resp = await semantic_memory.search(
             message=question_str,
@@ -230,7 +195,7 @@ class TestLongMemEvalIngestion:
     async def test_long_mem_eval_smoke(
         self,
         semantic_memory,
-        history_storage: HistoryStorage,
+        episode_storage: EpisodeStorage,
         basic_session_data,
         long_mem_convos,
     ):
@@ -241,7 +206,7 @@ class TestLongMemEvalIngestion:
         await self.ingest_question_convos(
             basic_session_data,
             semantic_memory=semantic_memory,
-            history_storage=history_storage,
+            history_storage=episode_storage,
             conversation_sessions=[smoke_convos],
         )
         count = 1
@@ -271,14 +236,14 @@ class TestLongMemEvalIngestion:
         long_mem_question,
         long_mem_answer,
         semantic_memory,
-        history_storage: HistoryStorage,
+        episode_storage: EpisodeStorage,
         llm_model,
         basic_session_data,
     ):
         await self.ingest_question_convos(
             basic_session_data,
             semantic_memory=semantic_memory,
-            history_storage=history_storage,
+            history_storage=episode_storage,
             conversation_sessions=long_mem_convos,
         )
         count = 1

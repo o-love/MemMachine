@@ -4,6 +4,11 @@ Common data types for MemMachine.
 
 from enum import Enum
 
+from pydantic import JsonValue
+
+FilterablePropertyValue = bool | int | str
+JSONValue = JsonValue
+
 
 class SimilarityMetric(Enum):
     COSINE = "cosine"

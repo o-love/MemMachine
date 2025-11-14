@@ -7,7 +7,7 @@ import pytest_asyncio
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
@@ -118,12 +118,12 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 @pytest_asyncio.fixture
 async def semantic_service(
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     resource_retriever: MockResourceRetriever,
 ):
     params = SemanticService.Params(
         semantic_storage=semantic_storage,
-        history_storage=history_storage,
+        history_storage=episode_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=10,
@@ -183,11 +183,16 @@ async def test_add_message_records_history_and_uningested_counts(
     session_manager: SemanticSessionManager,
     semantic_service: SemanticService,
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     session_data,
 ):
     # Given a session with both session and profile identifiers
-    history_id = await history_storage.add_history(content="Alpha memory")
+    history_id = await episode_storage.add_history(
+        content="Alpha memory",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
     await session_manager.add_message(
         session_data=session_data, history_ids=[history_id]
     )

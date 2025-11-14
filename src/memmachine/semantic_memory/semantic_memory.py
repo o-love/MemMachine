@@ -11,10 +11,11 @@ import logging
 from typing import Any
 
 import numpy as np
-from pydantic import BaseModel, InstanceOf
+from pydantic import BaseModel, InstanceOf, validate_call
 
-from ..history_store.history_model import HistoryIdT
-from ..history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_model import EpisodeIdT
+from memmachine.episode_store.episode_storage import EpisodeStorage
+
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
 from .semantic_tracker import SemanticUpdateTrackerManager
@@ -36,7 +37,7 @@ class SemanticService:
         """Infrastructure dependencies and background-update configuration."""
 
         semantic_storage: InstanceOf[SemanticStorageBase]
-        history_storage: InstanceOf[HistoryStorage]
+        history_storage: InstanceOf[EpisodeStorage]
         consolidation_threshold: int = 20
 
         feature_update_interval_sec: float = 2.0
@@ -95,6 +96,7 @@ class SemanticService:
         self._is_shutting_down = True
         await self._ingestion_task
 
+    @validate_call
     async def search(
         self,
         set_ids: list[SetIdT],
@@ -123,7 +125,8 @@ class SemanticService:
             load_citations=load_citations,
         )
 
-    async def add_messages(self, set_id: SetIdT, history_ids: list[HistoryIdT]):
+    @validate_call
+    async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]):
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -138,7 +141,8 @@ class SemanticService:
 
         await self._dirty_sets.mark_update([set_id])
 
-    async def add_message_to_sets(self, history_id: HistoryIdT, set_ids: list[SetIdT]):
+    @validate_call
+    async def add_message_to_sets(self, history_id: EpisodeIdT, set_ids: list[SetIdT]):
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -153,11 +157,13 @@ class SemanticService:
 
         await self._dirty_sets.mark_update(set_ids)
 
-    async def number_of_uningested(self, set_ids: list[str]) -> int:
+    @validate_call
+    async def number_of_uningested(self, set_ids: list[SetIdT]) -> int:
         return await self._semantic_storage.get_history_messages_count(
             set_ids=set_ids, is_ingested=False
         )
 
+    @validate_call
     async def add_new_feature(
         self,
         *,
@@ -167,7 +173,7 @@ class SemanticService:
         value: str,
         tag: str,
         metadata: dict[str, str] | None = None,
-        citations: list[HistoryIdT] | None = None,
+        citations: list[EpisodeIdT] | None = None,
     ) -> FeatureIdT:
         resources = self._resource_retriever.get_resources(set_id)
         embedding = (await resources.embedder.ingest_embed([value]))[0]
@@ -187,6 +193,7 @@ class SemanticService:
 
         return f_id
 
+    @validate_call
     async def get_feature(
         self, feature_id: FeatureIdT, load_citations: bool
     ) -> SemanticFeature | None:
@@ -204,6 +211,7 @@ class SemanticService:
         limit: int = 100
         with_citations: bool = False
 
+    @validate_call
     async def get_set_features(
         self,
         opts: FeatureSearchOpts,
@@ -217,11 +225,12 @@ class SemanticService:
             load_citations=opts.with_citations,
         )
 
+    @validate_call
     async def update_feature(
         self,
-        feature_id: int,
+        feature_id: FeatureIdT,
         *,
-        set_id: str | None = None,
+        set_id: SetIdT | None = None,
         category_name: str | None = None,
         feature: str | None = None,
         value: str | None = None,
@@ -255,9 +264,11 @@ class SemanticService:
             embedding=np.array(embedding),
         )
 
-    async def delete_features(self, feature_ids: list[int]):
+    @validate_call
+    async def delete_features(self, feature_ids: list[FeatureIdT]):
         await self._semantic_storage.delete_features(feature_ids)
 
+    @validate_call
     async def delete_feature_set(self, opts: FeatureSearchOpts):
         await self._semantic_storage.delete_feature_set(
             set_ids=opts.set_ids,

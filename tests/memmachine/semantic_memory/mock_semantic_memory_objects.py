@@ -6,8 +6,8 @@ import numpy as np
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.episode_store.episode_model import Episode
 from memmachine.semantic_memory.semantic_model import (
-    HistoryMessage,
     Resources,
     SemanticFeature,
 )
@@ -151,7 +151,7 @@ class MockSemanticStorage(SemanticStorageBase):
         start_time: datetime | None = None,
         end_time: datetime | None = None,
         is_ingested: bool | None = None,
-    ) -> list[HistoryMessage]:
+    ) -> list[Episode]:
         return await self.get_history_messages_mock(
             set_ids=set_ids,
             k=limit,

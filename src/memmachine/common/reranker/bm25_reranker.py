@@ -3,47 +3,35 @@ BM25-based reranker implementation.
 """
 
 import asyncio
-import re
 from collections.abc import Callable
 
+from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
 
-from ..configuration.reranker_conf import BM25RerankerConf
 from .reranker import Reranker
 
 
-def get_tokenizer(name: str, language: str) -> Callable[[str], list[str]]:
-    if name == "default":
-        from nltk import word_tokenize
-        from nltk.corpus import stopwords
+class BM25RerankerParams(BaseModel):
+    """
+    Parameters for BM25Reranker.
 
-        stop_words = stopwords.words(language)
+    Attributes:
+        k1 (float):
+            BM25 k1 parameter (default: 1.5).
+        b (float):
+            BM25 b parameter (default: 0.75).
+        epsilon (float):
+            BM25 epsilon parameter (default: 0.25).
+        tokenize (Callable[[str], list[str]]):
+            Tokenizer function to split text into tokens.
+    """
 
-        def _default_tokenize(text: str) -> list[str]:
-            """
-            Preprocess the input text
-            by removing non-alphanumeric characters,
-            converting to lowercase,
-            word-tokenizing,
-            and removing stop words.
-
-            Args:
-                text (str): The input text to preprocess.
-
-            Returns:
-                list[str]: A list of tokens for use in BM25 scoring.
-            """
-            alphanumeric_text = re.sub(r"\W+", " ", text)
-            lower_text = alphanumeric_text.lower()
-            words = word_tokenize(lower_text, language)
-            tokens = [word for word in words if word and word not in stop_words]
-            return tokens
-
-        return _default_tokenize
-    elif name == "simple":
-        return lambda text: re.sub(r"\W+", " ", text).lower().split()
-    else:
-        raise ValueError(f"Unknown tokenizer: {name}")
+    k1: float = Field(1.5, description="BM25 k1 parameter")
+    b: float = Field(0.75, description="BM25 b parameter")
+    epsilon: float = Field(0.25, description="BM25 epsilon parameter")
+    tokenize: Callable[[str], list[str]] = Field(
+        ..., description="Tokenizer function to split text into tokens"
+    )
 
 
 class BM25Reranker(Reranker):
@@ -52,7 +40,7 @@ class BM25Reranker(Reranker):
     based on their relevance to the query.
     """
 
-    def __init__(self, params: BM25RerankerConf):
+    def __init__(self, params: BM25RerankerParams):
         """
         Initialize a BM25Reranker with the provided parameters.
 
@@ -65,7 +53,7 @@ class BM25Reranker(Reranker):
         self._k1 = params.k1
         self._b = params.b
         self._epsilon = params.epsilon
-        self._tokenize = get_tokenizer(params.tokenize, params.language)
+        self._tokenize = params.tokenize
 
     async def score(self, query: str, candidates: list[str]) -> list[float]:
         tokenized_query_future = asyncio.to_thread(self._tokenize, query)

@@ -10,17 +10,61 @@ are summarized asynchronously to maintain context over a longer conversation.
 
 import asyncio
 import logging
+import string
 import uuid
 from collections import deque
 
-from memmachine.common.configuration.episodic_config import ShortTermMemoryParams
+from pydantic import BaseModel, Field, InstanceOf, field_validator
+
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
-from memmachine.session_manager_interface import SessionDataManager
-
-from ..data_types import Episode
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
+from memmachine.episode_store.episode_model import Episode
 
 logger = logging.getLogger(__name__)
+
+
+class ShortTermMemoryParams(BaseModel):
+    """
+    Parameters for configuring the short-term memory.
+    Attributes:
+        session_key (str): The unique identifier for the session.
+        llm_model (LanguageModel): The language model to use for summarization.
+        data_manager (SessionDataManager): The session data manager.
+        summary_prompt_system (str): The system prompt for the summarization.
+        summary_prompt_user (str): The user prompt for the summarization.
+        message_capacity (int): The maximum number of messages to summarize.
+    """
+
+    session_key: str = Field(..., description="Session identifier", min_length=1)
+    llm_model: InstanceOf[LanguageModel] = Field(
+        ..., description="The language model to use for summarization"
+    )
+    data_manager: InstanceOf[SessionDataManager] | None = Field(
+        default=None, description="The session data manager"
+    )
+    summary_prompt_system: str = Field(
+        ..., min_length=1, description="The system prompt for the summarization"
+    )
+    summary_prompt_user: str = Field(
+        ..., min_length=1, description="The user prompt for the summarization"
+    )
+    message_capacity: int = Field(
+        default=64000, gt=0, description="The maximum length of short-term memory"
+    )
+
+    @field_validator("summary_prompt_user")
+    def validate_summary_user_prompt(cls, v):
+        fields = [fname for _, fname, _, _ in string.Formatter().parse(v) if fname]
+        if len(fields) != 3:
+            raise ValueError(f"Expect 3 fields in {v}")
+        if "episodes" not in fields:
+            raise ValueError(f"Expect 'episodes' in {v}")
+        if "summary" not in fields:
+            raise ValueError(f"Expect 'summary' in {v}")
+        if "max_length" not in fields:
+            raise ValueError(f"Expect 'max_length' in {v}")
+        return v
 
 
 class ShortTermMemory:
@@ -64,26 +108,26 @@ class ShortTermMemory:
                 self._current_message_len += len(e.content)
 
     @classmethod
-    async def create(cls, param: ShortTermMemoryParams) -> "ShortTermMemory":
+    async def create(cls, params: ShortTermMemoryParams) -> "ShortTermMemory":
         """
         Creates a new ShortTermMemory instance.
         """
-        if param.data_manager is not None:
+        if params.data_manager is not None:
             try:
-                await param.data_manager.create_tables()
+                await params.data_manager.create_tables()
             except ValueError:
                 pass
             try:
                 (
                     summary,
-                    episodes,
                     _,
                     _,
-                ) = await param.data_manager.get_short_term_memory(param.session_key)
-                return ShortTermMemory(param, summary, episodes)
+                ) = await params.data_manager.get_short_term_memory(params.session_key)
+                # ToDo: Retreive the episodes from raw data storage
+                return ShortTermMemory(params, summary)
             except ValueError:
                 pass
-        return ShortTermMemory(param)
+        return ShortTermMemory(params)
 
     def _is_full(self) -> bool:
         """
@@ -208,15 +252,15 @@ class ShortTermMemory:
             episode_content = ""
             for entry in episodes:
                 meta = ""
-                if entry.user_metadata is None:
+                if entry.metadata is None:
                     pass
-                elif isinstance(entry.user_metadata, str):
-                    meta = entry.user_metadata
-                elif isinstance(entry.user_metadata, dict):
-                    for k, v in entry.user_metadata.items():
+                elif isinstance(entry.metadata, str):
+                    meta = entry.metadata
+                elif isinstance(entry.metadata, dict):
+                    for k, v in entry.metadata.items():
                         meta += f"[{k}: {v}] "
                 else:
-                    meta = repr(entry.user_metadata)
+                    meta = repr(entry.metadata)
                 episode_content += f"[{str(entry.uuid)} : {meta} : {entry.content}]"
             msg = self._summary_user_prompt.format(
                 episodes=episode_content,
@@ -231,7 +275,6 @@ class ShortTermMemory:
                 await self._data_manager.save_short_term_memory(
                     self._session_key,
                     self._summary,
-                    episodes,
                     episodes[-1].sequence_num,
                     len(episodes),
                 )
@@ -244,7 +287,7 @@ class ShortTermMemory:
         except RuntimeError:
             logger.info("Runtime error when creating summary")
 
-    async def get_session_memory_context(
+    async def get_short_term_memory_context(
         self,
         query,
         limit: int = 0,
@@ -288,7 +331,7 @@ class ShortTermMemory:
 
                     matched = True
                     for key, value in filter.items():
-                        if e.user_metadata.get(key) != value:
+                        if e.metadata.get(key) != value:
                             matched = False
                             break
                     if not matched:
@@ -312,12 +355,12 @@ class ShortTermMemory:
             result += len(episode.content)
         else:
             result += len(repr(episode.content))
-        if episode.user_metadata is None:
+        if episode.metadata is None:
             return result
-        if isinstance(episode.user_metadata, str):
-            result += len(episode.user_metadata)
-        elif isinstance(episode.user_metadata, dict):
-            for _, v in episode.user_metadata.items():
+        if isinstance(episode.metadata, str):
+            result += len(episode.metadata)
+        elif isinstance(episode.metadata, dict):
+            for _, v in episode.metadata.items():
                 if isinstance(v, str):
                     result += len(v)
                 else:

@@ -61,6 +61,7 @@ Issues = "https://github.com/MemMachine/MemMachine/issues"
 
 [dependency-groups]
 dev = [
+    "complexipy>=4.2.0",
     "mypy>=1.18.2",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
@@ -75,7 +76,7 @@ exclude = ["venv/", ".venv/"]
 plugins = ['pydantic.mypy']
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP"]
+select = ["E", "F", "I", "W", "UP", "TID"]
 ignore = ["E501", "UP015"]
 
 [tool.pytest.ini_options]
@@ -86,3 +87,13 @@ markers = [
     "integration: mark the test as an integration test",
     "slow: mark the test as slow"
 ]
+
+[tool.complexipy]
+paths = ["src", "tests"]
+max-complexity-allowed = 10
+quiet = false
+ignore-complexity = false
+details = "low"
+color = "auto"
+sort = "desc"
+exclude = []

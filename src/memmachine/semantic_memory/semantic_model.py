@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from enum import Enum
-from types import ModuleType
 from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, InstanceOf
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
+from memmachine.semantic_memory.util import semantic_prompt_template
 
 SetIdT = str
 FeatureIdT = str
@@ -36,15 +36,23 @@ class RawSemanticPrompt:
     update_prompt: str
     consolidation_prompt: str
 
-    @staticmethod
-    def load_from_module(prompt_module: ModuleType):
-        update_prompt = getattr(prompt_module, "UPDATE_PROMPT", "")
-        consolidation_prompt = getattr(prompt_module, "CONSOLIDATION_PROMPT", "")
 
-        return RawSemanticPrompt(
-            update_prompt=update_prompt,
-            consolidation_prompt=consolidation_prompt,
+class StructuredSemanticPrompt(BaseModel):
+    """Pair of prompt templates driving update and consolidation LLM calls."""
+
+    tags: dict[str, str]
+    description: str | None = None
+
+    @property
+    def update_prompt(self) -> str:
+        return semantic_prompt_template.build_update_prompt(
+            tags=self.tags,
+            description=self.description,
         )
+
+    @property
+    def consolidation_prompt(self) -> str:
+        return semantic_prompt_template.build_consolidation_prompt()
 
 
 class SemanticFeature(BaseModel):
@@ -53,7 +61,7 @@ class SemanticFeature(BaseModel):
     class Metadata(BaseModel):
         """Storage metadata for a semantic feature, including id and citations."""
 
-        citations: list[HistoryIdT] | None = None
+        citations: list[EpisodeIdT] | None = None
         id: FeatureIdT | None = None
         other: dict[str, Any] | None = None
 
@@ -114,7 +122,6 @@ class SemanticCategory(BaseModel):
     id: int | None = None
 
     name: str
-    tags: set[str]
     prompt: InstanceOf[SemanticPrompt]
 
 

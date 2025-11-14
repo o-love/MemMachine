@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -26,7 +26,7 @@ class SemanticSessionManager:
 
     async def add_message(
         self,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
         session_data: SessionData,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
     ):
@@ -60,7 +60,7 @@ class SemanticSessionManager:
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
 
-        optionals_dft_args: dict[str, Any] = {
+        optionals_default_args: dict[str, Any] = {
             "set_ids": set_ids,
             "query": message,
             "category_names": category_names,
@@ -70,13 +70,13 @@ class SemanticSessionManager:
         }
 
         if min_distance is not None:
-            optionals_dft_args["min_distance"] = min_distance
+            optionals_default_args["min_distance"] = min_distance
 
         if limit is not None:
-            optionals_dft_args["limit"] = limit
+            optionals_default_args["limit"] = limit
 
         return await self._semantic_service.search(
-            **optionals_dft_args,
+            **optionals_default_args,
         )
 
     async def number_of_uningested_messages(
@@ -101,7 +101,7 @@ class SemanticSessionManager:
         value: str,
         tag: str,
         metadata: dict[str, str] | None = None,
-        citations: list[int] | None = None,
+        citations: list[EpisodeIdT] | None = None,
     ) -> FeatureIdT:
         set_ids = self._get_set_ids(session_data, [memory_type])
         if len(set_ids) != 1:
@@ -127,7 +127,7 @@ class SemanticSessionManager:
 
     async def update_feature(
         self,
-        feature_id: int,
+        feature_id: FeatureIdT,
         *,
         category_name: str | None = None,
         feature: str | None = None,
@@ -144,7 +144,7 @@ class SemanticSessionManager:
             metadata=metadata,
         )
 
-    async def delete_features(self, feature_ids: list[int]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]):
         await self._semantic_service.delete_features(feature_ids)
 
     async def get_set_features(

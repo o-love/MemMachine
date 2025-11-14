@@ -1,17 +1,20 @@
 import os.path
-from importlib import import_module
 from pathlib import Path
-from types import ModuleType
-from typing import Any, Self
+from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, model_validator, root_validator
+from pydantic import BaseModel, Field, field_validator
 
-from ...common.configuration.embedder_conf import EmbedderConf
-from ...common.configuration.log_conf import LogConf
-from ...common.configuration.model_conf import LanguageModelConf
-from ...common.configuration.reranker_conf import RerankerConf
-from ...common.configuration.storage_conf import StorageConf
+from memmachine.common.configuration.embedder_conf import EmbedderConf
+from memmachine.common.configuration.log_conf import LogConf
+from memmachine.common.configuration.model_conf import LanguageModelConf
+from memmachine.common.configuration.reranker_conf import RerankerConf
+from memmachine.common.configuration.storage_conf import StorageConf
+from memmachine.semantic_memory.semantic_model import SemanticCategory
+from memmachine.semantic_memory.semantic_session_resource import IsolationType
+from memmachine.server.prompt.default_prompts import PREDEFINED_SEMANTIC_CATEGORIES
+
+from .episodic_config import EpisodicMemoryConfPartial
 
 
 class SessionDBConf(BaseModel):
@@ -25,137 +28,19 @@ class SessionDBConf(BaseModel):
     )
 
 
-class LongTermMemoryConfPartial(BaseModel):
-    """The partial configuration for LongTermMemoryConf.
-
-    All fields are optional. Used for updates."""
-
-    embedder: str | None = Field(
-        default=None,
-        description="The embedder to use for long-term memory",
-    )
-    reranker: str | None = Field(
-        default=None,
-        description="The reranker to use for long-term memory",
-    )
-    vector_graph_store: str | None = Field(
-        default=None,
-        description="The vector graph store to use for long-term memory",
-    )
-    enabled: bool | None = Field(
-        default=None,
-        description="Whether long-term memory is enabled",
-    )
-
-
-class LongTermMemoryConf(BaseModel):
-    embedder: str = Field(
+class SemanticMemoryConf(BaseModel):
+    database: str = Field(
         ...,
-        description="The embedder to use for long-term memory",
+        description="The database to use for semantic memory",
     )
-    reranker: str = Field(
-        ...,
-        description="The reranker to use for long-term memory",
-    )
-    vector_graph_store: str = Field(
-        ...,
-        description="The vector graph store to use for long-term memory",
-    )
-    enabled: bool = Field(
-        default=True,
-        description="Whether long-term memory is enabled",
-    )
-
-    def update(self, other: LongTermMemoryConfPartial) -> Self:
-        """Return a new configuration with fields updated from a partial config."""
-        update_data = {
-            k: v
-            for k, v in other.model_dump(exclude_unset=True).items()
-            if v is not None
-        }
-        # Use Pydantic's built-in helper for safe, validated merging
-        return self.model_copy(update=update_data)
-
-
-class ProfileMemoryConf(BaseModel):
     llm_model: str = Field(
         ...,
-        description="The language model to use for profile memory",
+        description="The default language model to use for semantic memory",
     )
     embedding_model: str = Field(
         ...,
-        description="The embedding model to use for profile memory",
+        description="The embedding model to use for semantic memory",
     )
-    database: str = Field(
-        ...,
-        description="The database to use for profile memory",
-    )
-    prompt: str = Field(
-        ...,
-        description="The prompt template to use for profile memory",
-    )
-
-
-class SessionMemoryConfPartial(BaseModel):
-    model_name: str | None = Field(
-        default=None,
-        description="The language model to use for session memory",
-    )
-    message_capacity: int | None = Field(
-        default=None,
-        description="The maximum number of messages to retain in session memory",
-        gt=0,
-    )
-    max_message_length: int | None = Field(
-        default=None,
-        description="The maximum length of each message in characters",
-        gt=0,
-    )
-    max_token_num: int | None = Field(
-        default=None,
-        description="The maximum number of tokens to retain in session memory",
-        gt=0,
-    )
-    enabled: bool | None = Field(
-        default=None,
-        description="Whether session memory is enabled",
-    )
-
-
-class SessionMemoryConf(BaseModel):
-    model_name: str = Field(
-        ...,
-        description="The language model to use for session memory",
-    )
-    message_capacity: int = Field(
-        default=500,
-        description="The maximum number of messages to retain in session memory",
-        gt=0,
-    )
-    max_message_length: int = Field(
-        default=16000,
-        description="The maximum length of each message in characters",
-        gt=0,
-    )
-    max_token_num: int = Field(
-        default=8000,
-        description="The maximum number of tokens to retain in session memory",
-        gt=0,
-    )
-    enabled: bool = Field(
-        default=True,
-        description="Whether session memory is enabled",
-    )
-
-    def update(self, other: SessionMemoryConfPartial) -> Self:
-        """Return a new configuration with fields updated from a partial config."""
-        update_data = {
-            k: v
-            for k, v in other.model_dump(exclude_unset=True).items()
-            if v is not None
-        }
-        # Use Pydantic's built-in helper for safe, validated merging
-        return self.model_copy(update=update_data)
 
 
 def _read_txt(filename: str) -> str:
@@ -180,31 +65,18 @@ def _read_txt(filename: str) -> str:
         return f.read()
 
 
-class ProfilePrompt(BaseModel):
-    update_prompt: str = Field(
-        ...,
-        description="The prompt template to use for profile update",
-    )
-    consolidation_prompt: str = Field(
-        ...,
-        description="The prompt template to use for profile consolidation",
-    )
-
-    @staticmethod
-    def load_from_module(prompt_module: ModuleType):
-        update_prompt = getattr(prompt_module, "UPDATE_PROMPT", "")
-        consolidation_prompt = getattr(prompt_module, "CONSOLIDATION_PROMPT", "")
-
-        return ProfilePrompt(
-            update_prompt=update_prompt,
-            consolidation_prompt=consolidation_prompt,
-        )
-
-
 class PromptConf(BaseModel):
-    profile: str = Field(
-        default="profile_prompt",
-        description="The prompt template to use for profile memory",
+    profile: list[str] = Field(
+        default=["profile_prompt", "writing_assistant_prompt"],
+        description="The default prompts to use for semantic user memory",
+    )
+    role: list[str] = Field(
+        default=[],
+        description="The default prompts to use for semantic role memory",
+    )
+    session: list[str] = Field(
+        default=[],
+        description="The default prompts to use for semantic session memory",
     )
     episode_summary_system_prompt_path: str = Field(
         default="",
@@ -214,6 +86,18 @@ class PromptConf(BaseModel):
         default="",
         description="The prompt template to use for episode summary generation - user part",
     )
+
+    @classmethod
+    def prompt_exists(cls, prompt_name: str) -> bool:
+        return prompt_name in PREDEFINED_SEMANTIC_CATEGORIES
+
+    @field_validator("profile", "session", "role", check_fields=True)
+    @classmethod
+    def validate_profile(cls, v: list[str]) -> list[str]:
+        for prompt_name in v:
+            if not cls.prompt_exists(prompt_name):
+                raise ValueError(f"Prompt {prompt_name} does not exist")
+        return v
 
     @property
     def episode_summary_system_prompt(self) -> str:
@@ -232,71 +116,31 @@ class PromptConf(BaseModel):
         return _read_txt(file_path)
 
     @property
-    def profile_prompt(self) -> "ProfilePrompt":
-        prompt_package = "memmachine.server.prompt"
-        module_name = f"{prompt_package}.{self.profile}"
+    def default_semantic_categories(
+        self,
+    ) -> dict[IsolationType, list[SemanticCategory]]:
+        semantic_categories = PREDEFINED_SEMANTIC_CATEGORIES
 
-        try:
-            prompt_module: ModuleType = import_module(module_name)
-        except ModuleNotFoundError as e:
-            raise ImportError(
-                f"Prompt profile '{self.profile}' not found in package '{prompt_package}'."
-            ) from e
-
-        try:
-            prompt = ProfilePrompt.load_from_module(prompt_module)
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to load prompt from module '{module_name}': {e}"
-            ) from e
-        return prompt
+        return {
+            IsolationType.SESSION: [
+                semantic_categories[s_name] for s_name in self.session
+            ],
+            IsolationType.ROLE: [semantic_categories[s_name] for s_name in self.role],
+            IsolationType.USER: [
+                semantic_categories[s_name] for s_name in self.profile
+            ],
+        }
 
 
-class EpisodicMemoryConfPartial(BaseModel):
-    sessionMemory: SessionMemoryConfPartial | None = Field(
-        default=None,
-        description="Partial configuration for session memory in episodic memory",
-    )
-    long_term_memory: LongTermMemoryConfPartial | None = Field(
-        default=None,
-        description="Partial configuration for long-term memory in episodic memory",
-    )
-
-
-class EpisodicMemoryConf(BaseModel):
-    sessionmemory: SessionMemoryConf = Field(
-        ...,
-        description="Configuration for session memory in episodic memory",
-    )
-    long_term_memory: LongTermMemoryConf = Field(
-        ...,
-        description="Configuration for long-term memory in episodic memory",
-    )
-
-    def update(self, other: EpisodicMemoryConfPartial) -> Self:
-        """Return a new configuration with fields updated from a partial config."""
-        update_data: dict[str, Any] = {}
-        if other.sessionMemory is not None:
-            update_data["sessionMemory"] = self.sessionMemory.update(
-                other.sessionMemory
-            )
-        if other.long_term_memory is not None:
-            update_data["long_term_memory"] = self.long_term_memory.update(
-                other.long_term_memory
-            )
-        # Use Pydantic's built-in helper for safe, validated merging
-        return self.model_copy(update=update_data)
-
-
-class Configuration(EpisodicMemoryConf):
+class Configuration(EpisodicMemoryConfPartial):
     logging: LogConf
     sessiondb: SessionDBConf
     model: LanguageModelConf
     storage: StorageConf
-    profile_memory: ProfileMemoryConf
     embedder: EmbedderConf
     reranker: RerankerConf
-    prompt: PromptConf
+    prompt: PromptConf = PromptConf()
+    semantic_memory: SemanticMemoryConf
 
     def __init__(self, **data):
         data = data.copy()  # avoid mutating caller's dict

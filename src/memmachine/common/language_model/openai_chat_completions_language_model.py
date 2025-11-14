@@ -10,66 +10,90 @@ from typing import Any
 from uuid import uuid4
 
 import openai
+from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.data_types import ExternalServiceAPIError
+from memmachine.common.metrics_factory import MetricsFactory
 
-from ..configuration.model_conf import OpenAICompatibleModelConf
 from .language_model import LanguageModel
 
 logger = logging.getLogger(__name__)
 
 
-class OpenAICompatibleLanguageModel(LanguageModel):
+class OpenAIChatCompletionsLanguageModelParams(BaseModel):
+    """
+    Parameters for OpenAIChatCompletionsLanguageModel.
+
+    Attributes:
+        client (openai.AsyncOpenAI):
+            AsyncOpenAI client to use for making API calls.
+        model (str):
+            Name of the OpenAI model to use
+            (e.g. 'gpt-5-nano').
+        max_retry_interval_seconds (int):
+            Maximal retry interval in seconds when retrying API calls
+            (default: 120).
+        metrics_factory (MetricsFactory | None):
+            An instance of MetricsFactory
+            for collecting usage metrics
+            (default: None).
+        user_metrics_labels (dict[str, str]):
+            Labels to attach to the collected metrics
+            (default: {}).
+    """
+
+    client: InstanceOf[openai.AsyncOpenAI] = Field(
+        ...,
+        description="AsyncOpenAI client to use for making API calls",
+    )
+    model: str = Field(
+        ...,
+        description="Name of the OpenAI model to use (e.g. 'gpt-5-nano')",
+    )
+    max_retry_interval_seconds: int = Field(
+        120,
+        description="Maximal retry interval in seconds when retrying API calls",
+        gt=0,
+    )
+    metrics_factory: InstanceOf[MetricsFactory] | None = Field(
+        None,
+        description="An instance of MetricsFactory for collecting usage metrics",
+    )
+    user_metrics_labels: dict[str, str] = Field(
+        default_factory=dict,
+        description="Labels to attach to the collected metrics",
+    )
+
+
+class OpenAIChatCompletionsLanguageModel(LanguageModel):
     """
     Language model that uses OpenAI's completions API
     to generate responses based on prompts and tools.
     """
 
-    def __init__(self, config: OpenAICompatibleModelConf) -> None:
+    def __init__(self, params: OpenAIChatCompletionsLanguageModelParams):
         """
-        Initialize an OpenAICompatibleLanguageModel
-        with the provided configuration.
+        Initialize an OpenAIChatCompletionsLanguageModel
+        with the provided parameters.
 
         Args:
-            config (dict[str, Any]):
-                Configuration dictionary containing:
-                - api_key (str):
-                  API key for accessing the OpenAI service.
-                - model (str):
-                  Name of the OpenAI model to use
-                - metrics_factory (MetricsFactory, optional):
-                  An instance of MetricsFactory
-                  for collecting usage metrics.
-                - user_metrics_labels (dict[str, str], optional):
-                  Labels to attach to the collected metrics.
-                - base_url: The base URL of the model
-                - max_retry_interval_seconds (int, optional):
-                  Maximal retry interval in seconds when retrying API calls.
-                  The default value is 120 seconds.
-
-        Raises:
-            ValueError:
-                If configuration argument values are missing or invalid.
-            TypeError:
-                If configuration argument values are of incorrect type.
+            params (OpenAIChatCompletionsLanguageModelParams):
+                Parameters for the OpenAIChatCompletionsLanguageModel.
         """
         super().__init__()
 
-        self._model = config.model
-        api_key = config.api_key
-        base_url = config.base_url
-        self._client = openai.AsyncOpenAI(
-            api_key=api_key.get_secret_value(), base_url=base_url
-        )
-        self._max_retry_interval_seconds = config.max_retry_interval_seconds
+        self._client = params.client
 
-        metrics_factory = config.get_metrics_factory()
+        self._model = params.model
+
+        self._max_retry_interval_seconds = params.max_retry_interval_seconds
+
+        metrics_factory = params.metrics_factory
+
         self._should_collect_metrics = False
         if metrics_factory is not None:
             self._should_collect_metrics = True
-            self._user_metrics_labels = config.user_metrics_labels
-            if not isinstance(self._user_metrics_labels, dict):
-                raise TypeError("user_metrics_labels must be a dictionary")
+            self._user_metrics_labels = params.user_metrics_labels
             label_names = self._user_metrics_labels.keys()
 
             self._input_tokens_usage_counter = metrics_factory.get_counter(
@@ -160,7 +184,7 @@ class OpenAICompatibleLanguageModel(LanguageModel):
         sleep_seconds = 1
         for attempt in range(1, max_attempts + 1):
             try:
-                args = {
+                args: dict = {
                     "model": self._model,
                     "messages": input_prompts,
                 }
@@ -252,22 +276,21 @@ class OpenAICompatibleLanguageModel(LanguageModel):
 
     def _collect_metrics(self, response, start_time, end_time):
         if self._should_collect_metrics:
-            if self._collect_metrics:
-                if response.usage is not None:
-                    self._input_tokens_usage_counter.increment(
-                        value=response.usage.prompt_tokens,
-                        labels=self._user_metrics_labels,
-                    )
-                    self._output_tokens_usage_counter.increment(
-                        value=response.usage.completion_tokens,
-                        labels=self._user_metrics_labels,
-                    )
-                    self._total_tokens_usage_counter.increment(
-                        value=response.usage.total_tokens,
-                        labels=self._user_metrics_labels,
-                    )
-
-                self._latency_summary.observe(
-                    value=end_time - start_time,
+            if response.usage is not None:
+                self._input_tokens_usage_counter.increment(
+                    value=response.usage.prompt_tokens,
                     labels=self._user_metrics_labels,
                 )
+                self._output_tokens_usage_counter.increment(
+                    value=response.usage.completion_tokens,
+                    labels=self._user_metrics_labels,
+                )
+                self._total_tokens_usage_counter.increment(
+                    value=response.usage.total_tokens,
+                    labels=self._user_metrics_labels,
+                )
+
+            self._latency_summary.observe(
+                value=end_time - start_time,
+                labels=self._user_metrics_labels,
+            )

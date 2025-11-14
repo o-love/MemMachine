@@ -108,10 +108,6 @@ class LogConf(BaseModel):
         )
 
 
-class ProfilePromptConf(BaseModel):
-    profile: str = "profile_prompt"
-
-
 class RerankerType(Enum):
     IDENTITY = "identity"
     BM25 = "bm25"

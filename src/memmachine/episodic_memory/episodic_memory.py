@@ -12,26 +12,68 @@ Key responsibilities include:
   memory.
 - Retrieving relevant context for a query by searching both memory types.
 - Interacting with a language model for memory-related tasks.
-- Each instance is uniquely identified by a `MemoryContext` and managed by the
-  `EpisodicMemoryManager`.
+- Each instance is managed by the `EpisodicMemoryManager`.
 """
 
 import asyncio
 import logging
 import time
-import uuid
+from collections.abc import Iterable, Mapping
 from typing import cast
+from uuid import UUID
 
-from ..common.configuration.episodic_config import EpisodicMemoryParams
-from .data_types import Episode
-from .long_term_memory.long_term_memory import LongTermMemory
-from .short_term_memory.short_term_memory import ShortTermMemory
+from pydantic import BaseModel, Field, InstanceOf, model_validator
+
+from memmachine.common.data_types import FilterablePropertyValue
+from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.episode_store.episode_model import Episode
+from memmachine.episodic_memory.long_term_memory.long_term_memory import LongTermMemory
+from memmachine.episodic_memory.short_term_memory.short_term_memory import (
+    ShortTermMemory,
+)
 
 logger = logging.getLogger(__name__)
 
 
+class EpisodicMemoryParams(BaseModel):
+    """
+    Parameters for configuring the EpisodicMemory.
+    Attributes:
+        session_key (str): The unique identifier for the session.
+        metrics_factory (MetricsFactory): The metrics factory.
+        long_term_memory (LongTermMemory): The long-term memory.
+        short_term_memory (ShortTermMemory): The short-term memory.
+        enabled (bool): Whether the episodic memory is enabled.
+    """
+
+    session_key: str = Field(
+        ..., min_length=1, description="The unique identifier for the session"
+    )
+    metrics_factory: InstanceOf[MetricsFactory] = Field(
+        ..., description="The metrics factory"
+    )
+    long_term_memory: InstanceOf[LongTermMemory] | None = Field(
+        default=None, description="The long-term memory"
+    )
+    short_term_memory: InstanceOf[ShortTermMemory] | None = Field(
+        default=None, description="The short-term memory"
+    )
+    enabled: bool = Field(
+        default=True, description="Whether the episodic memory is enabled"
+    )
+
+    @model_validator(mode="after")
+    def validate_memory_params(self):
+        if not self.enabled:
+            return self
+        if self.short_term_memory is None and self.long_term_memory is None:
+            raise ValueError(
+                "At least one of short_term_memory or long_term_memory must be provided."
+            )
+        return self
+
+
 class EpisodicMemory:
-    # pylint: disable=too-many-instance-attributes
     """
     Represents a single, isolated memory instance for a specific session.
 
@@ -45,29 +87,28 @@ class EpisodicMemory:
 
     def __init__(
         self,
-        param: EpisodicMemoryParams,
-        session_memory: ShortTermMemory | None = None,
-        long_term_memory: LongTermMemory | None = None,
+        params: EpisodicMemoryParams,
     ):
-        # pylint: disable=too-many-instance-attributes
         """
-        Initializes a EpisodicMemory instance.
+        Initialize a EpisodicMemory instance.
 
         Args:
-            manager: The EpisodicMemoryManager that created this instance.
-            param: The paraters required to initialize the episodic memory
+            params (EpisodicMemoryParams): Parameters for the EpisodicMemory.
         """
-        self._session_key = param.session_key
         self._closed = False
-        self._short_term_memory: ShortTermMemory | None = session_memory
-        self._long_term_memory: LongTermMemory | None = long_term_memory
-        metrics_manager = param.metrics_factory
-        self._enabled = param.enabled
+
+        self._session_key = params.session_key
+
+        self._short_term_memory: ShortTermMemory | None = params.short_term_memory
+        self._long_term_memory: LongTermMemory | None = params.long_term_memory
+
+        self._enabled = params.enabled
         if not self._enabled:
             return
         if self._short_term_memory is None and self._long_term_memory is None:
             raise ValueError("No memory is configured")
 
+        metrics_manager = params.metrics_factory
         # Initialize metrics
         self._ingestion_latency_summary = metrics_manager.get_summary(
             "Ingestion_latency", "Latency of Episode ingestion in milliseconds"
@@ -81,16 +122,6 @@ class EpisodicMemory:
         self._query_counter = metrics_manager.get_counter(
             "query_count", "Count of query processing"
         )
-
-    @classmethod
-    async def create(cls, param: EpisodicMemoryParams) -> "EpisodicMemory":
-        session_memory: ShortTermMemory | None = None
-        if param.short_term_memory and param.short_term_memory.enabled:
-            session_memory = await ShortTermMemory.create(param.short_term_memory)
-        long_term_memory: LongTermMemory | None = None
-        if param.long_term_memory and param.long_term_memory.enabled:
-            long_term_memory = LongTermMemory(param.long_term_memory)
-        return EpisodicMemory(param, session_memory, long_term_memory)
 
     @property
     def short_term_memory(self) -> ShortTermMemory | None:
@@ -140,8 +171,6 @@ class EpisodicMemory:
         return self._session_key
 
     async def add_memory_episode(self, episode: Episode):
-        # pylint: disable=too-many-arguments
-        # pylint: disable=too-many-positional-arguments
         """
         Adds a new memory episode to both session and declarative memory.
 
@@ -171,7 +200,7 @@ class EpisodicMemory:
         if self._short_term_memory:
             tasks.append(self._short_term_memory.add_episode(episode))
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.add_episode(episode))
+            tasks.append(self._long_term_memory.add_episodes([episode]))
         await asyncio.gather(
             *tasks,
         )
@@ -198,21 +227,22 @@ class EpisodicMemory:
         if self._long_term_memory:
             tasks.append(self._long_term_memory.close())
         await asyncio.gather(*tasks)
-        return
 
-    async def delete_episode(self, uuid: uuid.UUID):
+    async def delete_episodes(self, uuids: Iterable[UUID]):
         """Delete one episode by uuid"""
         if not self._enabled:
             return
+
+        uuids = list(uuids)
+
         tasks = []
         if self._short_term_memory:
-            tasks.append(self._short_term_memory.delete_episode(uuid))
+            tasks.extend(self._short_term_memory.delete_episode(uuid) for uuid in uuids)
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.delete_episode(uuid))
+            tasks.append(self._long_term_memory.delete_episodes(uuids))
         await asyncio.gather(*tasks)
-        return
 
-    async def delete_data(self):
+    async def delete_session_episodes(self):
         """
         Deletes all data from both session and declarative memory for this
         context.
@@ -224,15 +254,14 @@ class EpisodicMemory:
         if self._short_term_memory:
             tasks.append(self._short_term_memory.clear_memory())
         if self._long_term_memory:
-            tasks.append(self._long_term_memory.forget_session())
+            tasks.append(self._long_term_memory.delete_matching_episodes())
         await asyncio.gather(*tasks)
-        return
 
     async def query_memory(
         self,
         query: str,
         limit: int | None = None,
-        property_filter: dict | None = None,
+        property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> tuple[list[Episode], list[Episode], list[str]]:
         """
         Retrieves relevant context for a given query from all memory stores.
@@ -270,15 +299,17 @@ class EpisodicMemory:
                 property_filter,
             )
         elif self._long_term_memory is None:
-            session_result = await self._short_term_memory.get_session_memory_context(
-                query, limit=search_limit, filter=property_filter
+            session_result = (
+                await self._short_term_memory.get_short_term_memory_context(
+                    query, limit=search_limit, filter=property_filter
+                )
             )
             long_episode = []
             short_episode, short_summary = session_result
         else:
             # Concurrently search both memory stores
             session_result, long_episode = await asyncio.gather(
-                self._short_term_memory.get_session_memory_context(
+                self._short_term_memory.get_short_term_memory_context(
                     query, limit=search_limit
                 ),
                 self._long_term_memory.search(query, search_limit, property_filter),
@@ -305,7 +336,7 @@ class EpisodicMemory:
         self,
         query: str,
         limit: int | None = None,
-        property_filter: dict | None = None,
+        property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> str:
         """
         Constructs a finalized query string that includes context from memory.
@@ -324,17 +355,21 @@ class EpisodicMemory:
         short_memory, long_memory, summary = await self.query_memory(
             query, limit, property_filter
         )
-        episodes = sorted(short_memory + long_memory, key=lambda x: x.timestamp)
+        episodes = sorted(short_memory + long_memory, key=lambda x: x.created_at)
 
         finalized_query = ""
         # Add summary if it exists
         if summary and len(summary) > 0:
             total_summary = ""
             for summ in summary:
+                if not summary:
+                    continue
                 total_summary = total_summary + summ + "\n"
-            finalized_query += "<Summary>\n"
-            finalized_query += total_summary
-            finalized_query += "\n</Summary>\n"
+            total_summary = total_summary.strip()
+            if total_summary:
+                finalized_query += "<Summary>\n"
+                finalized_query += total_summary
+                finalized_query += "\n</Summary>\n"
 
         # Add episodes if they exist
         if episodes and len(episodes) > 0:

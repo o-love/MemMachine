@@ -32,15 +32,13 @@ from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
 from memmachine.common.configuration import load_config_yml_file
-from memmachine.common.resource_mgr import ResourceMgr
-from memmachine.episodic_memory.data_types import ContentType
+from memmachine.common.resource_manager import ResourceManager
+from memmachine.episode_store.episode_model import ContentType
+from memmachine.episodic_memory import episodic_memory
 from memmachine.episodic_memory.episodic_memory import (
-    AsyncEpisodicMemory,
     EpisodicMemory,
 )
-from memmachine.episodic_memory.episodic_memory_manager import (
-    EpisodicMemoryManager,
-)
+from memmachine.episodic_memory_manager import EpisodicMemoryManager
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
     SessionIdManager,
@@ -477,13 +475,13 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-resource_mgr: ResourceMgr | None = None
+resource_manager: ResourceManager | None = None
 
 
 # === Lifespan Management ===
 
 
-async def initialize_resource(config_file: str) -> ResourceMgr:
+async def initialize_resource(config_file: str) -> ResourceManager:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -498,20 +496,20 @@ async def initialize_resource(config_file: str) -> ResourceMgr:
     """
 
     config = load_config_yml_file(config_file)
-    ret = ResourceMgr(config)
-    await resource_mgr.profile_memory.startup()
+    ret = ResourceManager(config)
+    await resource_manager.profile_memory.startup()
     return ret
 
 
 async def init_global_memory():
     config_file = os.getenv("MEMORY_CONFIG", "cfg.yml")
-    global resource_mgr
-    resource_mgr = await initialize_resource(config_file)
+    global resource_manager
+    resource_manager = await initialize_resource(config_file)
 
 
 async def shutdown_global_memory():
-    global resource_mgr
-    resource_mgr.close()
+    global resource_manager
+    resource_manager.close()
 
 
 @asynccontextmanager
@@ -883,7 +881,7 @@ async def _add_memory(episode: NewEpisode):
     group_id = session.group_id
     inst: (
         EpisodicMemory | None
-    ) = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
+    ) = await resource_manager.episodic_memory_manager.get_episodic_memory_instance(
         group_id=group_id if group_id is not None else "",
         agent_id=session.agent_id,
         user_id=session.user_id,
@@ -950,7 +948,7 @@ async def _add_episodic_memory(episode: NewEpisode):
     group_id = session.group_id
     inst: (
         EpisodicMemory | None
-    ) = await resource_mgr.episodic_memory_manager.get_episodic_memory_instance(
+    ) = await resource_manager.episodic_memory_manager.get_episodic_memory_instance(
         group_id=group_id if group_id is not None else "",
         agent_id=session.agent_id,
         user_id=session.user_id,
@@ -1351,13 +1349,13 @@ def main():
 
         async def run_mcp_server():
             """Initialize resources and run MCP server in the same event loop."""
-            global resource_mgr
+            global resource_manager
             try:
-                resource_mgr = await initialize_resource(config_file)
+                resource_manager = await initialize_resource(config_file)
                 await mcp.run_stdio_async()
             finally:
                 # Clean up resources when server stops
-                resource_mgr.close()
+                resource_manager.close()
 
         asyncio.run(run_mcp_server())
     else:

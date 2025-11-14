@@ -4,14 +4,16 @@ from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import StaticPool, text
+from neo4j import AsyncGraphDatabase
+from sqlalchemy import StaticPool
 from sqlalchemy.engine import URL
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from testcontainers.neo4j import Neo4jContainer
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.configuration.model_conf import (
-    AwsBedrockModelConf,
-    OpenAIModelConf,
+    AmazonBedrockLanguageModelConf,
+    OpenAIResponsesLanguageModelConf,
 )
 from memmachine.common.embedder.openai_embedder import (
     OpenAIEmbedder,
@@ -21,13 +23,18 @@ from memmachine.common.language_model import LanguageModel
 from memmachine.common.language_model.amazon_bedrock_language_model import (
     AmazonBedrockLanguageModel,
 )
-from memmachine.common.language_model.openai_compatible_language_model import (
-    OpenAICompatibleLanguageModel,
+from memmachine.common.language_model.openai_chat_completions_language_model import (
+    OpenAIChatCompletionsLanguageModel,
 )
-from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
-from memmachine.history_store.history_sqlalchemy_store import (
+from memmachine.common.language_model.openai_responses_language_model import (
+    OpenAIResponsesLanguageModel,
+)
+from memmachine.episode_store.episode_sqlalchemy_store import (
     BaseHistoryStore,
-    SqlAlchemyHistoryStore,
+    SqlAlchemyEpisodeStore,
+)
+from memmachine.semantic_memory.storage.neo4j_semantic_storage import (
+    Neo4jSemanticStorage,
 )
 from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
     SqlAlchemyPgVectorSemanticStorage,
@@ -99,8 +106,8 @@ def openai_embedder(openai_client, openai_integration_config):
 
 @pytest.fixture(scope="session")
 def openai_llm_model(openai_integration_config):
-    return OpenAILanguageModel(
-        OpenAIModelConf(
+    return OpenAIResponsesLanguageModel(
+        OpenAIResponsesLanguageModelConf(
             api_key=openai_integration_config["api_key"],
             model=openai_integration_config["llm_model"],
         ),
@@ -122,7 +129,7 @@ def openai_compatible_llm_config():
 
 @pytest.fixture(scope="session")
 def openai_compatible_llm_model(openai_compatible_llm_config):
-    return OpenAICompatibleLanguageModel(
+    return OpenAIChatCompletionsLanguageModel(
         {
             "base_url": openai_compatible_llm_config["api_url"],
             "model": openai_compatible_llm_config["model"],
@@ -148,7 +155,7 @@ def bedrock_integration_config():
 @pytest.fixture(scope="session")
 def bedrock_llm_model(bedrock_integration_config):
     return AmazonBedrockLanguageModel(
-        AwsBedrockModelConf(
+        AmazonBedrockLanguageModelConf(
             aws_access_key_id=bedrock_integration_config["aws_access_key_id"],
             aws_secret_access_key=bedrock_integration_config["aws_secret_access_key"],
             model_id=bedrock_integration_config["model"],
@@ -176,7 +183,10 @@ def real_llm_model(request):
 
 
 @pytest.fixture(scope="session")
-def pg_container():
+def pg_container(pytestconfig):
+    if not pytestconfig.getoption("--integration"):
+        pytest.skip("need --integration option to start Postgres container")
+
     with PostgresContainer("pgvector/pgvector:pg16") as container:
         yield container
 
@@ -198,9 +208,9 @@ async def pg_server(pg_container):
     }
 
 
-@pytest.fixture
-def sqlalchemy_pg_engine(pg_server):
-    return create_async_engine(
+@pytest_asyncio.fixture
+async def sqlalchemy_pg_engine(pg_server):
+    engine = create_async_engine(
         URL.create(
             "postgresql+asyncpg",
             username=pg_server["user"],
@@ -211,10 +221,35 @@ def sqlalchemy_pg_engine(pg_server):
         )
     )
 
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def sqlalchemy_sqlite_engine():
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+    )
+
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture(
+    params=[
+        "sqlalchemy_sqlite_engine",
+        pytest.param("sqlalchemy_pg_engine", marks=pytest.mark.integration),
+    ]
+)
+def sqlalchemy_engine(request):
+    return request.getfixturevalue(request.param)
+
 
 @pytest_asyncio.fixture
 async def pgvector_semantic_storage(sqlalchemy_pg_engine):
     storage = SqlAlchemyPgVectorSemanticStorage(sqlalchemy_pg_engine)
+    storage.backend_name = "postgres"
     await storage.startup()
     yield storage
     await storage.delete_all()
@@ -224,14 +259,53 @@ async def pgvector_semantic_storage(sqlalchemy_pg_engine):
 @pytest_asyncio.fixture
 async def in_memory_semantic_storage():
     store = InMemorySemanticStorage()
+    store.backend_name = "sqlite"
     await store.startup()
     yield store
     await store.cleanup()
 
 
+@pytest.fixture(scope="session")
+def neo4j_container(pytestconfig):
+    if not pytestconfig.getoption("--integration"):
+        pytest.skip("need --integration option to start Neo4j container")
+
+    username = "neo4j"
+    password = "password"
+    with Neo4jContainer(
+        image="neo4j:5.23", username=username, password=password
+    ) as container:
+        yield {
+            "uri": container.get_connection_url(),
+            "username": username,
+            "password": password,
+        }
+
+
+@pytest_asyncio.fixture(scope="session")
+async def neo4j_driver(neo4j_container):
+    driver = AsyncGraphDatabase.driver(
+        neo4j_container["uri"],
+        auth=(neo4j_container["username"], neo4j_container["password"]),
+    )
+    yield driver
+    await driver.close()
+
+
+@pytest_asyncio.fixture
+async def neo4j_semantic_storage(neo4j_driver):
+    storage = Neo4jSemanticStorage(neo4j_driver)
+    await storage.startup()
+    await storage.delete_all()
+    yield storage
+    await storage.delete_all()
+    await storage.cleanup()
+
+
 @pytest.fixture(
     params=[
         pytest.param("pgvector_semantic_storage", marks=pytest.mark.integration),
+        pytest.param("neo4j_semantic_storage", marks=pytest.mark.integration),
         "in_memory_semantic_storage",
     ]
 )
@@ -240,41 +314,13 @@ def semantic_storage(request):
 
 
 @pytest_asyncio.fixture
-async def sqlite_history_storage():
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+async def episode_storage(sqlalchemy_engine: AsyncEngine):
+    engine = sqlalchemy_engine
     async with engine.begin() as conn:
         await conn.run_sync(BaseHistoryStore.metadata.create_all)
 
-    storage = SqlAlchemyHistoryStore(engine)
+    storage = SqlAlchemyEpisodeStore(engine)
     try:
         yield storage
     finally:
         await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def postgres_history_storage(sqlalchemy_pg_engine):
-    async with sqlalchemy_pg_engine.begin() as conn:
-        await conn.run_sync(BaseHistoryStore.metadata.create_all)
-        await conn.execute(text("TRUNCATE TABLE history RESTART IDENTITY CASCADE"))
-
-    storage = SqlAlchemyHistoryStore(sqlalchemy_pg_engine)
-    try:
-        yield storage
-    finally:
-        async with sqlalchemy_pg_engine.begin() as conn:
-            await conn.execute(text("TRUNCATE TABLE history RESTART IDENTITY CASCADE"))
-
-
-@pytest.fixture(
-    params=[
-        "sqlite_history_storage",
-        pytest.param("postgres_history_storage", marks=pytest.mark.integration),
-    ]
-)
-def history_storage(request):
-    return request.getfixturevalue(request.param)

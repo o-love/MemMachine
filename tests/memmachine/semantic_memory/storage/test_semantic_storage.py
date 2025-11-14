@@ -133,6 +133,9 @@ async def test_get_feature_set_basic_vector_search(
     semantic_storage: SemanticStorageBase,
     oposite_vector_features,
 ):
+    if getattr(semantic_storage, "backend_name", None) == "neo4j":
+        pytest.skip("Neo4j aproximate kNN limitation")
+
     # Given a storage with fully distinct features
     embed_a, value_a = oposite_vector_features[0]
     embed_b, value_b = oposite_vector_features[1]
@@ -176,20 +179,90 @@ async def test_get_feature_set_min_cos_vector_search(
     assert result_values == [value_a]
 
 
+@pytest.mark.asyncio
+async def test_set_embedding_length_fixed_per_set(
+    semantic_storage: SemanticStorageBase,
+):
+    if getattr(semantic_storage, "backend_name", None) != "neo4j":
+        pytest.skip("Neo4j-specific validation")
+
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="likes",
+        value="pizza",
+        tag="food",
+        embedding=np.ones(2, dtype=float),
+    )
+
+    with pytest.raises(ValueError):
+        await semantic_storage.add_feature(
+            set_id="user",
+            category_name="default",
+            feature="likes",
+            value="sushi",
+            tag="food",
+            embedding=np.ones(3, dtype=float),
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_feature_respects_set_embedding_length(
+    semantic_storage: SemanticStorageBase,
+):
+    if getattr(semantic_storage, "backend_name", None) != "neo4j":
+        pytest.skip("Neo4j-specific validation")
+
+    feature_id = await semantic_storage.add_feature(
+        set_id="user1",
+        category_name="default",
+        feature="likes",
+        value="pizza",
+        tag="food",
+        embedding=np.ones(2, dtype=float),
+    )
+    await semantic_storage.add_feature(
+        set_id="user2",
+        category_name="default",
+        feature="likes",
+        value="sushi",
+        tag="food",
+        embedding=np.ones(3, dtype=float),
+    )
+
+    with pytest.raises(ValueError):
+        await semantic_storage.update_feature(
+            feature_id,
+            set_id="user2",
+        )
+
+    with pytest.raises(ValueError):
+        await semantic_storage.update_feature(
+            feature_id,
+            embedding=np.ones(3, dtype=float),
+        )
+
+
 @pytest_asyncio.fixture
 async def feature_and_citations(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
-    h1_id = await history_storage.add_history(
+    h1_id = await episode_storage.add_history(
         content="first",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
         history_id=h1_id,
     )
-    h2_id = await history_storage.add_history(
+    h2_id = await episode_storage.add_history(
         content="second",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
@@ -208,7 +281,7 @@ async def feature_and_citations(
     yield feature_id, {h1_id, h2_id}
 
     await semantic_storage.delete_features([feature_id])
-    await history_storage.delete_history([h1_id, h2_id])
+    await episode_storage.delete_history([h1_id, h2_id])
 
 
 @pytest.mark.asyncio
@@ -274,11 +347,26 @@ async def test_delete_feature_with_citations(
 @pytest.mark.asyncio
 async def test_history_message_counts_by_set(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
-    h1_id = await history_storage.add_history(content="first")
-    h2_id = await history_storage.add_history(content="second")
-    h3_id = await history_storage.add_history(content="third")
+    h1_id = await episode_storage.add_history(
+        content="first",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
+    h2_id = await episode_storage.add_history(
+        content="second",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
+    h3_id = await episode_storage.add_history(
+        content="third",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
 
     await semantic_storage.add_history_to_set(set_id="only 1", history_id=h1_id)
     await semantic_storage.add_history_to_set(set_id="has 2", history_id=h1_id)
@@ -363,11 +451,14 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorageBase):
 @pytest.mark.asyncio
 async def test_complex_semantic_search_and_citations(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
-    history_id = await history_storage.add_history(
+    history_id = await episode_storage.add_history(
         content="context note",
         metadata={"source": "chat"},
+        session_key="session_key",
+        producer_id="profile_id",
+        producer_role="dev",
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
@@ -445,10 +536,16 @@ async def test_complex_semantic_search_and_citations(
 @pytest.mark.asyncio
 async def test_history_ingestion_tracking(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
     history_ids = [
-        await history_storage.add_history(content=f"message-{idx}") for idx in range(3)
+        await episode_storage.add_history(
+            content=f"message-{idx}",
+            session_key="session_id",
+            producer_id="profile_id",
+            producer_role="dev",
+        )
+        for idx in range(3)
     ]
 
     for h_id in history_ids:

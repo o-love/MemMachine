@@ -563,7 +563,6 @@ CONSOLIDATION_PROMPT = _build_consolidation_prompt()
 
 CrmSemanticCategory = SemanticCategory(
     name="crm_prompt",
-    tags=set(),
     prompt=RawSemanticPrompt(
         update_prompt=UPDATE_PROMPT,
         consolidation_prompt=CONSOLIDATION_PROMPT,

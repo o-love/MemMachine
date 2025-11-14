@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
-from memmachine.history_store.history_storage import HistoryIdT
+from memmachine.episode_store.episode_storage import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import (
     FeatureIdT,
     SemanticFeature,
@@ -132,7 +132,7 @@ class SemanticStorageBase(ABC):
 
     @abstractmethod
     async def add_citations(
-        self, feature_id: FeatureIdT, history_ids: list[HistoryIdT]
+        self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT]
     ):
         raise NotImplementedError
 
@@ -140,10 +140,10 @@ class SemanticStorageBase(ABC):
     async def get_history_messages(
         self,
         *,
-        set_ids: list[str] | None = None,
+        set_ids: list[SetIdT] | None = None,
         limit: int | None = None,
         is_ingested: bool | None = None,
-    ) -> list[HistoryIdT]:
+    ) -> list[EpisodeIdT]:
         """
         retrieve the list of the history messages for the user
         with the ingestion status, up to k messages if k > 0
@@ -154,7 +154,7 @@ class SemanticStorageBase(ABC):
     async def get_history_messages_count(
         self,
         *,
-        set_ids: list[str] | None = None,
+        set_ids: list[SetIdT] | None = None,
         is_ingested: bool | None = None,
     ) -> int:
         """
@@ -163,15 +163,15 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add_history_to_set(self, set_id: str, history_id: HistoryIdT) -> None:
+    async def add_history_to_set(self, set_id: SetIdT, history_id: EpisodeIdT) -> None:
         raise NotImplementedError
 
     @abstractmethod
     async def mark_messages_ingested(
         self,
         *,
-        set_id: str,
-        history_ids: list[HistoryIdT],
+        set_id: SetIdT,
+        history_ids: list[EpisodeIdT],
     ) -> None:
         """
         mark the messages with the id as ingested

@@ -9,6 +9,7 @@ from collections.abc import Callable, Coroutine
 from typing import Any
 from uuid import uuid4
 
+from botocore.exceptions import ClientError
 from langchain_aws import BedrockEmbeddings
 from pydantic import BaseModel, Field, InstanceOf
 
@@ -83,8 +84,11 @@ class AmazonBedrockEmbedder(Embedder):
         self._max_retry_interval_seconds = params.max_retry_interval_seconds
 
         # Get dimensions by embedding a dummy string.
-        response = self._client.embed_documents(["."])
-        self._dimensions = len(response[0])
+        try:
+            response = self._client.embed_documents(["."])
+            self._dimensions = len(response[0])
+        except ClientError as e:
+            logger.error(f"Failed to get embedding dimensions: {e}")
 
     @property
     def embeddings(self) -> BedrockEmbeddings:

@@ -1,36 +1,35 @@
 import uuid
 from datetime import datetime
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any, TypeVar
 
 import pytest
 import pytest_asyncio
 
 from memmachine.common.configuration.episodic_config import (
-    EpisodicMemoryParams,
-    ShortTermMemoryParams,
+    EpisodicMemoryConf,
 )
 from memmachine.common.language_model import LanguageModel
-from memmachine.episodic_memory.data_types import (
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
+from memmachine.episode_store.episode_model import (
     ContentType,
     Episode,
 )
 from memmachine.episodic_memory.short_term_memory.short_term_memory import (
     ShortTermMemory,
+    ShortTermMemoryParams,
 )
-from memmachine.session_manager_interface import SessionDataManager
 
 
 def create_test_episode(**kwargs):
     """Helper function to create a valid Episode for testing."""
     defaults = {
-        "uuid": uuid.uuid4(),
+        "uuid": str(uuid.uuid4()),
         "sequence_num": 1,
         "session_key": "session1",
         "episode_type": "message",
         "content_type": ContentType.STRING,
         "content": "default content",
-        "timestamp": datetime.now(),
+        "created_at": datetime.now(),
         "producer_id": "user1",
         "producer_role": "user",
         "produced_for_id": None,
@@ -50,14 +49,15 @@ class MockShortTermMemoryDataManager(SessionDataManager):
     async def create_tables(self):
         self.tables_created = True
 
+    async def drop_tables(self):
+        pass
+
     async def save_short_term_memory(
         self, session_key: str, summary: str, seq: int, num: int
     ):
         self.data[session_key] = (summary, seq, num)
 
-    async def get_short_term_memory(
-        self, session_key: str
-    ) -> tuple[str, list[Episode], int, int]:
+    async def get_short_term_memory(self, session_key: str) -> tuple[str, int, int]:
         if session_key not in self.data:
             raise ValueError(f"No data for session key {session_key}")
         return self.data[session_key]
@@ -70,7 +70,7 @@ class MockShortTermMemoryDataManager(SessionDataManager):
         self,
         session_key: str,
         configuration: dict,
-        param: EpisodicMemoryParams,
+        param: EpisodicMemoryConf,
         description: str,
         metadata: dict,
     ):
@@ -81,14 +81,17 @@ class MockShortTermMemoryDataManager(SessionDataManager):
 
     async def get_session_info(
         self, session_key: str
-    ) -> tuple[dict, str, dict, EpisodicMemoryParams]:
-        return {}, "", {}, EpisodicMemoryParams(session_key=session_key)
+    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
+        return {}, "", {}, EpisodicMemoryConf()
 
     async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
         return []
 
 
-class MockLanguageModel(MagicMock, LanguageModel):
+T = TypeVar("T")
+
+
+class MockLanguageModel(LanguageModel):
     """Mock implementation of LanguageModel for testing."""
 
     async def generate_response(
@@ -101,12 +104,20 @@ class MockLanguageModel(MagicMock, LanguageModel):
     ) -> tuple[str, Any]:
         return "summary", ""
 
+    async def generate_parsed_response(
+        self,
+        output_format: type[T],
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        max_attempts: int = 1,
+    ) -> T:
+        return "summary"
+
 
 @pytest.fixture
 def mock_model():
     """Fixture for a mocked language model."""
     model = MockLanguageModel()
-    model.generate_response = AsyncMock(return_value=["summary"])
     return model
 
 
@@ -141,7 +152,7 @@ class TestSessionMemoryPublicAPI:
 
     async def test_initial_state(self, memory):
         """Test that the SessionMemory instance is initialized correctly."""
-        episodes, summary = await memory.get_session_memory_context(query="test")
+        episodes, summary = await memory.get_short_term_memory_context(query="test")
         assert episodes == []
         assert summary == ""
 
@@ -150,7 +161,7 @@ class TestSessionMemoryPublicAPI:
         episode1 = create_test_episode(content="Hello")
         await memory.add_episode(episode1)
 
-        episodes, summary = await memory.get_session_memory_context(query="test")
+        episodes, summary = await memory.get_short_term_memory_context(query="test")
         # session memory is not full
         assert episodes == [episode1]
         assert summary == ""
@@ -158,21 +169,21 @@ class TestSessionMemoryPublicAPI:
         episode2 = create_test_episode(content="World")
         await memory.add_episode(episode2)
 
-        episodes, summary = await memory.get_session_memory_context(query="test")
+        episodes, summary = await memory.get_short_term_memory_context(query="test")
         assert episodes == [episode1, episode2]
         assert summary == ""
 
         # session memory is full
         episode3 = create_test_episode(content="!" * 7)
         await memory.add_episode(episode3)
-        episodes, summary = await memory.get_session_memory_context(query="test")
+        episodes, summary = await memory.get_short_term_memory_context(query="test")
         assert episodes == [episode1, episode2, episode3]
         assert summary == "summary"
 
         # New episode push out the oldest one: episode1
         episode4 = create_test_episode(content="??")
         await memory.add_episode(episode4)
-        episodes, summary = await memory.get_session_memory_context(query="test")
+        episodes, summary = await memory.get_short_term_memory_context(query="test")
         assert episodes == [episode3, episode4]
         assert summary == "summary"
 
@@ -182,7 +193,7 @@ class TestSessionMemoryPublicAPI:
 
         await memory.clear_memory()
 
-        episodes, summary = await memory.get_session_memory_context(query="test")
+        episodes, summary = await memory.get_short_term_memory_context(query="test")
         assert episodes == []
         assert summary == ""
 
@@ -196,7 +207,7 @@ class TestSessionMemoryPublicAPI:
         await memory.add_episode(ep3)
 
         await memory.delete_episode(ep2.uuid)
-        episodes, _ = await memory.get_session_memory_context(query="test")
+        episodes, _ = await memory.get_short_term_memory_context(query="test")
         assert episodes == [ep1, ep3]
 
     async def test_close(self, memory):
@@ -206,9 +217,9 @@ class TestSessionMemoryPublicAPI:
         with pytest.raises(RuntimeError):
             await memory.add_episode(create_test_episode)
         with pytest.raises(RuntimeError):
-            _, _ = await memory.get_session_memory_context(query="test")
+            _, _ = await memory.get_short_term_memory_context(query="test")
 
-    async def test_get_session_memory_context(self, memory):
+    async def test_get_short_term_memory_context(self, memory):
         """Test retrieving session memory context."""
         ep1 = create_test_episode(content="a" * 6)
         ep2 = create_test_episode(content="b" * 6)
@@ -218,7 +229,7 @@ class TestSessionMemoryPublicAPI:
         await memory.add_episode(ep3)
 
         # Test with message length limit that fits all
-        episodes, summary = await memory.get_session_memory_context(
+        episodes, summary = await memory.get_short_term_memory_context(
             query="test", max_message_length=100
         )
         assert len(episodes) == 3
@@ -230,14 +241,14 @@ class TestSessionMemoryPublicAPI:
         # add ep1 (length 6), length=13.
         # add ep2 (length 6), length=19. Now length >= 19, so loop breaks.
         # Should return [ep1, ep2]
-        episodes, summary = await memory.get_session_memory_context(
+        episodes, summary = await memory.get_short_term_memory_context(
             query="test", max_message_length=19
         )
         assert len(episodes) == 2
         assert episodes == [ep2, ep3]
 
         # Test with episode limit
-        episodes, summary = await memory.get_session_memory_context(
+        episodes, summary = await memory.get_short_term_memory_context(
             query="test", limit=1
         )
         assert len(episodes) == 1
