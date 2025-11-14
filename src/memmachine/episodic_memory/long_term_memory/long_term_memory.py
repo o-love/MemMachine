@@ -1,12 +1,16 @@
 from typing import Any, cast
 
-from ...common.configuration.episodic_config import LongTermMemoryParams
+from pydantic import BaseModel, Field, InstanceOf
+
 from ..data_types import ContentType, Episode
 from ..declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
 from ..declarative_memory.data_types import (
     ContentType as DeclarativeMemoryContentType,
 )
 from ..declarative_memory.data_types import Episode as DeclarativeMemoryEpisode
+from ...common.embedder import Embedder
+from ...common.reranker import Reranker
+from ...common.vector_graph_store import VectorGraphStore
 
 content_type_to_declarative_memory_content_type_map = {
     ContentType.STRING: DeclarativeMemoryContentType.STRING,
@@ -15,6 +19,49 @@ content_type_to_declarative_memory_content_type_map = {
 declarative_memory_content_type_to_content_type_map = {
     DeclarativeMemoryContentType.STRING: ContentType.STRING,
 }
+
+
+class LongTermMemoryParams(BaseModel):
+    """
+    Parameters for DeclarativeMemory.
+
+    Attributes:
+        session_id (str):
+            Session identifier.
+        max_chunk_length (int):
+            Maximum length of a chunk in characters
+            (default: 1000).
+        vector_graph_store (VectorGraphStore):
+            VectorGraphStore instance
+            for storing and retrieving memories.
+        embedder (Embedder):
+            Embedder instance for creating embeddings.
+        reranker (Reranker):
+            Reranker instance for reranking search results.
+    """
+
+    session_id: str = Field(
+        ...,
+        description="Session identifier",
+    )
+    max_chunk_length: int = Field(
+        1000,
+        description="Maximum length of a chunk in characters.",
+        gt=0,
+    )
+    vector_graph_store: InstanceOf[VectorGraphStore] = Field(
+        ...,
+        description="VectorGraphStore instance for storing and retrieving memories",
+    )
+    embedder: InstanceOf[Embedder] = Field(
+        ...,
+        description="Embedder instance for creating embeddings",
+    )
+    reranker: InstanceOf[Reranker] = Field(
+        ...,
+        description="Reranker instance for reranking search results",
+    )
+    enabled: bool = True
 
 
 class LongTermMemory:

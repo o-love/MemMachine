@@ -2,13 +2,35 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from memmachine.common.configuration.episodic_config import (
-    EpisodicMemoryManagerParams,
-    EpisodicMemoryParams,
-)
+from pydantic import BaseModel, Field, InstanceOf
+
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
+from .common.configuration.episodic_config import EpisodicMemoryConf
 
 from .instance_lru_cache import MemoryInstanceCache
+from .session_manager_interface import SessionDataManager
+
+
+class EpisodicMemoryManagerParams(BaseModel):
+    """
+    Parameters for configuring the EpisodicMemoryManager.
+    Attributes:
+        instance_cache_size (int): The maximum number of instances to cache.
+        max_life_time (int): The maximum idle lifetime of an instance in seconds.
+        session_storage (SessionDataManager): The session storage.
+    """
+
+    instance_cache_size: int = Field(
+        default=100, gt=0, description="The maximum number of instances to cache"
+    )
+    max_life_time: int = Field(
+        default=600,
+        gt=0,
+        description="The maximum idle lifetime of an instance in seconds",
+    )
+    session_storage: InstanceOf[SessionDataManager] = Field(
+        ..., description="Session storage"
+    )
 
 
 class EpisodicMemoryManager:
@@ -91,7 +113,7 @@ class EpisodicMemoryManager:
     async def create_episodic_memory(
         self,
         session_key: str,
-        param: EpisodicMemoryParams,
+        param: EpisodicMemoryConf,
         description: str,
         metadata: dict,
         config: dict | None = None,
@@ -169,7 +191,7 @@ class EpisodicMemoryManager:
 
     async def get_session_configuration(
         self, session_key: str
-    ) -> tuple[dict, str, dict, EpisodicMemoryParams]:
+    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """
         Retrieves the configuration, description, and metadata for a given session.
         """

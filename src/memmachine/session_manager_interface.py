@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from memmachine.common.configuration.episodic_config import EpisodicMemoryParams
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 
 
 class SessionDataManager(ABC):
@@ -28,7 +28,7 @@ class SessionDataManager(ABC):
         self,
         session_key: str,
         configuration: dict,
-        param: EpisodicMemoryParams,
+        param: EpisodicMemoryConf,
         description: str,
         metadata: dict,
     ):
@@ -60,7 +60,7 @@ class SessionDataManager(ABC):
     @abstractmethod
     async def get_session_info(
         self, session_key: str
-    ) -> tuple[dict, str, dict, EpisodicMemoryParams]:
+    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """
         Retrieves the configuration, description, and metadata for a given
         session.

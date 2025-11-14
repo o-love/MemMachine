@@ -1,79 +1,101 @@
-import string
+from typing import Self, TypeVar
 
-from pydantic import BaseModel, Field, InstanceOf, field_validator, model_validator
+from pydantic import BaseModel, Field
 
-from memmachine.common.embedder import Embedder
-from memmachine.common.language_model import LanguageModel
-from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.common.reranker import Reranker
-from memmachine.common.vector_graph_store import VectorGraphStore
-from memmachine.session_manager_interface import SessionDataManager
+TFull = TypeVar("TFull", bound=BaseModel)
+TPartial = TypeVar("TPartial", bound=BaseModel)
 
 
-class ShortTermMemoryParams(BaseModel):
+def merge_partial_configs(
+    primary: TPartial,
+    fallback: TPartial,
+    full_cls: type[TFull],
+) -> TFull:
     """
-    Parameters for configuring the short-term memory.
-    Attributes:
-        session_key (str): The unique identifier for the session.
-        llm_model (LanguageModel): The language model to use for summarization.
-        data_manager (SessionDataManager): The session data manager.
-        summary_prompt_system (str): The system prompt for the summarization.
-        summary_prompt_user (str): The user prompt for the summarization.
-        message_capacity (int): The maximum number of messages to summarize.
-        enabled (bool): Whether the short-term memory is enabled.
-    """
+    Generic merge helper for Pydantic partial configs.
 
-    session_key: str = Field(..., description="Session identifier", min_length=1)
-    llm_model: InstanceOf[LanguageModel] = Field(
-        ..., description="The language model to use for summarization"
-    )
-    data_manager: InstanceOf[SessionDataManager] | None = Field(
-        default=None, description="The session data manager"
+    - `primary` overrides `fallback`
+    - Missing required fields (after merge) raise ValueError
+    - Returns an instance of `full_cls`
+    """
+    data = {}
+
+    for field in full_cls.model_fields.keys():
+        v1 = getattr(primary, field, None)
+        v2 = getattr(fallback, field, None)
+
+        if v1 is not None:
+            data[field] = v1
+        elif v2 is not None:
+            data[field] = v2
+
+    return full_cls(**data)
+
+
+class ShortTermMemoryConf(BaseModel):
+    session_key: str = Field(
+        ...,
+        description="Session identifier",
+        min_length=1)
+    llm_model: str = Field(
+        ...,
+        description="ID of the language model to use for summarization"
     )
     summary_prompt_system: str = Field(
-        ..., min_length=1, description="The system prompt for the summarization"
+        ...,
+        min_length=1,
+        description="The system prompt for the summarization"
     )
     summary_prompt_user: str = Field(
-        ..., min_length=1, description="The user prompt for the summarization"
+        ...,
+        min_length=1,
+        description="The user prompt for the summarization"
     )
     message_capacity: int = Field(
-        default=64000, gt=0, description="The maximum length of short-term memory"
+        default=64000,
+        gt=0,
+        description="The maximum length of short-term memory"
     )
-    enabled: bool = True
-
-    @field_validator("summary_prompt_user")
-    def validate_summary_user_prompt(cls, v):
-        fields = [fname for _, fname, _, _ in string.Formatter().parse(v) if fname]
-        if len(fields) != 3:
-            raise ValueError(f"Expect 3 fields in {v}")
-        if "episodes" not in fields:
-            raise ValueError(f"Expect 'episodes' in {v}")
-        if "summary" not in fields:
-            raise ValueError(f"Expect 'summary' in {v}")
-        if "max_length" not in fields:
-            raise ValueError(f"Expect 'max_length' in {v}")
-        return v
+    enabled: bool = Field(
+        default=True,
+        description="Whether short-term memory is enabled"
+    )
 
 
-class LongTermMemoryParams(BaseModel):
-    """
-    Parameters for DeclarativeMemory.
+class ShortTermMemoryConfPartial(BaseModel):
+    session_key: str | None = Field(
+        default=None,
+        description="Session identifier",
+        min_length=1)
+    llm_model: str | None= Field(
+        default=None,
+        description="ID of the language model to use for summarization"
+    )
+    summary_prompt_system: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The system prompt for the summarization"
+    )
+    summary_prompt_user: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The user prompt for the summarization"
+    )
+    message_capacity: int | None = Field(
+        default=None,
+        gt=0,
+        description="The maximum length of short-term memory"
+    )
+    enabled: bool | None = Field(
+        default=None,
+        description="Whether short-term memory is enabled"
+    )
 
-    Attributes:
-        session_id (str):
-            Session identifier.
-        max_chunk_length (int):
-            Maximum length of a chunk in characters
-            (default: 1000).
-        vector_graph_store (VectorGraphStore):
-            VectorGraphStore instance
-            for storing and retrieving memories.
-        embedder (Embedder):
-            Embedder instance for creating embeddings.
-        reranker (Reranker):
-            Reranker instance for reranking search results.
-    """
+    def merge(self, other: Self) -> ShortTermMemoryConf:
+        return merge_partial_configs(self, other, ShortTermMemoryConf)
 
+
+class LongTermMemoryConf(BaseModel):
     session_id: str = Field(
         ...,
         description="Session identifier",
@@ -83,76 +105,127 @@ class LongTermMemoryParams(BaseModel):
         description="Maximum length of a chunk in characters.",
         gt=0,
     )
-    vector_graph_store: InstanceOf[VectorGraphStore] = Field(
+    vector_graph_store: str = Field(
         ...,
-        description="VectorGraphStore instance for storing and retrieving memories",
+        description="ID of the VectorGraphStore instance for storing and retrieving memories",
     )
-    embedder: InstanceOf[Embedder] = Field(
+    embedder: str = Field(
         ...,
-        description="Embedder instance for creating embeddings",
+        description="ID of the Embedder instance for creating embeddings",
     )
-    reranker: InstanceOf[Reranker] = Field(
+    reranker: str = Field(
         ...,
-        description="Reranker instance for reranking search results",
-    )
-    enabled: bool = True
-
-
-class EpisodicMemoryParams(BaseModel):
-    """
-    Parameters for configuring the EpisodicMemory.
-    Attributes:
-        session_key (str): The unique identifier for the session.
-        metrics_factory (MetricsFactory): The metrics factory.
-        short_term_memory (ShortTermMemoryParams): The short-term memory parameters.
-        long_term_memory (LongTermMemoryParams): The long-term memory parameters.
-        enabled (bool): Whether the episodic memory is enabled.
-    """
-
-    session_key: str = Field(
-        ..., min_length=1, description="The unique identifier for the session"
-    )
-    metrics_factory: InstanceOf[MetricsFactory] = Field(
-        ..., description="The metrics factory"
-    )
-    short_term_memory: ShortTermMemoryParams | None = Field(
-        default=None, description="The short-term memory parameters"
-    )
-    long_term_memory: LongTermMemoryParams | None = Field(
-        default=None, description="The long-term memory parameters"
+        description="ID of the Reranker instance for reranking search results",
     )
     enabled: bool = Field(
+        default=True,
+        description="Whether long-term memory is enabled",
+    )
+
+
+class LongTermMemoryConfPartial(BaseModel):
+    session_id: str | None = Field(
+        default=None,
+        description="Session identifier",
+    )
+    max_chunk_length: int | None = Field(
+        default=None,
+        description="Maximum length of a chunk in characters.",
+        gt=0,
+    )
+    vector_graph_store: str | None = Field(
+        default=None,
+        description="ID of the VectorGraphStore instance for storing and retrieving memories",
+    )
+    embedder: str | None = Field(
+        default=None,
+        description="ID of the Embedder instance for creating embeddings",
+    )
+    reranker: str | None = Field(
+        default=None,
+        description="ID of the Reranker instance for reranking search results",
+    )
+    enabled: bool | None = Field(
+        default=None,
+        description="Whether long-term memory is enabled",
+    )
+
+    def merge(self, other: Self) -> LongTermMemoryConf:
+        return merge_partial_configs(self, other, LongTermMemoryConf)
+
+
+class EpisodicMemoryConf(BaseModel):
+    session_key: str = Field(
+        ...,
+        min_length=1,
+        description="The unique identifier for the session"
+    )
+    metrics_factory_id: str = Field(
+        ...,
+        description="ID of the metrics factory"
+    )
+    short_term_memory: ShortTermMemoryConf | None = Field(
+        default=None,
+        description="The short-term memory configuration"
+    )
+    long_term_memory: LongTermMemoryConf | None = Field(
+        default=None,
+        description="The long-term memory configuration"
+    )
+    enabled: bool = Field(
+        default=True,
+        description="Whether the episodic memory is enabled"
+    )
+
+class EpisodicMemoryConfPartial(BaseModel):
+    session_key: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The unique identifier for the session",
+    )
+    metrics_factory_id: str | None = Field(
+        default=None, description="ID of the metrics factory"
+    )
+    short_term_memory: ShortTermMemoryConfPartial | None = Field(
+        default=None,
+        description="Partial configuration for session memory in episodic memory",
+    )
+    long_term_memory: LongTermMemoryConfPartial | None = Field(
+        default=None,
+        description="Partial configuration for long-term memory in episodic memory",
+    )
+    enabled: bool | None = Field(
         default=True, description="Whether the episodic memory is enabled"
     )
 
-    @model_validator(mode="after")
-    def validate_memory_params(self):
-        if not self.enabled:
-            return self
-        if self.short_term_memory is None and self.long_term_memory is None:
-            raise ValueError(
-                "At least one of short_term_memory or long_term_memory must be provided."
-            )
-        return self
+    def merge(self, other: Self) -> EpisodicMemoryConf:
+        """
+        Merge scalar fields first using the shared merge utility,
+        then merge nested configuration blocks using normalized partials.
+        """
 
+        # ---- Step 1: merge scalar fields (this ignores nested configs) ----
+        merged = merge_partial_configs(self, other, EpisodicMemoryConfPartial)
 
-class EpisodicMemoryManagerParams(BaseModel):
-    """
-    Parameters for configuring the EpisodicMemoryManager.
-    Attributes:
-        instance_cache_size (int): The maximum number of instances to cache.
-        max_life_time (int): The maximum idle lifetime of an instance in seconds.
-        session_storage (SessionDataManager): The session storage.
-    """
+        # ---- Step 2: normalize partial nested configs ----
+        # Convert None -> empty partial so merge() always works
+        stm_self = self.short_term_memory or ShortTermMemoryConfPartial()
+        stm_other = other.short_term_memory or ShortTermMemoryConfPartial()
 
-    instance_cache_size: int = Field(
-        default=100, gt=0, description="The maximum number of instances to cache"
-    )
-    max_life_time: int = Field(
-        default=600,
-        gt=0,
-        description="The maximum idle lifetime of an instance in seconds",
-    )
-    session_storage: InstanceOf[SessionDataManager] = Field(
-        ..., description="Session storage"
-    )
+        ltm_self = self.long_term_memory or LongTermMemoryConfPartial()
+        ltm_other = other.long_term_memory or LongTermMemoryConfPartial()
+
+        # ---- Step 3: perform merges using each component's own merge() method ----
+        stm_self.session_key = merged.session_key
+        ltm_self.session_id = merged.session_key
+        stm_merged = stm_self.merge(stm_other)
+        ltm_merged = ltm_self.merge(ltm_other)
+
+        # ---- Step 4: update nested configuration in the base result ----
+        return EpisodicMemoryConf(
+            session_key=merged.session_key,
+            metrics_factory_id=merged.metrics_factory_id,
+            short_term_memory=stm_merged,
+            long_term_memory=ltm_merged,
+            enabled=merged.enabled,
+        )

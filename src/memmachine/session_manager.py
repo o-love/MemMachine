@@ -26,7 +26,7 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from memmachine.common.configuration.episodic_config import EpisodicMemoryParams
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 
 from .session_manager_interface import SessionDataManager
 
@@ -116,7 +116,7 @@ class SessionDataManagerImpl(SessionDataManager):
         self,
         session_key: str,
         configuration: dict,
-        param: EpisodicMemoryParams,
+        param: EpisodicMemoryConf,
         description: str,
         metadata: dict,
     ):
@@ -177,7 +177,7 @@ class SessionDataManagerImpl(SessionDataManager):
 
     async def get_session_info(
         self, session_key: str
-    ) -> tuple[dict, str, dict, EpisodicMemoryParams]:
+    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """Retrieves a session's data from the database.
 
         Args:
@@ -185,7 +185,7 @@ class SessionDataManagerImpl(SessionDataManager):
 
         Returns:
             A tuple containing the configuration dictionary, description string,
-            user metadata dictionary, and the EpisodicMemoryParams object.
+            user metadata dictionary, and the EpisodicMemoryConf object.
 
         Raises:
             ValueError: If the session with the given session_key does not exist.
@@ -201,7 +201,7 @@ class SessionDataManagerImpl(SessionDataManager):
                 raise ValueError(f"""Session {session_key} does not exists""")
             binary_buffer = io.BytesIO(session.param_data)
             binary_buffer.seek(0)
-            param: EpisodicMemoryParams = pickle.load(binary_buffer)
+            param: EpisodicMemoryConf = pickle.load(binary_buffer)
             return (
                 session.configuration,
                 session.description,

@@ -10,10 +10,12 @@ are summarized asynchronously to maintain context over a longer conversation.
 
 import asyncio
 import logging
+import string
 import uuid
 from collections import deque
 
-from memmachine.common.configuration.episodic_config import ShortTermMemoryParams
+from pydantic import BaseModel, Field, InstanceOf, field_validator
+
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
 from memmachine.session_manager_interface import SessionDataManager
@@ -21,6 +23,51 @@ from memmachine.session_manager_interface import SessionDataManager
 from ..data_types import Episode
 
 logger = logging.getLogger(__name__)
+
+
+class ShortTermMemoryParams(BaseModel):
+    """
+    Parameters for configuring the short-term memory.
+    Attributes:
+        session_key (str): The unique identifier for the session.
+        llm_model (LanguageModel): The language model to use for summarization.
+        data_manager (SessionDataManager): The session data manager.
+        summary_prompt_system (str): The system prompt for the summarization.
+        summary_prompt_user (str): The user prompt for the summarization.
+        message_capacity (int): The maximum number of messages to summarize.
+        enabled (bool): Whether the short-term memory is enabled.
+    """
+
+    session_key: str = Field(..., description="Session identifier", min_length=1)
+    llm_model: InstanceOf[LanguageModel] = Field(
+        ..., description="The language model to use for summarization"
+    )
+    data_manager: InstanceOf[SessionDataManager] | None = Field(
+        default=None, description="The session data manager"
+    )
+    summary_prompt_system: str = Field(
+        ..., min_length=1, description="The system prompt for the summarization"
+    )
+    summary_prompt_user: str = Field(
+        ..., min_length=1, description="The user prompt for the summarization"
+    )
+    message_capacity: int = Field(
+        default=64000, gt=0, description="The maximum length of short-term memory"
+    )
+    enabled: bool = True
+
+    @field_validator("summary_prompt_user")
+    def validate_summary_user_prompt(cls, v):
+        fields = [fname for _, fname, _, _ in string.Formatter().parse(v) if fname]
+        if len(fields) != 3:
+            raise ValueError(f"Expect 3 fields in {v}")
+        if "episodes" not in fields:
+            raise ValueError(f"Expect 'episodes' in {v}")
+        if "summary" not in fields:
+            raise ValueError(f"Expect 'summary' in {v}")
+        if "max_length" not in fields:
+            raise ValueError(f"Expect 'max_length' in {v}")
+        return v
 
 
 class ShortTermMemory:

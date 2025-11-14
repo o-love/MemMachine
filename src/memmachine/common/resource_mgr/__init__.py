@@ -4,15 +4,12 @@ from ...common.language_model import LanguageModel
 from ...common.resource_mgr.embedder_mgr import EmbedderMgr
 from ...common.resource_mgr.language_model_mgr import LanguageModelMgr
 from ...common.resource_mgr.storage_mgr import StorageMgr
-from ...episodic_memory_manager import EpisodicMemoryManager
-from ...profile_memory.profile_memory import ProfileMemory
-from ...profile_memory.storage.asyncpg_profile import (
-    AsyncPgProfileStorage,
-    AsyncPgProfileStorageParams,
+from ...episodic_memory_manager import (
+    EpisodicMemoryManager,
+    EpisodicMemoryManagerParams,
 )
 from ...session_manager import SessionDataManagerImpl
 from ...session_manager_interface import SessionDataManager
-from ..configuration.episodic_config import EpisodicMemoryManagerParams
 from ..reranker import Reranker
 from ..vector_graph_store import VectorGraphStore
 from .reranker_mgr import RerankerMgr
@@ -28,7 +25,7 @@ class ResourceMgr:
         self._reranker_mgr: RerankerMgr = RerankerMgr(self._conf.reranker)
         self._session_data_mgr: SessionDataManager | None = None
         self._episodic_memory_manager: EpisodicMemoryManager | None = None
-        self._profile_memory: ProfileMemory | None = None
+        # self._profile_memory: ProfileMemory | None = None
 
     def build(self):
         self._storage_mgr.build_all(validate=True)
@@ -39,8 +36,8 @@ class ResourceMgr:
     def close(self):
         if self._episodic_memory_manager is not None:
             self._episodic_memory_manager.close()
-        if self._profile_memory is not None:
-            self._profile_memory.cleanup()
+        # if self._profile_memory is not None:
+        #     self._profile_memory.cleanup()
         self._storage_mgr.close()
 
     def get_graph_store(self, name: str) -> VectorGraphStore:
@@ -73,23 +70,23 @@ class ResourceMgr:
         self._episodic_memory_manager = EpisodicMemoryManager(params)
         return self._episodic_memory_manager
 
-    @property
-    def profile_memory(self) -> ProfileMemory:
-        if self._profile_memory is not None:
-            return self._profile_memory
-        conf = self._conf.profile_memory
-        model = self._model_mgr.get_model(conf.llm_moel)
-        embedder = self._embedder_mgr.get_embedder(conf.embedding_model)
-
-        pg_storage_params = AsyncPgProfileStorageParams(
-            pool=self._storage_mgr.get_postgres(conf.database)
-        )
-        pg_storage = AsyncPgProfileStorage(pg_storage_params)
-        profile_prompt = self._conf.prompt.profile_prompt
-        self._profile_memory = ProfileMemory(
-            model=model,
-            embeddings=embedder,
-            prompt=profile_prompt,
-            profile_storage=pg_storage,
-        )
-        return self._profile_memory
+    # @property
+    # def profile_memory(self) -> ProfileMemory:
+    #     if self._profile_memory is not None:
+    #         return self._profile_memory
+    #     conf = self._conf.profile_memory
+    #     model = self._model_mgr.get_model(conf.llm_moel)
+    #     embedder = self._embedder_mgr.get_embedder(conf.embedding_model)
+    #
+    #     pg_storage_params = AsyncPgProfileStorageParams(
+    #         pool=self._storage_mgr.get_postgres(conf.database)
+    #     )
+    #     pg_storage = AsyncPgProfileStorage(pg_storage_params)
+    #     profile_prompt = self._conf.prompt.profile_prompt
+    #     self._profile_memory = ProfileMemory(
+    #         model=model,
+    #         embeddings=embedder,
+    #         prompt=profile_prompt,
+    #         profile_storage=pg_storage,
+    #     )
+    #     return self._profile_memory

@@ -20,14 +20,54 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import cast
+from typing import cast, Self
 
-from ..common.configuration.episodic_config import EpisodicMemoryParams
+from pydantic import BaseModel, Field, InstanceOf, model_validator
+
 from .data_types import Episode
-from .long_term_memory.long_term_memory import LongTermMemory
-from .short_term_memory.short_term_memory import ShortTermMemory
+from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryParams
+from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
+from ..common.metrics_factory import MetricsFactory
 
 logger = logging.getLogger(__name__)
+
+
+class EpisodicMemoryParams(BaseModel):
+    """
+    Parameters for configuring the EpisodicMemory.
+    Attributes:
+        session_key (str): The unique identifier for the session.
+        metrics_factory (MetricsFactory): The metrics factory.
+        short_term_memory (ShortTermMemoryParams): The short-term memory parameters.
+        long_term_memory (LongTermMemoryParams): The long-term memory parameters.
+        enabled (bool): Whether the episodic memory is enabled.
+    """
+
+    session_key: str = Field(
+        ..., min_length=1, description="The unique identifier for the session"
+    )
+    metrics_factory: InstanceOf[MetricsFactory] = Field(
+        ..., description="The metrics factory"
+    )
+    short_term_memory: ShortTermMemoryParams | None = Field(
+        default=None, description="The short-term memory parameters"
+    )
+    long_term_memory: LongTermMemoryParams | None = Field(
+        default=None, description="The long-term memory parameters"
+    )
+    enabled: bool = Field(
+        default=True, description="Whether the episodic memory is enabled"
+    )
+
+    @model_validator(mode="after")
+    def validate_memory_params(self):
+        if not self.enabled:
+            return self
+        if self.short_term_memory is None and self.long_term_memory is None:
+            raise ValueError(
+                "At least one of short_term_memory or long_term_memory must be provided."
+            )
+        return self
 
 
 class EpisodicMemory:
@@ -83,7 +123,7 @@ class EpisodicMemory:
         )
 
     @classmethod
-    async def create(cls, param: EpisodicMemoryParams) -> "EpisodicMemory":
+    async def create(cls, param: EpisodicMemoryParams) -> Self:
         session_memory: ShortTermMemory | None = None
         if param.short_term_memory and param.short_term_memory.enabled:
             session_memory = await ShortTermMemory.create(param.short_term_memory)

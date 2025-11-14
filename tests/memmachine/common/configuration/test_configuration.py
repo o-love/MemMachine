@@ -4,20 +4,22 @@ import pytest
 from pydantic import SecretStr
 
 from memmachine.common.configuration import (
-    EpisodicMemoryConf,
     EpisodicMemoryConfPartial,
+    load_config_yml_file,
+)
+from memmachine.common.configuration.episodic_config import (
     LongTermMemoryConf,
     LongTermMemoryConfPartial,
-    SessionMemoryConf,
-    SessionMemoryConfPartial,
-    load_config_yml_file,
+    ShortTermMemoryConf,
+    ShortTermMemoryConfPartial,
+    EpisodicMemoryConf,
 )
 from memmachine.common.configuration.log_conf import LogLevel
 
 
 @pytest.fixture
-def long_term_memory_conf() -> LongTermMemoryConf:
-    return LongTermMemoryConf(
+def long_term_memory_conf() -> LongTermMemoryConfPartial:
+    return LongTermMemoryConfPartial(
         embedder="embedder_v1",
         reranker="reranker_v1",
         vector_graph_store="store_v1",
@@ -25,57 +27,64 @@ def long_term_memory_conf() -> LongTermMemoryConf:
     )
 
 
-def test_update_long_term_memory_conf(long_term_memory_conf: LongTermMemoryConf):
-    update = LongTermMemoryConfPartial(
+def test_update_long_term_memory_conf(long_term_memory_conf: LongTermMemoryConfPartial):
+    specific = LongTermMemoryConfPartial(
+        session_id="session_123",
         embedder="embedder_v2",
     )
 
-    updated = long_term_memory_conf.update(update)
+    updated = specific.merge(long_term_memory_conf)
+    assert updated.session_id == "session_123"
     assert updated.embedder == "embedder_v2"
+    assert updated.max_chunk_length == 1000
     assert updated.reranker == "reranker_v1"
     assert updated.vector_graph_store == "store_v1"
     assert updated.enabled is True
 
 
 @pytest.fixture
-def session_memory_conf() -> SessionMemoryConf:
-    return SessionMemoryConf(
-        model_name="model_v1",
-        max_message_length=12345,
+def short_term_memory_conf() -> ShortTermMemoryConfPartial:
+    return ShortTermMemoryConfPartial(
+        llm_model="model_v1",
+        message_capacity=12345,
+        summary_prompt_user="Summarize the following:",
+        summary_prompt_system="You are a helpful assistant.",
         enabled=True,
     )
 
 
-def test_update_session_memory_conf(session_memory_conf: SessionMemoryConf):
-    update = SessionMemoryConfPartial(
-        max_token_num=3000,
-        max_message_length=54321,
+def test_update_session_memory_conf(short_term_memory_conf: ShortTermMemoryConfPartial):
+    specific = ShortTermMemoryConfPartial(
+        session_key="session_123",
+        message_capacity=3000,
     )
 
-    updated = session_memory_conf.update(update)
-    assert updated.model_name == "model_v1"
-    assert updated.max_token_num == 3000
-    assert updated.max_message_length == 54321
-    assert updated.message_capacity == 500
+    updated = specific.merge(short_term_memory_conf)
+    assert updated.session_key == "session_123"
+    assert updated.llm_model == "model_v1"
+    assert updated.message_capacity == 3000
     assert updated.enabled is True
 
 
 def test_update_episodic_memory_conf(
-    long_term_memory_conf: LongTermMemoryConf, session_memory_conf: SessionMemoryConf
+    long_term_memory_conf: LongTermMemoryConfPartial,
+    short_term_memory_conf: ShortTermMemoryConfPartial
 ):
-    base = EpisodicMemoryConf(
-        sessionmemory=session_memory_conf,
+    base = EpisodicMemoryConfPartial(
+        short_term_memory=short_term_memory_conf,
         long_term_memory=long_term_memory_conf,
+        metrics_factory_id="metrics_factory_id",
     )
-    update = EpisodicMemoryConfPartial(
+    specific = EpisodicMemoryConfPartial(
+        session_key="session_123",
         long_term_memory=LongTermMemoryConfPartial(embedder="embedder_v2")
     )
 
-    updated = base.update(update)
+    updated = specific.merge(base)
     assert updated.long_term_memory.embedder == "embedder_v2"
     assert updated.long_term_memory.reranker == "reranker_v1"
-    assert updated.sessionmemory.max_message_length == 12345
-    assert updated.sessionmemory.message_capacity == 500
+    assert updated.short_term_memory.session_key == "session_123"
+    assert updated.short_term_memory.message_capacity == 12345
 
 
 def find_config_file(filename: str, start_path: Path = None) -> Path:
