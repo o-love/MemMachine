@@ -20,7 +20,6 @@ def long_term_memory_conf() -> LongTermMemoryConfPartial:
         embedder="embedder_v1",
         reranker="reranker_v1",
         vector_graph_store="store_v1",
-        enabled=True,
     )
 
 
@@ -35,7 +34,6 @@ def test_update_long_term_memory_conf(long_term_memory_conf: LongTermMemoryConfP
     assert updated.embedder == "embedder_v2"
     assert updated.reranker == "reranker_v1"
     assert updated.vector_graph_store == "store_v1"
-    assert updated.enabled is True
 
 
 @pytest.fixture
@@ -45,7 +43,6 @@ def short_term_memory_conf() -> ShortTermMemoryConfPartial:
         message_capacity=12345,
         summary_prompt_user="Summarize the following:",
         summary_prompt_system="You are a helpful assistant.",
-        enabled=True,
     )
 
 
@@ -59,7 +56,6 @@ def test_update_session_memory_conf(short_term_memory_conf: ShortTermMemoryConfP
     assert updated.session_key == "session_123"
     assert updated.llm_model == "model_v1"
     assert updated.message_capacity == 3000
-    assert updated.enabled is True
 
 
 def test_update_episodic_memory_conf(
