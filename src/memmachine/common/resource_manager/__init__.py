@@ -2,30 +2,25 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import InstanceOf
 
-from ...common.configuration import Configuration
-from ...common.embedder import Embedder
-from ...common.language_model import LanguageModel
-from .embedder_manager import EmbedderManager
-from .language_model_manager import LanguageModelManager
-from .storage_manager import StorageManager
-from ...episodic_memory_manager import (
-    EpisodicMemoryManager,
-    EpisodicMemoryManagerParams,
-)
-from ...history_store.history_sqlalchemy_store import SqlAlchemyHistoryStore
-from ...history_store.history_storage import HistoryStorage
-from ...semantic_memory.semantic_memory import SemanticService
-from ...semantic_memory.semantic_model import ResourceRetriever, Resources, SetIdT
-from ...semantic_memory.semantic_session_manager import SemanticSessionManager
-from ...semantic_memory.semantic_session_resource import SessionIdManager
-from ...semantic_memory.storage.sqlalchemy_pgvector_semantic import (
-    SqlAlchemyPgVectorSemanticStorage,
-)
-from ...session_manager import SessionDataManagerImpl
-from ...session_manager_interface import SessionDataManager
-from ..reranker import Reranker
-from ..vector_graph_store import VectorGraphStore
-from .reranker_manager import RerankerManager
+from memmachine.common.configuration import Configuration
+from memmachine.common.embedder import Embedder
+from memmachine.common.language_model import LanguageModel
+from memmachine.common.reranker import Reranker
+from memmachine.common.resource_manager.embedder_manager import EmbedderManager
+from memmachine.common.resource_manager.language_model_manager import LanguageModelManager
+from memmachine.common.resource_manager.reranker_manager import RerankerManager
+from memmachine.common.resource_manager.storage_manager import StorageManager
+from memmachine.common.vector_graph_store import VectorGraphStore
+from memmachine.episodic_memory_manager import EpisodicMemoryManager, EpisodicMemoryManagerParams
+from memmachine.history_store.history_sqlalchemy_store import SqlAlchemyHistoryStore
+from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.semantic_memory.semantic_memory import SemanticService
+from memmachine.semantic_memory.semantic_model import ResourceRetriever, SetIdT, Resources
+from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
+from memmachine.semantic_memory.semantic_session_resource import SessionIdManager
+from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import SqlAlchemyPgVectorSemanticStorage
+from memmachine.session_manager import SessionDataManagerImpl
+from memmachine.session_manager_interface import SessionDataManager
 
 
 class ResourceManager:
