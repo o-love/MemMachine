@@ -6,8 +6,8 @@ import numpy as np
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.history_store.history_model import HistoryMessage
 from memmachine.semantic_memory.semantic_model import (
-    HistoryMessage,
     Resources,
     SemanticFeature,
 )

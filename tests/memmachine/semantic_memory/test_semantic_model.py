@@ -5,9 +5,8 @@ from types import ModuleType
 
 import pytest
 
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import HistoryIdT, HistoryMessage
 from memmachine.semantic_memory.semantic_model import (
-    HistoryMessage,
     RawSemanticPrompt,
     SemanticFeature,
 )

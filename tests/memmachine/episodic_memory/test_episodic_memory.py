@@ -8,7 +8,6 @@ import pytest
 
 from memmachine.episodic_memory.data_types import ContentType, Episode, MemoryContext
 from memmachine.episodic_memory.episodic_memory import (
-    AsyncEpisodicMemory,
     EpisodicMemory,
 )
 

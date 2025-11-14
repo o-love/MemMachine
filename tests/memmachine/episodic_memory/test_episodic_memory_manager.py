@@ -5,11 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 import pytest
 import pytest_asyncio
 import yaml
-from memmachine.episodic_memory.episodic_memory_manager import (
-    EpisodicMemoryManager,
-)
 
 from memmachine.episodic_memory.data_types import MemoryContext
+from memmachine.episodic_memory_manager import EpisodicMemoryManager
 
 # Mark all tests in this file as asyncio
 pytestmark = pytest.mark.asyncio

@@ -26,7 +26,17 @@ class SessionDBConf(BaseModel):
     )
 
 
-class ProfileMemoryConf(BaseModel):
+class  SemanticMemoryCategoryConf(BaseModel):
+    prompt: str = Field(
+        ...,
+        description="The prompt template to use for profile memory",
+    )
+
+class SemanticMemoryConf(BaseModel):
+    database: str = Field(
+        ...,
+        description="The database to use for profile memory",
+    )
     llm_model: str = Field(
         ...,
         description="The language model to use for profile memory",
@@ -35,14 +45,20 @@ class ProfileMemoryConf(BaseModel):
         ...,
         description="The embedding model to use for profile memory",
     )
-    database: str = Field(
+
+    user_prompts: list[SemanticMemoryCategoryConf] = Field(
         ...,
-        description="The database to use for profile memory",
+        description="The prompt templates to use for user memory",
     )
-    prompt: str = Field(
+    role_prompts: list[SemanticMemoryCategoryConf] = Field(
         ...,
-        description="The prompt template to use for profile memory",
+        description="The prompt templates to use for role memory",
     )
+    session_prompts: list[SemanticMemoryCategoryConf] = Field(
+        ...,
+        description="The prompt templates to use for session memory",
+    )
+
 
 
 def _read_txt(filename: str) -> str:
@@ -66,26 +82,6 @@ def _read_txt(filename: str) -> str:
     with path.open("r", encoding="utf-8") as f:
         return f.read()
 
-
-class ProfilePrompt(BaseModel):
-    update_prompt: str = Field(
-        ...,
-        description="The prompt template to use for profile update",
-    )
-    consolidation_prompt: str = Field(
-        ...,
-        description="The prompt template to use for profile consolidation",
-    )
-
-    @staticmethod
-    def load_from_module(prompt_module: ModuleType):
-        update_prompt = getattr(prompt_module, "UPDATE_PROMPT", "")
-        consolidation_prompt = getattr(prompt_module, "CONSOLIDATION_PROMPT", "")
-
-        return ProfilePrompt(
-            update_prompt=update_prompt,
-            consolidation_prompt=consolidation_prompt,
-        )
 
 
 class PromptConf(BaseModel):
@@ -131,7 +127,7 @@ class PromptConf(BaseModel):
             ) from e
 
         try:
-            prompt = ProfilePrompt.load_from_module(prompt_module)
+            prompt = Semantic.load_from_module(prompt_module)
         except Exception as e:
             raise RuntimeError(
                 f"Failed to load prompt from module '{module_name}': {e}"
@@ -144,10 +140,10 @@ class Configuration(EpisodicMemoryConfPartial):
     sessiondb: SessionDBConf
     model: LanguageModelConf
     storage: StorageConf
-    profile_memory: ProfileMemoryConf
     embedder: EmbedderConf
     reranker: RerankerConf
     prompt: PromptConf
+    semantic_memory: SemanticMemoryConf
 
     def __init__(self, **data):
         data = data.copy()  # avoid mutating caller's dict

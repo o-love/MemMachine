@@ -6,15 +6,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
-from memmachine.common.configuration.episodic_config import (
-    EpisodicMemoryParams,
-    ShortTermMemoryParams,
-)
 from memmachine.common.language_model import LanguageModel
 from memmachine.episodic_memory.data_types import (
     ContentType,
     Episode,
 )
+from memmachine.episodic_memory.episodic_memory import EpisodicMemoryParams
 from memmachine.episodic_memory.short_term_memory.short_term_memory import (
     ShortTermMemory,
 )

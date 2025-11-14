@@ -18,6 +18,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -37,11 +38,12 @@ class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
     Base class for declarative class definitions.
     """
 
+JSON_AUTO = JSON().with_variant(JSONB, "postgresql")
 
 IntColumn = Annotated[int, mapped_column(Integer)]
 StringKeyColumn = Annotated[str, mapped_column(String, primary_key=True)]
 StringColumn = Annotated[str, mapped_column(String)]
-JSONColumn = Annotated[dict, mapped_column(JSON)]
+JSONColumn = Annotated[dict, mapped_column(JSON_AUTO)]
 BinaryColumn = Annotated[bytes, mapped_column(LargeBinary)]
 
 
@@ -107,10 +109,13 @@ class SessionDataManagerImpl(SessionDataManager):
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+    async def drop_tables(self) -> None:
+        """Drops all tables from the database."""
+        async with self._engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+
     async def close(self):
-        """Closes the database connection engine."""
-        if hasattr(self, "_engine"):
-            await self._engine.dispose()
+        pass
 
     async def create_new_session(
         self,

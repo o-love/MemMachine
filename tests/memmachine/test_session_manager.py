@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from memmachine.common.configuration.episodic_config import EpisodicMemoryParams
 from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.episodic_memory.episodic_memory import EpisodicMemoryParams
 from memmachine.session_manager import SessionDataManagerImpl
 
 
@@ -50,28 +50,20 @@ def episodic_memory_params(mock_metrics_factory):
         session_key="test_session", metrics_factory=mock_metrics_factory, enabled=False
     )
 
-
 @pytest_asyncio.fixture
-async def db_engine():
-    """Fixture for an in-memory SQLite async engine."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    yield engine
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def session_manager(db_engine: AsyncEngine):
+async def session_manager(sqlalchemy_engine: AsyncEngine):
     """Fixture for SessionDataManagerImpl, with tables created."""
-    manager = SessionDataManagerImpl(engine=db_engine)
+    manager = SessionDataManagerImpl(engine=sqlalchemy_engine)
     await manager.create_tables()
     yield manager
+    await manager.drop_tables()
     await manager.close()
 
 
 @pytest.mark.asyncio
-async def test_create_tables(db_engine: AsyncEngine):
+async def test_create_tables(sqlalchemy_engine: AsyncEngine):
     """Test that create_tables creates the expected tables."""
-    manager = SessionDataManagerImpl(engine=db_engine)
+    manager = SessionDataManagerImpl(engine=sqlalchemy_engine)
     await manager.create_tables()
 
 

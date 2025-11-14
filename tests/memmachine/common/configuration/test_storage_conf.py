@@ -4,8 +4,7 @@ from pydantic import SecretStr, ValidationError
 from memmachine.common.configuration.storage_conf import (
     DBConf,
     Neo4JConf,
-    PostgresConf,
-    SqliteConf,
+    SqlAlchemyConf,
     StorageConf,
     SupportedDB,
 )
@@ -112,14 +111,14 @@ def test_parse_valid_storage_dict():
     assert neo_conf.port == 7687
 
     # Postgres check
-    pg_conf = storage_conf.postgres_confs["main_postgres"]
-    assert isinstance(pg_conf, PostgresConf)
+    pg_conf = storage_conf.relational_db_confs["main_postgres"]
+    assert isinstance(pg_conf, SqlAlchemyConf)
     assert pg_conf.db_name == "test_db"
     assert pg_conf.port == 5432
 
     # Sqlite check
-    sqlite_conf = storage_conf.sqlite_confs["local_sqlite"]
-    assert isinstance(sqlite_conf, SqliteConf)
+    sqlite_conf = storage_conf.relational_db_confs["local_sqlite"]
+    assert isinstance(sqlite_conf, SqlAlchemyConf)
     assert sqlite_conf.file_path == "local.db"
 
 

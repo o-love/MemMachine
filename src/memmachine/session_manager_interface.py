@@ -24,6 +24,13 @@ class SessionDataManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def drop_tables(self):
+        """
+        Drops all created tables from the database.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     async def create_new_session(
         self,
         session_key: str,

@@ -19,27 +19,18 @@ class Neo4JConf(BaseModel):
     )
 
 
-class PostgresConf(BaseModel):
-    host: str = Field(default="localhost", description="PostgreSQL connection host")
-    port: int = Field(default=5432, description="PostgreSQL connection port")
-    user: str = Field(default="memmachine", description="PostgreSQL username")
+class SqlAlchemyConf(BaseModel):
+    dialect: str = Field(default="postgresql", description="SQL dialect")
+    driver: str = Field(default="asyncpg", description="SQLAlchemy driver")
+
+    host: str = Field(default="localhost", description="DB connection host")
+    port: int = Field(default=5432, description="DB connection port")
+    user: str = Field(default="memmachine", description="DB username")
     password: SecretStr = Field(
         default=SecretStr("memmachine_password"),
-        description="PostgreSQL database password",
+        description="DB password",
     )
-    db_name: str = Field(default="memmachine", description="PostgreSQL database name")
-    vector_schema: str = Field(
-        default="public", description="PostgreSQL schema for vector data"
-    )
-    statement_cache_size: int = Field(
-        default=0, description="PostgreSQL statement cache size (0 to disable)"
-    )
-
-
-class SqliteConf(BaseModel):
-    file_path: str = Field(
-        default="memmachine.db", description="SQLite database file path"
-    )
+    db_name: str = Field(default="memmachine", description="DB name")
 
 
 class SupportedDB(str, Enum):
@@ -81,8 +72,7 @@ class DBConf(BaseModel):
 
 class StorageConf(BaseModel):
     neo4j_confs: dict[str, Neo4JConf] = {}
-    postgres_confs: dict[str, PostgresConf] = {}
-    sqlite_confs: dict[str, SqliteConf] = {}
+    relational_db_confs: dict[str, SqlAlchemyConf] = {}
 
     @classmethod
     def parse_storage_conf(cls, input_dict: dict) -> Self:
@@ -91,21 +81,29 @@ class StorageConf(BaseModel):
             if key in input_dict:
                 storage = input_dict.get(key, {})
 
-        neo4j_dict, pg_dict, sqlite_dict = {}, {}, {}
+        neo4j_dict, relational_db_dict = {}, {}
 
         for storage_id, conf in storage.items():
             vendor = conf.get("vendor_name").lower()
             if vendor == "neo4j":
                 neo4j_dict[storage_id] = Neo4JConf(**conf)
             elif vendor == "postgres":
-                pg_dict[storage_id] = PostgresConf(**conf)
+                relational_db_dict[storage_id] = SqlAlchemyConf(
+                    dialect="postgresql",
+                    driver="asyncpg",
+                    **conf,
+                )
             elif vendor == "sqlite":
-                sqlite_dict[storage_id] = SqliteConf(**conf)
+                relational_db_dict[storage_id] = SqlAlchemyConf(
+                    dialect="sqlite",
+                    driver="aiosqlite",
+                    **conf,
+                )
             else:
                 raise ValueError(
                     f"Unknown vendor_name '{vendor}' for storage_id '{storage_id}'"
                 )
 
         return cls(
-            neo4j_confs=neo4j_dict, postgres_confs=pg_dict, sqlite_confs=sqlite_dict
+            neo4j_confs=neo4j_dict, relational_db_confs=relational_db_dict,
         )

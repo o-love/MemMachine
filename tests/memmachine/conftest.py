@@ -6,7 +6,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import StaticPool, text
 from sqlalchemy.engine import URL
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.configuration.model_conf import (
@@ -198,9 +198,9 @@ async def pg_server(pg_container):
     }
 
 
-@pytest.fixture
-def sqlalchemy_pg_engine(pg_server):
-    return create_async_engine(
+@pytest_asyncio.fixture
+async def sqlalchemy_pg_engine(pg_server):
+    engine = create_async_engine(
         URL.create(
             "postgresql+asyncpg",
             username=pg_server["user"],
@@ -211,6 +211,26 @@ def sqlalchemy_pg_engine(pg_server):
         )
     )
 
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def sqlalchemy_sqlite_engine():
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+    )
+
+    yield engine
+    await engine.dispose()
+
+@pytest.fixture(params=[
+    "sqlalchemy_sqlite_engine",
+    pytest.param("sqlalchemy_pg_engine", marks=pytest.mark.integration)
+])
+def sqlalchemy_engine(request):
+    return request.getfixturevalue(request.param)
 
 @pytest_asyncio.fixture
 async def pgvector_semantic_storage(sqlalchemy_pg_engine):
@@ -239,13 +259,8 @@ def semantic_storage(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest_asyncio.fixture
-async def sqlite_history_storage():
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+async def history_storage(sqlalchemy_engine: AsyncEngine):
+    engine = sqlalchemy_engine
     async with engine.begin() as conn:
         await conn.run_sync(BaseHistoryStore.metadata.create_all)
 
@@ -254,27 +269,3 @@ async def sqlite_history_storage():
         yield storage
     finally:
         await engine.dispose()
-
-
-@pytest_asyncio.fixture
-async def postgres_history_storage(sqlalchemy_pg_engine):
-    async with sqlalchemy_pg_engine.begin() as conn:
-        await conn.run_sync(BaseHistoryStore.metadata.create_all)
-        await conn.execute(text("TRUNCATE TABLE history RESTART IDENTITY CASCADE"))
-
-    storage = SqlAlchemyHistoryStore(sqlalchemy_pg_engine)
-    try:
-        yield storage
-    finally:
-        async with sqlalchemy_pg_engine.begin() as conn:
-            await conn.execute(text("TRUNCATE TABLE history RESTART IDENTITY CASCADE"))
-
-
-@pytest.fixture(
-    params=[
-        "sqlite_history_storage",
-        pytest.param("postgres_history_storage", marks=pytest.mark.integration),
-    ]
-)
-def history_storage(request):
-    return request.getfixturevalue(request.param)

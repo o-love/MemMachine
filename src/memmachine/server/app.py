@@ -33,14 +33,12 @@ from starlette.types import Lifespan, Receive, Scope, Send
 
 from memmachine.common.configuration import load_config_yml_file
 from memmachine.common.resource_mgr import ResourceMgr
+from memmachine.episodic_memory import episodic_memory
 from memmachine.episodic_memory.data_types import ContentType
 from memmachine.episodic_memory.episodic_memory import (
-    AsyncEpisodicMemory,
     EpisodicMemory,
 )
-from memmachine.episodic_memory.episodic_memory_manager import (
-    EpisodicMemoryManager,
-)
+from memmachine.episodic_memory_manager import EpisodicMemoryManager
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
     SessionIdManager,
