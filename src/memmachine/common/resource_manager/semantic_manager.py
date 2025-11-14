@@ -18,10 +18,6 @@ def load_prompt(prompt_config: PromptConf, key: str, default_value: str) -> str:
         The content of the prompt.
     """
 
-    def load_from_file(path: str) -> str:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-
     custom_prompt_path = prompt_config.get(key)
     if custom_prompt_path:
         with open(custom_prompt_path, "r", encoding="utf-8") as f:
