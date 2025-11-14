@@ -47,8 +47,8 @@ class ResourceMgr:
         #     self._profile_memory.cleanup()
         self._storage_mgr.close()
 
-    def get_graph_store(self, name: str) -> VectorGraphStore:
-        return self._storage_mgr.get_graph_store(name)
+    def get_vector_graph_store(self, name: str) -> VectorGraphStore:
+        return self._storage_mgr.get_vector_graph_store(name)
 
     def get_embedder(self, name: str) -> Embedder:
         return self._embedder_mgr.get_embedder(name)

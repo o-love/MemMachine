@@ -39,7 +39,7 @@ class StorageMgr:
         for engine in self.sql_engines.values():
             engine.dispose()
 
-    def get_graph_store(self, name: str) -> VectorGraphStore:
+    def get_vector_graph_store(self, name: str) -> VectorGraphStore:
         if name not in self.graph_stores:
             raise ValueError(f"Neo4J driver '{name}' not found.")
         return self.graph_stores[name]

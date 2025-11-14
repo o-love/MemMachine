@@ -58,16 +58,14 @@ class LongTermMemory:
     def __init__(self,
                  resource_mgr: ResourceMgrProto,
                  conf: LongTermMemoryConf):
-        # Note: Things look a bit weird during refactor...
-        # Internal session_id is used for external group_id. This is intentional.
         embedder = resource_mgr.get_embedder(conf.embedder)
         reranker = resource_mgr.get_reranker(conf.reranker)
-        graph_store = resource_mgr.get_graph_store(conf.vector_graph_store)
+        vector_graph_store = resource_mgr.get_vector_graph_store(conf.vector_graph_store)
         self._conf = conf
         self._declarative_memory = DeclarativeMemory(
             DeclarativeMemoryParams(
                 session_id=conf.session_id,
-                vector_graph_store=graph_store,
+                vector_graph_store=vector_graph_store,
                 embedder=embedder,
                 reranker=reranker,
             )
