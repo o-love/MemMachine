@@ -13,7 +13,7 @@ from memmachine.common.language_model.openai_compatible_language_model import (
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 
 
-class LanguageModelMgr:
+class LanguageModelManager:
     def __init__(self, conf: LanguageModelConf):
         self.conf = conf
         self._language_models: dict[str, LanguageModel] = {}

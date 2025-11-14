@@ -6,7 +6,7 @@ from memmachine.common.configuration.embedder_conf import EmbedderConf
 from memmachine.common.embedder import Embedder
 
 
-class EmbedderMgr:
+class EmbedderManager:
     _sentence_transformers: ClassVar[dict[str, SentenceTransformer]] = {}
 
     def __init__(self, conf: EmbedderConf):

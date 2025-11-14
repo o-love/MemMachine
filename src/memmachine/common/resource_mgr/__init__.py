@@ -5,9 +5,9 @@ from pydantic import InstanceOf
 from ...common.configuration import Configuration
 from ...common.embedder import Embedder
 from ...common.language_model import LanguageModel
-from ...common.resource_mgr.embedder_mgr import EmbedderMgr
-from ...common.resource_mgr.language_model_mgr import LanguageModelMgr
-from ...common.resource_mgr.storage_mgr import StorageMgr
+from ...common.resource_mgr.embedder_mgr import EmbedderManager
+from ...common.resource_mgr.language_model_mgr import LanguageModelManager
+from ...common.resource_mgr.storage_mgr import StorageManager
 from ...episodic_memory_manager import (
     EpisodicMemoryManager,
     EpisodicMemoryManagerParams,
@@ -25,17 +25,17 @@ from ...session_manager import SessionDataManagerImpl
 from ...session_manager_interface import SessionDataManager
 from ..reranker import Reranker
 from ..vector_graph_store import VectorGraphStore
-from .reranker_mgr import RerankerMgr
+from .reranker_mgr import RerankerManager
 
 
 class ResourceManager:
     def __init__(self, conf: Configuration):
         self._conf = conf
         self._conf.logging.apply()
-        self._storage_mgr: StorageMgr = StorageMgr(self._conf.storage)
-        self._embedder_mgr: EmbedderMgr = EmbedderMgr(self._conf.embeder)
-        self._model_mgr: LanguageModelMgr = LanguageModelMgr(self._conf.model)
-        self._reranker_mgr: RerankerMgr = RerankerMgr(self._conf.reranker)
+        self._storage_mgr: StorageManager = StorageManager(self._conf.storage)
+        self._embedder_mgr: EmbedderManager = EmbedderManager(self._conf.embeder)
+        self._model_mgr: LanguageModelManager = LanguageModelManager(self._conf.model)
+        self._reranker_mgr: RerankerManager = RerankerManager(self._conf.reranker)
         self._session_data_mgr: SessionDataManager | None = None
         self._episodic_memory_manager: EpisodicMemoryManager | None = None
         self._history_storage: HistoryStorage | None = None

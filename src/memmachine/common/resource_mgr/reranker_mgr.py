@@ -5,7 +5,7 @@ from ...common.reranker import Reranker
 from ..embedder import Embedder
 
 
-class RerankerMgr:
+class RerankerManager:
     def __init__(self, conf: RerankerConf):
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}

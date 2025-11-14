@@ -7,7 +7,7 @@ from memmachine.common.configuration.model_conf import (
     OpenAICompatibleModelConf,
     OpenAIModelConf,
 )
-from memmachine.common.resource_mgr.language_model_mgr import LanguageModelMgr
+from memmachine.common.resource_mgr.language_model_mgr import LanguageModelManager
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def mock_conf():
 
 
 def test_build_open_ai_model(mock_conf):
-    builder = LanguageModelMgr(mock_conf)
+    builder = LanguageModelManager(mock_conf)
     builder._build_openai_model()
 
     assert "openai_4o_mini" in builder.language_models
@@ -56,7 +56,7 @@ def test_build_open_ai_model(mock_conf):
 
 
 def test_build_aws_bedrock_model(mock_conf):
-    builder = LanguageModelMgr(mock_conf)
+    builder = LanguageModelManager(mock_conf)
     builder._build_aws_bedrock_model()
 
     assert "aws_model" in builder.language_models
@@ -66,7 +66,7 @@ def test_build_aws_bedrock_model(mock_conf):
 
 
 def test_build_openai_compatible_model(mock_conf):
-    builder = LanguageModelMgr(mock_conf)
+    builder = LanguageModelManager(mock_conf)
     builder._build_openai_compatible_model()
 
     assert "ollama_model" in builder.language_models

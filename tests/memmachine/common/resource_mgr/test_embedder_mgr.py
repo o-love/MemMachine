@@ -8,7 +8,7 @@ from memmachine.common.configuration.embedder_conf import (
     SentenceTransformerEmbedderConfig,
 )
 from memmachine.common.embedder import Embedder
-from memmachine.common.resource_mgr import EmbedderMgr
+from memmachine.common.resource_mgr import EmbedderManager
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def mock_conf():
 
 
 def test_build_amazon_bedrock_embedders(mock_conf):
-    builder = EmbedderMgr(mock_conf)
+    builder = EmbedderManager(mock_conf)
     builder._build_amazon_bedrock_embedders()
 
     assert "aws_embedder_id" in builder._embedders
@@ -47,7 +47,7 @@ def test_build_amazon_bedrock_embedders(mock_conf):
 
 
 def test_build_openai_embedders(mock_conf):
-    builder = EmbedderMgr(mock_conf)
+    builder = EmbedderManager(mock_conf)
     builder._build_openai_embedders()
 
     assert "openai_embedder_id" in builder._embedders
@@ -56,7 +56,7 @@ def test_build_openai_embedders(mock_conf):
 
 
 def test_build_sentence_transformer_embedders(mock_conf):
-    builder = EmbedderMgr(mock_conf)
+    builder = EmbedderManager(mock_conf)
     builder._build_sentence_transformer_embedders()
 
     assert "sentence_transformer_id" in builder._embedders
@@ -65,7 +65,7 @@ def test_build_sentence_transformer_embedders(mock_conf):
 
 
 def test_build_all(mock_conf):
-    builder = EmbedderMgr(mock_conf)
+    builder = EmbedderManager(mock_conf)
     all_embedders = builder.build_all()
 
     assert "aws_embedder_id" in all_embedders

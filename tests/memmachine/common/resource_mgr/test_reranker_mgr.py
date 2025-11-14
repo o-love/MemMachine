@@ -8,7 +8,7 @@ from memmachine.common.configuration.reranker_conf import (
     RerankerConf,
     RRFHybridRerankerConf,
 )
-from memmachine.common.resource_mgr.reranker_mgr import RerankerMgr
+from memmachine.common.resource_mgr.reranker_mgr import RerankerManager
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def mock_conf():
 
 
 def test_build_bm25_rerankers(mock_conf):
-    builder = RerankerMgr(mock_conf)
+    builder = RerankerManager(mock_conf)
     builder._build_bm25_rerankers()
 
     assert "bm_ranker_id" in builder.rerankers
@@ -48,7 +48,7 @@ def test_build_bm25_rerankers(mock_conf):
 
 
 def test_build_cross_encoder_rerankers(mock_conf):
-    builder = RerankerMgr(mock_conf)
+    builder = RerankerManager(mock_conf)
     builder._build_cross_encoder_rerankers()
 
     assert "ce_ranker_id" in builder.rerankers
@@ -57,7 +57,7 @@ def test_build_cross_encoder_rerankers(mock_conf):
 
 
 def test_amazon_bedrock_rerankers(mock_conf):
-    builder = RerankerMgr(mock_conf)
+    builder = RerankerManager(mock_conf)
     builder._build_amazon_bedrock_rerankers()
 
     assert "aws_reranker_id" in builder.rerankers
@@ -66,7 +66,7 @@ def test_amazon_bedrock_rerankers(mock_conf):
 
 
 def test_identity_rerankers(mock_conf):
-    builder = RerankerMgr(mock_conf)
+    builder = RerankerManager(mock_conf)
     builder._build_identity_rerankers()
 
     assert "id_ranker_id" in builder.rerankers
@@ -75,7 +75,7 @@ def test_identity_rerankers(mock_conf):
 
 
 def test_build_rrf_hybrid_rerankers(mock_conf):
-    builder = RerankerMgr(mock_conf)
+    builder = RerankerManager(mock_conf)
     builder.build_all({})
 
     assert "my_reranker_id" in builder.rerankers

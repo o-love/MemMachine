@@ -13,7 +13,7 @@ from memmachine.common.vector_graph_store.neo4j_vector_graph_store import (
 )
 
 
-class StorageMgr:
+class StorageManager:
     def __init__(self, conf: StorageConf):
         self.conf = conf
         self.graph_stores: dict[str, VectorGraphStore] = {}

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.configuration.storage_conf import StorageConf
-from memmachine.common.resource_mgr.storage_mgr import StorageMgr
+from memmachine.common.resource_mgr.storage_mgr import StorageManager
 from memmachine.common.vector_graph_store import VectorGraphStore
 
 
@@ -32,7 +32,7 @@ def mock_conf():
 
 @pytest.mark.asyncio
 async def test_build_neo4j(mock_conf):
-    builder = StorageMgr(mock_conf)
+    builder = StorageManager(mock_conf)
     await builder._build_neo4j()
 
     assert "neo1" in builder.graph_stores
@@ -41,7 +41,7 @@ async def test_build_neo4j(mock_conf):
 
 @pytest.mark.asyncio
 async def test_build_sqlite(mock_conf):
-    builder = StorageMgr(mock_conf)
+    builder = StorageManager(mock_conf)
     await builder._build_sql_engines()
 
     assert "sqlite1" in builder.sql_engines
@@ -50,7 +50,7 @@ async def test_build_sqlite(mock_conf):
 
 @pytest.mark.asyncio
 async def test_build_all_without_validation(mock_conf):
-    builder = StorageMgr(mock_conf)
+    builder = StorageManager(mock_conf)
     builder._build_neo4j = AsyncMock()
     builder._build_sql_engines = AsyncMock()
     builder._validate_neo4j = AsyncMock()
