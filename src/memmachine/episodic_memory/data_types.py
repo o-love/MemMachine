@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from memmachine.common.embedder import Embedder
@@ -14,6 +14,7 @@ from memmachine.session_manager_interface import SessionDataManager
 JSONValue = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
 
 
+@runtime_checkable
 class ResourceMgrProto(Protocol):
     """Protocol for resource manager classes."""
 
