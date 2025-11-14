@@ -146,13 +146,13 @@ class EpisodicMemory:
         cls, resource_mgr: ResourceMgrProto, param: EpisodicMemoryConf
     ) -> Self:
         short_term_memory: ShortTermMemory | None = None
-        if param.short_term_memory and param.short_term_memory.enabled:
+        if param.short_term_memory and param.short_term_memory_enabled:
             short_term_memory = await ShortTermMemory.create(
                 short_term_memory_params_from_config(resource_mgr, param.short_term_memory
             ))
 
         long_term_memory: LongTermMemory | None = None
-        if param.long_term_memory and param.long_term_memory.enabled:
+        if param.long_term_memory and param.long_term_memory_enabled:
             long_term_memory = LongTermMemory(
                 long_term_memory_params_from_config(
                     resource_mgr, param.long_term_memory
