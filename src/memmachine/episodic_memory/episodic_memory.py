@@ -143,19 +143,19 @@ class EpisodicMemory:
 
     @classmethod
     async def create(
-        cls, resource_mgr: ResourceMgrProto, param: EpisodicMemoryConf
+        cls, resource_mgr: ResourceMgrProto, config: EpisodicMemoryConf
     ) -> Self:
         short_term_memory: ShortTermMemory | None = None
-        if param.short_term_memory and param.short_term_memory_enabled:
+        if config.short_term_memory and config.short_term_memory_enabled:
             short_term_memory = await ShortTermMemory.create(
-                short_term_memory_params_from_config(resource_mgr, param.short_term_memory
+                short_term_memory_params_from_config(resource_mgr, config.short_term_memory
             ))
 
         long_term_memory: LongTermMemory | None = None
-        if param.long_term_memory and param.long_term_memory_enabled:
+        if config.long_term_memory and config.long_term_memory_enabled:
             long_term_memory = LongTermMemory(
                 long_term_memory_params_from_config(
-                    resource_mgr, param.long_term_memory
+                    resource_mgr, config.long_term_memory
                 )
             )
 
