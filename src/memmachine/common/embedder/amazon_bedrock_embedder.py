@@ -88,7 +88,7 @@ class AmazonBedrockEmbedder(Embedder):
             response = self._client.embed_documents(["."])
             self._dimensions = len(response[0])
         except ClientError as e:
-            logger.error(f'Failed to get embedding dimensions: {e}')
+            logger.error(f"Failed to get embedding dimensions: {e}")
 
     @property
     def embeddings(self) -> BedrockEmbeddings:

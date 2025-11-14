@@ -1,4 +1,4 @@
-from typing import ClassVar, Dict
+from typing import ClassVar
 
 from sentence_transformers import SentenceTransformer
 
@@ -7,7 +7,7 @@ from memmachine.common.embedder import Embedder
 
 
 class EmbedderMgr:
-    _sentence_transformers: ClassVar[Dict[str, SentenceTransformer]] = {}
+    _sentence_transformers: ClassVar[dict[str, SentenceTransformer]] = {}
 
     def __init__(self, conf: EmbedderConf):
         self.conf = conf

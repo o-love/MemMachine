@@ -19,24 +19,17 @@ import asyncio
 import logging
 import time
 from collections.abc import Iterable, Mapping
-from typing import Self, cast
+from typing import cast
 from uuid import UUID
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
-from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+from memmachine.common.data_types import FilterablePropertyValue
 from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.common.resource_mgr import ResourceMgrProto
 
 from .data_types import Episode
-from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryParams
-from .long_term_memory.service_locator import long_term_memory_params_from_config
-from .short_term_memory.service_locator import short_term_memory_params_from_config
-from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
-from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
-from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.common.resource_mgr import ResourceMgrProto
-from memmachine.common.data_types import FilterablePropertyValue
+from .long_term_memory.long_term_memory import LongTermMemory
+from .short_term_memory.short_term_memory import ShortTermMemory
 
 logger = logging.getLogger(__name__)
 

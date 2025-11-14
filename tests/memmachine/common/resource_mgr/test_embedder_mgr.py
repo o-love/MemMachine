@@ -1,5 +1,3 @@
-from unittest.mock import Mock
-
 import pytest
 from pydantic import SecretStr
 
@@ -32,8 +30,9 @@ def mock_conf():
         },
         sentence_transformer={
             "sentence_transformer_id": SentenceTransformerEmbedderConfig(
-                model="sentence-transformers/all-MiniLM-L6-v2",)
-        }
+                model="sentence-transformers/all-MiniLM-L6-v2",
+            )
+        },
     )
     return conf
 

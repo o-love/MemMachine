@@ -91,6 +91,7 @@ class LongTermMemoryConf(BaseModel):
         description="ID of the Reranker instance for reranking search results",
     )
 
+
 class LongTermMemoryConfPartial(BaseModel):
     session_id: str | None = Field(
         default=None,

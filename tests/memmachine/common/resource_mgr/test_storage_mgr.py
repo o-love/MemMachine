@@ -1,10 +1,6 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import asyncpg
-import neo4j
 import pytest
-import sqlalchemy
-from neo4j import AsyncDriver
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.configuration.storage_conf import StorageConf

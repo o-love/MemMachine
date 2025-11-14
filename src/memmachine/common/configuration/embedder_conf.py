@@ -1,10 +1,9 @@
-from typing import Self, ClassVar, Dict
+from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr
 
 from memmachine.common.configuration.metrics_conf import WithMetricsFactoryId
 from memmachine.common.data_types import SimilarityMetric
-from memmachine.common.embedder import Embedder
 
 
 class AmazonBedrockEmbedderConfig(BaseModel):
@@ -49,8 +48,7 @@ class AmazonBedrockEmbedderConfig(BaseModel):
         "(e.g. 'openai.gpt-oss-20b-1:0').",
     )
     similarity_metric: SimilarityMetric = Field(
-        default=SimilarityMetric.COSINE,
-        description="Similarity metric to use"
+        default=SimilarityMetric.COSINE, description="Similarity metric to use"
     )
     max_retry_interval_seconds: int = Field(
         default=120,
