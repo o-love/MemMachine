@@ -111,27 +111,13 @@ class ShortTermMemory:
                 self._current_message_len += len(e.content)
 
     @classmethod
-    async def create(cls,
-                     resource_mgr: ResourceMgrProto,
-                     conf: ShortTermMemoryConf) -> "ShortTermMemory":
+    async def create(cls, params: ShortTermMemoryParams) -> "ShortTermMemory":
         """
         Creates a new ShortTermMemory instance.
         """
-        data_manager = resource_mgr.session_data_manager
-        llm_model = resource_mgr.get_language_model(conf.llm_model)
-        param = ShortTermMemoryParams(
-                session_key=conf.session_key,
-                llm_model=llm_model,
-                data_manager=data_manager,
-                summary_prompt_system=conf.summary_prompt_system,
-                summary_prompt_user=conf.summary_prompt_user,
-                message_capacity=conf.message_capacity,
-                enabled=conf.enabled,
-            )
-
-        if data_manager is not None:
+        if params.data_manager is not None:
             try:
-                await data_manager.create_tables()
+                await params.data_manager.create_tables()
             except ValueError:
                 pass
             try:
@@ -139,11 +125,11 @@ class ShortTermMemory:
                     summary,
                     num_episodes,
                     seq_num,
-                ) = await data_manager.get_short_term_memory(param.session_key)
-                return ShortTermMemory(param, summary)
+                ) = await params.data_manager.get_short_term_memory(params.session_key)
+                return ShortTermMemory(params, summary)
             except ValueError:
                 pass
-        return ShortTermMemory(param)
+        return ShortTermMemory(params)
 
     def _is_full(self) -> bool:
         """

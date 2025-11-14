@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field, InstanceOf, model_validator
 from .data_types import Episode
 from .long_term_memory.long_term_memory import LongTermMemory, LongTermMemoryParams
 from .long_term_memory.service_locator import long_term_memory_params_from_config
+from .short_term_memory.service_locator import short_term_memory_params_from_config
 from .short_term_memory.short_term_memory import ShortTermMemory, ShortTermMemoryParams
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 from memmachine.common.metrics_factory import MetricsFactory
@@ -142,7 +143,7 @@ class EpisodicMemory:
     ) -> Self:
         short_term_memory: ShortTermMemory | None = None
         if param.short_term_memory and param.short_term_memory.enabled:
-            short_term_memory = await ShortTermMemory.create(resource_mgr, param.short_term_memory)
+            short_term_memory = await ShortTermMemory.create(short_term_memory_params_from_config(resource_mgr, param.short_term_memory))
 
         long_term_memory: LongTermMemory | None = None
         if param.long_term_memory and param.long_term_memory.enabled:
