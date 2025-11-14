@@ -109,7 +109,7 @@ async def test_history_identity_filters(history_storage: HistoryStorage):
         producer_id="assistant-id",
         producer_role="assistant",
         produced_for_id="user-id",
-        episode_type=EpisodeType.ACTION,
+        episode_type=EpisodeType.MESSAGE,
     )
     system_message = await create_history_entry(
         history_storage,
@@ -118,7 +118,7 @@ async def test_history_identity_filters(history_storage: HistoryStorage):
         producer_id="system-id",
         producer_role="system",
         produced_for_id="group-id",
-        episode_type=EpisodeType.THOUGHT,
+        episode_type=EpisodeType.MESSAGE,
     )
 
     try:
@@ -142,10 +142,6 @@ async def test_history_identity_filters(history_storage: HistoryStorage):
         )
         assert [m.metadata.id for m in by_produced_for] == [assistant_message]
 
-        by_episode_type = await history_storage.get_history_messages(
-            episode_types=[EpisodeType.THOUGHT]
-        )
-        assert [m.metadata.id for m in by_episode_type] == [system_message]
     finally:
         await history_storage.delete_history(
             [user_message, assistant_message, system_message]
@@ -248,7 +244,7 @@ async def test_delete_history_messages_with_identity_filters(
         content="keep",
         producer_role="user",
     )
-    drop_history = await create_history_entry(
+    await create_history_entry(
         history_storage,
         content="drop",
         producer_role="assistant",

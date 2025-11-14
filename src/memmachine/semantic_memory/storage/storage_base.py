@@ -140,7 +140,7 @@ class SemanticStorageBase(ABC):
     async def get_history_messages(
         self,
         *,
-        set_ids: list[str] | None = None,
+        set_ids: list[SetIdT] | None = None,
         limit: int | None = None,
         is_ingested: bool | None = None,
     ) -> list[HistoryIdT]:
@@ -154,7 +154,7 @@ class SemanticStorageBase(ABC):
     async def get_history_messages_count(
         self,
         *,
-        set_ids: list[str] | None = None,
+        set_ids: list[SetIdT] | None = None,
         is_ingested: bool | None = None,
     ) -> int:
         """
@@ -163,14 +163,14 @@ class SemanticStorageBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def add_history_to_set(self, set_id: str, history_id: HistoryIdT) -> None:
+    async def add_history_to_set(self, set_id: SetIdT, history_id: HistoryIdT) -> None:
         raise NotImplementedError
 
     @abstractmethod
     async def mark_messages_ingested(
         self,
         *,
-        set_id: str,
+        set_id: SetIdT,
         history_ids: list[HistoryIdT],
     ) -> None:
         """

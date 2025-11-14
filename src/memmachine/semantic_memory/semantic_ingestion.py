@@ -20,7 +20,7 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticCategory,
     SemanticCommand,
     SemanticCommandType,
-    SemanticFeature,
+    SemanticFeature, SetIdT,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 
@@ -50,7 +50,7 @@ class IngestionService:
         self._consolidation_threshold = params.consolidated_threshold
         self._debug_fail_loudly = params.debug_fail_loudly
 
-    async def process_set_ids(self, set_ids: list[str]) -> None:
+    async def process_set_ids(self, set_ids: list[SetIdT]) -> None:
         results = await asyncio.gather(
             *[self._process_single_set(set_id) for set_id in set_ids],
             return_exceptions=True,
@@ -128,7 +128,7 @@ class IngestionService:
 
                 mark_messages.append(message.metadata.id)
 
-        mark_messages: list[int] = []
+        mark_messages: list[HistoryIdT] = []
         semantic_category_runners = []
         for t in resources.semantic_categories:
             task = process_semantic_type(t)
@@ -152,9 +152,9 @@ class IngestionService:
         self,
         *,
         commands: list[SemanticCommand],
-        set_id: str,
+        set_id: SetIdT,
         category_name: str,
-        citation_id: int | None,
+        citation_id: HistoryIdT | None,
         embedder: InstanceOf[Embedder],
     ):
         for command in commands:
@@ -188,7 +188,7 @@ class IngestionService:
     async def _consolidate_set_memories_if_applicable(
         self,
         *,
-        set_id: str,
+        set_id: SetIdT,
         resources: InstanceOf[Resources],
     ):
         async def _consolidate_type(semantic_category: InstanceOf[SemanticCategory]):
@@ -258,7 +258,7 @@ class IngestionService:
             [m.metadata.id for m in memories_to_delete if m.metadata.id is not None]
         )
 
-        merged_citations: chain[HistoryMessage] = itertools.chain.from_iterable(
+        merged_citations: chain[HistoryIdT] = itertools.chain.from_iterable(
             [
                 m.metadata.citations
                 for m in memories_to_delete

@@ -30,7 +30,7 @@ class SqlAlchemyConf(BaseModel):
         default=None,
         description="DB password",
     )
-    db_name: str = Field(default=None, description="DB name")
+    db_name: str | None = Field(default=None, description="DB name")
 
 
 class SupportedDB(str, Enum):

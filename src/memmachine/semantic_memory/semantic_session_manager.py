@@ -101,7 +101,7 @@ class SemanticSessionManager:
         value: str,
         tag: str,
         metadata: dict[str, str] | None = None,
-        citations: list[int] | None = None,
+        citations: list[HistoryIdT] | None = None,
     ) -> FeatureIdT:
         set_ids = self._get_set_ids(session_data, [memory_type])
         if len(set_ids) != 1:
@@ -127,7 +127,7 @@ class SemanticSessionManager:
 
     async def update_feature(
         self,
-        feature_id: int,
+        feature_id: FeatureIdT,
         *,
         category_name: str | None = None,
         feature: str | None = None,
@@ -144,7 +144,7 @@ class SemanticSessionManager:
             metadata=metadata,
         )
 
-    async def delete_features(self, feature_ids: list[int]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]):
         await self._semantic_service.delete_features(feature_ids)
 
     async def get_set_features(
