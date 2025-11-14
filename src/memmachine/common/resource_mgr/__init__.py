@@ -26,7 +26,7 @@ class ResourceMgrProto(Protocol):
 
     def get_vector_graph_store(self, name: str) -> VectorGraphStore: ...
     def get_embedder(self, name: str) -> Embedder: ...
-    def get_model(self, name: str) -> LanguageModel: ...
+    def get_language_model(self, name: str) -> LanguageModel: ...
     def get_reranker(self, name: str) -> Reranker: ...
 
     @property
@@ -66,8 +66,8 @@ class ResourceMgr:
     def get_embedder(self, name: str) -> Embedder:
         return self._embedder_mgr.get_embedder(name)
 
-    def get_model(self, name: str) -> LanguageModel:
-        return self._model_mgr.get_model(name)
+    def get_language_model(self, name: str) -> LanguageModel:
+        return self._model_mgr.get_language_model(name)
 
     def get_reranker(self, name: str) -> Reranker:
         return self._reranker_mgr.get_reranker(name)
@@ -135,7 +135,7 @@ class ResourceMgr:
     #     if self._profile_memory is not None:
     #         return self._profile_memory
     #     conf = self._conf.profile_memory
-    #     model = self._model_mgr.get_model(conf.llm_moel)
+    #     model = self._model_mgr.get_language_model(conf.llm_moel)
     #     embedder = self._embedder_mgr.get_embedder(conf.embedding_model)
     #
     #     pg_storage_params = AsyncPgProfileStorageParams(

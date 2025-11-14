@@ -33,7 +33,7 @@ class LanguageModelMgr:
     def language_models(self) -> dict[str, LanguageModel]:
         return self._language_models
 
-    def get_model(self, name: str) -> LanguageModel:
+    def get_language_model(self, name: str) -> LanguageModel:
         if name not in self.language_models:
             raise ValueError(f"Language model with name {name} not found.")
         return self._language_models[name]

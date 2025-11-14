@@ -118,7 +118,7 @@ class ShortTermMemory:
         Creates a new ShortTermMemory instance.
         """
         data_manager = resource_mgr.session_data_manager
-        llm_model = resource_mgr.get_model(conf.llm_model)
+        llm_model = resource_mgr.get_language_model(conf.llm_model)
         param = ShortTermMemoryParams(
                 session_key=conf.session_key,
                 llm_model=llm_model,
