@@ -19,7 +19,6 @@ from ..declarative_memory.data_types import (
 )
 
 
-
 class LongTermMemoryParams(BaseModel):
     """
     Parameters for LongTermMemory.
@@ -55,19 +54,13 @@ class LongTermMemoryParams(BaseModel):
 
 
 class LongTermMemory:
-    def __init__(self,
-                 resource_mgr: ResourceMgrProto,
-                 conf: LongTermMemoryConf):
-        embedder = resource_mgr.get_embedder(conf.embedder)
-        reranker = resource_mgr.get_reranker(conf.reranker)
-        vector_graph_store = resource_mgr.get_vector_graph_store(conf.vector_graph_store)
-        self._conf = conf
+    def __init__(self, params: LongTermMemoryParams):
         self._declarative_memory = DeclarativeMemory(
             DeclarativeMemoryParams(
-                session_id=conf.session_id,
-                vector_graph_store=vector_graph_store,
-                embedder=embedder,
-                reranker=reranker,
+                session_id=params.session_id,
+                vector_graph_store=params.vector_graph_store,
+                embedder=params.embedder,
+                reranker=params.reranker,
             )
         )
 
