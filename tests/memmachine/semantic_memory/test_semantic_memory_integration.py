@@ -174,7 +174,12 @@ class TestLongMemEvalIngestion:
     ):
         for convo in conversation_sessions:
             for turn in convo:
-                h_id = await history_storage.add_history(content=turn["content"])
+                h_id = await history_storage.add_history(
+                    content=turn["content"],
+                    session_key="session_id",
+                    producer_id="profile_id",
+                    producer_role="dev",
+                )
                 await semantic_memory.add_message(
                     session_data=session_data,
                     history_ids=[h_id],

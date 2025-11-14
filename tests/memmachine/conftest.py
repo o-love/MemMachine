@@ -259,6 +259,7 @@ def semantic_storage(request):
     return request.getfixturevalue(request.param)
 
 
+@pytest_asyncio.fixture
 async def history_storage(sqlalchemy_engine: AsyncEngine):
     engine = sqlalchemy_engine
     async with engine.begin() as conn:

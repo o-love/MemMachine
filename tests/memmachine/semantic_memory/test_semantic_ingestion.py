@@ -53,6 +53,13 @@ def embedder_double() -> MockEmbedder:
 def llm_model(mock_llm_model):
     return mock_llm_model
 
+async def add_history(history_storage: HistoryStorage, content: str):
+    return await history_storage.add_history(
+        content=content,
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
 
 @pytest.fixture
 def resources(
@@ -115,7 +122,7 @@ async def test_process_single_set_applies_commands(
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    message_id = await history_storage.add_history(content="I love blue cars")
+    message_id = await add_history(history_storage, content="I love blue cars")
     await semantic_storage.add_history_to_set(set_id="user-123", history_id=message_id)
 
     await semantic_storage.add_feature(
@@ -193,8 +200,8 @@ async def test_consolidation_groups_by_tag(
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    first_history = await history_storage.add_history(content="thin crust")
-    second_history = await history_storage.add_history(content="deep dish")
+    first_history = await add_history(history_storage, content="thin crust")
+    second_history = await add_history(history_storage, content="deep dish")
 
     first_feature = await semantic_storage.add_feature(
         set_id="user-456",
@@ -241,8 +248,8 @@ async def test_deduplicate_features_merges_and_relabels(
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    keep_history = await history_storage.add_history(content="keep")
-    drop_history = await history_storage.add_history(content="drop")
+    keep_history = await add_history(history_storage, content="keep")
+    drop_history = await add_history(history_storage, content="drop")
 
     keep_feature_id = await semantic_storage.add_feature(
         set_id="user-789",

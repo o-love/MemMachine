@@ -213,6 +213,9 @@ class TestHistoryMessage:
         msg = HistoryMessage(
             content="Test message",
             created_at=now,
+            session_key="session_key",
+            producer_id="profile_id",
+            producer_role="user_role",
         )
 
         assert msg.content == "Test message"
@@ -231,6 +234,9 @@ class TestHistoryMessage:
                 id=HistoryIdT(123),
                 other={"source": "test", "priority": "high"},
             ),
+            session_key="session_key",
+            producer_id="profile_id",
+            producer_role="user_role",
         )
 
         assert msg.content == "Test message"
@@ -267,6 +273,9 @@ class TestSemanticFeature:
             content="I love pasta",
             created_at=now,
             metadata=HistoryMessage.Metadata(id="456aw3w"),
+            session_key="session_key",
+            producer_id="profile_id",
+            producer_role="user_role",
         )
 
         feature = SemanticFeature(

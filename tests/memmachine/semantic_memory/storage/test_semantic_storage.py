@@ -183,6 +183,9 @@ async def feature_and_citations(
 ):
     h1_id = await history_storage.add_history(
         content="first",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
@@ -190,6 +193,9 @@ async def feature_and_citations(
     )
     h2_id = await history_storage.add_history(
         content="second",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
@@ -276,9 +282,24 @@ async def test_history_message_counts_by_set(
     semantic_storage: SemanticStorageBase,
     history_storage,
 ):
-    h1_id = await history_storage.add_history(content="first")
-    h2_id = await history_storage.add_history(content="second")
-    h3_id = await history_storage.add_history(content="third")
+    h1_id = await history_storage.add_history(
+        content="first",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
+    h2_id = await history_storage.add_history(
+        content="second",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
+    h3_id = await history_storage.add_history(
+        content="third",
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
 
     await semantic_storage.add_history_to_set(set_id="only 1", history_id=h1_id)
     await semantic_storage.add_history_to_set(set_id="has 2", history_id=h1_id)
@@ -368,6 +389,10 @@ async def test_complex_semantic_search_and_citations(
     history_id = await history_storage.add_history(
         content="context note",
         metadata={"source": "chat"},
+        session_key="session_key",
+        producer_id="profile_id",
+        producer_role="dev",
+
     )
     await semantic_storage.add_history_to_set(
         set_id="user",
@@ -448,7 +473,12 @@ async def test_history_ingestion_tracking(
     history_storage,
 ):
     history_ids = [
-        await history_storage.add_history(content=f"message-{idx}") for idx in range(3)
+        await history_storage.add_history(
+            content=f"message-{idx}",
+            session_key="session_id",
+            producer_id="profile_id",
+            producer_role="dev",
+        ) for idx in range(3)
     ]
 
     for h_id in history_ids:

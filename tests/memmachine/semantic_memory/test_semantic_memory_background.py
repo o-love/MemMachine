@@ -56,6 +56,13 @@ def resources(embedder: MockEmbedder, mock_llm_model, semantic_type: SemanticCat
         semantic_categories=[semantic_type],
     )
 
+async def add_history(history_storage: HistoryStorage, content: str):
+    return await history_storage.add_history(
+        content=content,
+        session_key="session_id",
+        producer_id="profile_id",
+        producer_role="dev",
+    )
 
 @pytest.fixture
 def resource_retriever(resources: Resources) -> MockResourceRetriever:
@@ -167,10 +174,10 @@ async def test_background_ingestion_processes_messages_on_message_limit(
 
     # Add two messages to trigger ingestion (message_limit=2)
     # Need to add them separately so tracker counts each one
-    msg1 = await history_storage.add_history(content="I like blue")
+    msg1 = await add_history(history_storage=history_storage, content="I like blue")
     await service.add_messages(set_id="user-123", history_ids=[msg1])
 
-    msg2 = await history_storage.add_history(content="Blue is my favorite")
+    msg2 = await add_history(history_storage=history_storage, content="Blue is my favorite")
     await service.add_messages(set_id="user-123", history_ids=[msg2])
 
     # Wait for background ingestion to process
@@ -239,7 +246,7 @@ async def test_background_ingestion_with_time_based_trigger(
     )
 
     # Add a single message
-    msg1 = await history_storage.add_history(content="I enjoy reading books")
+    msg1 = await add_history(history_storage=history_storage, content="I enjoy reading books")
     await service.add_messages(set_id="user-456", history_ids=[msg1])
 
     # Wait for time-based trigger to fire
@@ -274,8 +281,8 @@ async def test_background_ingestion_handles_errors_gracefully(
     )
 
     # Add messages to trigger ingestion
-    msg1 = await history_storage.add_history(content="Test message 1")
-    msg2 = await history_storage.add_history(content="Test message 2")
+    msg1 = await add_history(history_storage=history_storage, content="Test message 1")
+    msg2 = await add_history(history_storage=history_storage, content="Test message 2")
     await semantic_service.add_messages(set_id="user-error", history_ids=[msg1, msg2])
 
     # Wait for background processing
@@ -321,7 +328,7 @@ async def test_consolidation_threshold_not_reached(
     count_before = len(features_before)
 
     # Add messages to trigger background processing
-    msg_id = await history_storage.add_history(content="I like colors")
+    msg_id = await add_history(history_storage=history_storage, content="I like colors")
     await semantic_service.add_messages(set_id="user-consolidate", history_ids=[msg_id])
 
     # Wait for processing
@@ -387,14 +394,14 @@ async def test_multiple_sets_processed_independently(
 
     # Add messages for two different sets
     # Need to add them separately so tracker counts each one
-    msg_a1 = await history_storage.add_history(content="user-a message 1")
+    msg_a1 = await add_history(history_storage=history_storage, content="user-a message 1")
     await service.add_messages(set_id="user-a", history_ids=[msg_a1])
-    msg_a2 = await history_storage.add_history(content="user-a message 2")
+    msg_a2 = await add_history(history_storage=history_storage, content="user-a message 2")
     await service.add_messages(set_id="user-a", history_ids=[msg_a2])
 
-    msg_b1 = await history_storage.add_history(content="user-b message 1")
+    msg_b1 = await add_history(history_storage=history_storage, content="user-b message 1")
     await service.add_messages(set_id="user-b", history_ids=[msg_b1])
-    msg_b2 = await history_storage.add_history(content="user-b message 2")
+    msg_b2 = await add_history(history_storage=history_storage, content="user-b message 2")
     await service.add_messages(set_id="user-b", history_ids=[msg_b2])
 
     # Wait for background processing
