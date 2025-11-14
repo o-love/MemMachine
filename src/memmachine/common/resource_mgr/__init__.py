@@ -28,19 +28,6 @@ from ..vector_graph_store import VectorGraphStore
 from .reranker_mgr import RerankerMgr
 
 
-@runtime_checkable
-class ResourceMgrProto(Protocol):
-    """Protocol for resource manager classes."""
-
-    def get_vector_graph_store(self, name: str) -> VectorGraphStore: ...
-    def get_embedder(self, name: str) -> Embedder: ...
-    def get_language_model(self, name: str) -> LanguageModel: ...
-    def get_reranker(self, name: str) -> Reranker: ...
-
-    @property
-    def session_data_manager(self) -> SessionDataManager: ...
-
-
 class ResourceMgr:
     def __init__(self, conf: Configuration):
         self._conf = conf

@@ -1,12 +1,12 @@
 from memmachine.common.configuration.episodic_config import LongTermMemoryConf
-from memmachine.common.resource_mgr import ResourceMgrProto
+from memmachine.common.resource_mgr import ResourceMgr
 
 from .long_term_memory import LongTermMemoryParams
 
 
 def long_term_memory_params_from_config(
     config: LongTermMemoryConf,
-    resource_manager: ResourceMgrProto,
+    resource_manager: ResourceMgr,
 ) -> LongTermMemoryParams:
     return LongTermMemoryParams(
         session_id=config.session_id,
