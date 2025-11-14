@@ -1,9 +1,10 @@
-from typing import Self
+from typing import Self, ClassVar, Dict
 
 from pydantic import BaseModel, Field, SecretStr
 
 from memmachine.common.configuration.metrics_conf import WithMetricsFactoryId
 from memmachine.common.data_types import SimilarityMetric
+from memmachine.common.embedder import Embedder
 
 
 class AmazonBedrockEmbedderConfig(BaseModel):
@@ -38,13 +39,18 @@ class AmazonBedrockEmbedderConfig(BaseModel):
     aws_secret_access_key: SecretStr = Field(
         default=SecretStr(""), description="AWS secret access key for authentication."
     )
+    aws_session_token: SecretStr | None = Field(
+        default=None,
+        description="AWS session token for authentication (if applicable).",
+    )
     model_id: str = Field(
         default="amazon.titan-embed-text-v2:0",
         description="ID of the Bedrock model to use for generation "
         "(e.g. 'openai.gpt-oss-20b-1:0').",
     )
     similarity_metric: SimilarityMetric = Field(
-        default=SimilarityMetric.COSINE, description="Similarity metric to use"
+        default=SimilarityMetric.COSINE,
+        description="Similarity metric to use"
     )
     max_retry_interval_seconds: int = Field(
         default=120,

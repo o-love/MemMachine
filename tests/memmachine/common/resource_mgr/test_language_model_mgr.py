@@ -48,8 +48,8 @@ def test_build_open_ai_model(mock_conf):
     builder = LanguageModelMgr(mock_conf)
     builder._build_openai_model()
 
-    assert "openai_4o_mini" in builder.openai_model
-    assert "openai_3_5_turbo" in builder.openai_model
+    assert "openai_4o_mini" in builder.language_models
+    assert "openai_3_5_turbo" in builder.language_models
 
     model = builder.get_language_model("openai_4o_mini")
     assert model is not None
@@ -59,7 +59,7 @@ def test_build_aws_bedrock_model(mock_conf):
     builder = LanguageModelMgr(mock_conf)
     builder._build_aws_bedrock_model()
 
-    assert "aws_model" in builder.aws_bedrock_model
+    assert "aws_model" in builder.language_models
 
     model = builder.get_language_model("aws_model")
     assert model is not None
@@ -69,7 +69,7 @@ def test_build_openai_compatible_model(mock_conf):
     builder = LanguageModelMgr(mock_conf)
     builder._build_openai_compatible_model()
 
-    assert "ollama_model" in builder.openai_compatible_model
+    assert "ollama_model" in builder.language_models
 
     model = builder.get_language_model("ollama_model")
     assert model is not None

@@ -1,3 +1,5 @@
+from typing import ClassVar, Dict
+
 from sentence_transformers import SentenceTransformer
 
 from memmachine.common.configuration.embedder_conf import EmbedderConf
@@ -5,10 +7,11 @@ from memmachine.common.embedder import Embedder
 
 
 class EmbedderMgr:
+    _sentence_transformers: ClassVar[Dict[str, SentenceTransformer]] = {}
+
     def __init__(self, conf: EmbedderConf):
         self.conf = conf
         self._embedders: dict[str, Embedder] = {}
-        self._sentence_transformers: dict[str, SentenceTransformer] = {}
 
     def build_all(self) -> dict[str, Embedder]:
         self._build_openai_embedders()

@@ -76,7 +76,7 @@ def test_identity_rerankers(mock_conf):
 
 def test_build_rrf_hybrid_rerankers(mock_conf):
     builder = RerankerMgr(mock_conf)
-    builder.build_all()
+    builder.build_all({})
 
     assert "my_reranker_id" in builder.rerankers
     reranker = builder.rerankers["my_reranker_id"]
