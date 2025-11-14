@@ -1,4 +1,4 @@
-from memmachine.episodic_memory.data_types import ResourceMgrProto
+from memmachine.common.resource_mgr import ResourceMgrProto
 from memmachine.common.configuration.episodic_config import LongTermMemoryConf
 from .long_term_memory import LongTermMemoryParams
 
