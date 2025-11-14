@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from types import ModuleType
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable, Self
 
 from pydantic import BaseModel, InstanceOf
 

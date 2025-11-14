@@ -77,15 +77,15 @@ class SessionIdManager:
             _role_profile_id=self._ROLE_ID_PREFIX + role_id if role_id else None,
         )
 
-    def set_id_isolation_type(self, _id: str) -> IsolationType:
-        if self.is_session_id(_id):
+    def set_id_isolation_type(self, set_id: SetIdT) -> IsolationType:
+        if self.is_session_id(set_id):
             return IsolationType.SESSION
-        elif self.is_producer_id(_id):
+        elif self.is_producer_id(set_id):
             return IsolationType.USER
-        elif self.is_role_id(_id):
+        elif self.is_role_id(set_id):
             return IsolationType.ROLE
         else:
-            raise ValueError(f"Invalid id: {_id}")
+            raise ValueError(f"Invalid id: {set_id}")
 
     def is_session_id(self, _id: str) -> bool:
         return _id.startswith(self._SESSION_ID_PREFIX)

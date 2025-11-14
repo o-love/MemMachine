@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr, model_validator
+from sqlalchemy import URL
 
 
 class Neo4JConf(BaseModel):
@@ -20,54 +21,23 @@ class Neo4JConf(BaseModel):
 
 
 class SqlAlchemyConf(BaseModel):
-    dialect: str = Field(default="postgresql", description="SQL dialect")
-    driver: str = Field(default="asyncpg", description="SQLAlchemy driver")
+    dialect: str = Field(..., description="SQL dialect")
+    driver: str = Field(..., description="SQLAlchemy driver")
 
-    host: str = Field(default="localhost", description="DB connection host")
-    port: int = Field(default=5432, description="DB connection port")
-    user: str = Field(default="memmachine", description="DB username")
-    password: SecretStr = Field(
-        default=SecretStr("memmachine_password"),
+    host: str = Field(..., description="DB connection host")
+    port: int | None = Field(default=None, description="DB connection port")
+    user: str | None = Field(default=None, description="DB username")
+    password: SecretStr | None = Field(
+        default=None,
         description="DB password",
     )
-    db_name: str = Field(default="memmachine", description="DB name")
+    db_name: str = Field(default=None, description="DB name")
 
 
 class SupportedDB(str, Enum):
     NEO4J = "neo4j"
     POSTGRES = "postgres"
     SQLITE = "sqlite"
-
-
-class DBConf(BaseModel):
-    vendor_name: SupportedDB = Field(..., description="Database vendor type")
-    host: str = Field(default="", description="Database host (ignored for SQLite)")
-    port: int = Field(default=0, description="Database port (ignored for SQLite)")
-    user: str = Field(default="", description="Database username (ignored for SQLite)")
-    password: SecretStr = Field(
-        default=SecretStr(""), description="Database password (ignored for SQLite)"
-    )
-
-    @model_validator(mode="after")
-    @staticmethod
-    def validate_by_vendor(values):
-        if values.vendor_name == SupportedDB.SQLITE:
-            # sqlite does not need host/port/user/password
-            return values
-
-        # For other vendors, all fields must be valid/non-empty
-        if not values.host:
-            raise ValueError("host must not be empty for non-sqlite databases")
-        if not (1 <= values.port <= 65535):
-            raise ValueError(
-                "port must be between 1 and 65535 for non-sqlite databases"
-            )
-        if not values.user:
-            raise ValueError("user must not be empty for non-sqlite databases")
-        if not values.password:
-            raise ValueError("password must not be empty for non-sqlite databases")
-
-        return values
 
 
 class StorageConf(BaseModel):

@@ -109,9 +109,9 @@ def test_load_sample_cpu_config():
     assert conf.logging.level == LogLevel.INFO
     assert conf.sessiondb.uri == "sqlitetest.db"
     assert conf.model.openai_compatible_confs["ollama_model"].model == "llama3"
-    postgres_conf = conf.storage.postgres_confs["profile_storage"]
+    postgres_conf = conf.storage.relational_db_confs["profile_storage"]
     assert postgres_conf.password == SecretStr("<YOUR_PASSWORD_HERE>")
-    assert conf.profile_memory.database == "profile_storage"
+    assert conf.semantic_memory.database == "profile_storage"
     embedder_conf = conf.embedder.openai["openai_embedder"]
     assert embedder_conf.api_key == SecretStr("<YOUR_API_KEY>")
     reranker_conf = conf.reranker.amazon_bedrock["aws_reranker_id"]

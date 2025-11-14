@@ -5,7 +5,7 @@ from types import ModuleType
 from typing import Any, Self
 
 import yaml
-from pydantic import BaseModel, Field, model_validator, root_validator
+from pydantic import BaseModel, Field, model_validator, root_validator, field_validator
 
 from ...common.configuration.embedder_conf import EmbedderConf
 from ...common.configuration.log_conf import LogConf
@@ -13,6 +13,9 @@ from ...common.configuration.model_conf import LanguageModelConf
 from ...common.configuration.reranker_conf import RerankerConf
 from ...common.configuration.storage_conf import StorageConf
 from .episodic_config import EpisodicMemoryConfPartial
+from ...semantic_memory.semantic_model import SemanticCategory
+from ...semantic_memory.semantic_session_resource import IsolationType
+from ...server.prompt.default_prompts import PREDEFINED_SEMANTIC_CATEGORIES
 
 
 class SessionDBConf(BaseModel):
@@ -26,40 +29,19 @@ class SessionDBConf(BaseModel):
     )
 
 
-class SemanticMemoryCategoryConf(BaseModel):
-    prompt: str = Field(
-        ...,
-        description="The prompt template to use for profile memory",
-    )
-
-
 class SemanticMemoryConf(BaseModel):
     database: str = Field(
         ...,
-        description="The database to use for profile memory",
+        description="The database to use for semantic memory",
     )
     llm_model: str = Field(
         ...,
-        description="The language model to use for profile memory",
+        description="The default language model to use for semantic memory",
     )
     embedding_model: str = Field(
         ...,
-        description="The embedding model to use for profile memory",
+        description="The embedding model to use for semantic memory",
     )
-
-    user_prompts: list[SemanticMemoryCategoryConf] = Field(
-        ...,
-        description="The prompt templates to use for user memory",
-    )
-    role_prompts: list[SemanticMemoryCategoryConf] = Field(
-        ...,
-        description="The prompt templates to use for role memory",
-    )
-    session_prompts: list[SemanticMemoryCategoryConf] = Field(
-        ...,
-        description="The prompt templates to use for session memory",
-    )
-
 
 def _read_txt(filename: str) -> str:
     """
@@ -85,15 +67,15 @@ def _read_txt(filename: str) -> str:
 
 class PromptConf(BaseModel):
     profile: list[str] = Field(
-        default="profile_prompt",
+        default=["profile_prompt", "writing_assistant_prompt"],
         description="The default prompts to use for semantic user memory",
     )
     role: list[str] = Field(
-        default="role_prompt",
+        default=[],
         description="The default prompts to use for semantic role memory",
     )
     session: list[str] = Field(
-        default="session_prompt",
+        default=[],
         description="The default prompts to use for semantic session memory",
     )
     episode_summary_system_prompt_path: str = Field(
@@ -104,6 +86,19 @@ class PromptConf(BaseModel):
         default="",
         description="The prompt template to use for episode summary generation - user part",
     )
+
+    @classmethod
+    def prompt_exists(cls, prompt_name: str) -> bool:
+        return prompt_name in PREDEFINED_SEMANTIC_CATEGORIES
+
+    @field_validator('profile', 'session', 'role', check_fields=True)
+    @classmethod
+    def validate_profile(cls, v: list[str]) -> list[str]:
+        for prompt_name in v:
+            if not cls.prompt_exists(prompt_name):
+                raise ValueError(f"Prompt {prompt_name} does not exist")
+        return v
+
 
     @property
     def episode_summary_system_prompt(self) -> str:
@@ -122,24 +117,14 @@ class PromptConf(BaseModel):
         return _read_txt(file_path)
 
     @property
-    def profile_prompt(self) -> "ProfilePrompt":
-        prompt_package = "memmachine.server.prompt"
-        module_name = f"{prompt_package}.{self.profile}"
+    def default_semantic_categories(self) -> dict[IsolationType, list[SemanticCategory]]:
+        semantic_categories = PREDEFINED_SEMANTIC_CATEGORIES
 
-        try:
-            prompt_module: ModuleType = import_module(module_name)
-        except ModuleNotFoundError as e:
-            raise ImportError(
-                f"Prompt profile '{self.profile}' not found in package '{prompt_package}'."
-            ) from e
-
-        try:
-            prompt = Semantic.load_from_module(prompt_module)
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to load prompt from module '{module_name}': {e}"
-            ) from e
-        return prompt
+        return {
+            IsolationType.SESSION: [semantic_categories[s_name] for s_name in self.session],
+            IsolationType.ROLE: [semantic_categories[s_name] for s_name in self.role],
+            IsolationType.USER: [semantic_categories[s_name] for s_name in self.profile],
+        }
 
 
 class Configuration(EpisodicMemoryConfPartial):
@@ -149,7 +134,7 @@ class Configuration(EpisodicMemoryConfPartial):
     storage: StorageConf
     embedder: EmbedderConf
     reranker: RerankerConf
-    prompt: PromptConf
+    prompt: PromptConf = PromptConf()
     semantic_memory: SemanticMemoryConf
 
     def __init__(self, **data):
