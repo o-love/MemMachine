@@ -1,3 +1,4 @@
+import asyncio
 from typing import Self
 
 from neo4j import AsyncGraphDatabase
@@ -28,12 +29,15 @@ class StorageManager:
             self._validate_sql_engines()
         return self
 
-    def close(self):
+    async def close(self):
         """Close all database connections."""
+        tasks = []
         for store in self.graph_stores.values():
-            store.close()
+            tasks.append(store.close())
         for engine in self.sql_engines.values():
-            engine.dispose()
+            tasks.append(engine.dispose())
+
+        await asyncio.gather(*tasks)
 
     def get_vector_graph_store(self, name: str) -> VectorGraphStore:
         if name not in self.graph_stores:
