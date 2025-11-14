@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
+from memmachine.episodic_memory.service_locator import epsiodic_memory_params_from_config
 
 from .common.configuration.episodic_config import EpisodicMemoryConf
 from .common.resource_mgr import ResourceMgrProto
@@ -102,8 +103,8 @@ class EpisodicMemoryManager:
             if instance is None:
                 # load from the database
                 _, _, _, param = await self.session_mgr.get_session_info(session_key)
-                # TODO: callback to instantiate the param
-                instance = await EpisodicMemory.create(self._resource_mgr, param)
+                episodic_memory_params = await epsiodic_memory_params_from_config(param, self._resource_mgr)
+                instance = EpisodicMemory(episodic_memory_params)
                 await self._instance_cache.add(session_key, instance)
         try:
             yield instance

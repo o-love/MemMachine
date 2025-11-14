@@ -48,9 +48,6 @@ class ShortTermMemoryConf(BaseModel):
     message_capacity: int = Field(
         default=64000, gt=0, description="The maximum length of short-term memory"
     )
-    enabled: bool = Field(
-        default=True, description="Whether short-term memory is enabled"
-    )
 
 
 class ShortTermMemoryConfPartial(BaseModel):
@@ -70,9 +67,6 @@ class ShortTermMemoryConfPartial(BaseModel):
     )
     message_capacity: int | None = Field(
         default=None, gt=0, description="The maximum length of short-term memory"
-    )
-    enabled: bool | None = Field(
-        default=None, description="Whether short-term memory is enabled"
     )
 
     def merge(self, other: Self) -> ShortTermMemoryConf:
@@ -96,11 +90,6 @@ class LongTermMemoryConf(BaseModel):
         ...,
         description="ID of the Reranker instance for reranking search results",
     )
-    enabled: bool = Field(
-        default=True,
-        description="Whether long-term memory is enabled",
-    )
-
 
 class LongTermMemoryConfPartial(BaseModel):
     session_id: str | None = Field(
@@ -119,10 +108,6 @@ class LongTermMemoryConfPartial(BaseModel):
         default=None,
         description="ID of the Reranker instance for reranking search results",
     )
-    enabled: bool | None = Field(
-        default=None,
-        description="Whether long-term memory is enabled",
-    )
 
     def merge(self, other: Self) -> LongTermMemoryConf:
         return merge_partial_configs(self, other, LongTermMemoryConf)
@@ -133,11 +118,17 @@ class EpisodicMemoryConf(WithMetricsFactoryId):
         ..., min_length=1, description="The unique identifier for the session"
     )
     metrics_factory_id: str = Field(..., description="ID of the metrics factory")
+    long_term_memory: LongTermMemoryConf | None = Field(
+        default=None, description="The long-term memory configuration"
+    )
     short_term_memory: ShortTermMemoryConf | None = Field(
         default=None, description="The short-term memory configuration"
     )
-    long_term_memory: LongTermMemoryConf | None = Field(
-        default=None, description="The long-term memory configuration"
+    long_term_memory_enabled: bool = Field(
+        default=True, description="Whether the long-term memory is enabled"
+    )
+    short_term_memory_enabled: bool = Field(
+        default=True, description="Whether the short-term memory is enabled"
     )
     enabled: bool = Field(
         default=True, description="Whether the episodic memory is enabled"
@@ -153,13 +144,19 @@ class EpisodicMemoryConfPartial(BaseModel):
     metrics_factory_id: str | None = Field(
         default=None, description="ID of the metrics factory"
     )
+    long_term_memory: LongTermMemoryConfPartial | None = Field(
+        default=None,
+        description="Partial configuration for long-term memory in episodic memory",
+    )
     short_term_memory: ShortTermMemoryConfPartial | None = Field(
         default=None,
         description="Partial configuration for session memory in episodic memory",
     )
-    long_term_memory: LongTermMemoryConfPartial | None = Field(
-        default=None,
-        description="Partial configuration for long-term memory in episodic memory",
+    long_term_memory_enabled: bool | None = Field(
+        default=None, description="Whether the long-term memory is enabled"
+    )
+    short_term_memory_enabled: bool | None = Field(
+        default=None, description="Whether the short-term memory is enabled"
     )
     enabled: bool | None = Field(
         default=True, description="Whether the episodic memory is enabled"

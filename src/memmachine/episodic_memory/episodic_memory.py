@@ -47,10 +47,8 @@ class EpisodicMemoryParams(BaseModel):
     Attributes:
         session_key (str): The unique identifier for the session.
         metrics_factory (MetricsFactory): The metrics factory.
-        short_term_memory (ShortTermMemoryParams): The short-term memory parameters.
-        long_term_memory (LongTermMemoryParams): The long-term memory parameters.
-        short_term_memory_enabled (bool): Whether the short-term memory is enabled.
-        long_term_memory_enabled (bool): Whether the long-term memory is enabled.
+        long_term_memory (LongTermMemory): The long-term memory.
+        short_term_memory (ShortTermMemory): The short-term memory.
         enabled (bool): Whether the episodic memory is enabled.
     """
 
@@ -60,17 +58,11 @@ class EpisodicMemoryParams(BaseModel):
     metrics_factory: InstanceOf[MetricsFactory] = Field(
         ..., description="The metrics factory"
     )
-    short_term_memory: ShortTermMemoryParams | None = Field(
-        default=None, description="The short-term memory parameters"
+    long_term_memory: LongTermMemory | None = Field(
+        default=None, description="The long-term memory"
     )
-    long_term_memory: LongTermMemoryParams | None = Field(
-        default=None, description="The long-term memory parameters"
-    )
-    long_term_memory_enabled: bool = Field(
-        default=True, description="Whether the long-term memory is enabled"
-    )
-    short_term_memory_enabled: bool = Field(
-        default=True, description="Whether the short-term memory is enabled"
+    short_term_memory: ShortTermMemory | None = Field(
+        default=None, description="The short-term memory"
     )
     enabled: bool = Field(
         default=True, description="Whether the episodic memory is enabled"
@@ -88,7 +80,6 @@ class EpisodicMemoryParams(BaseModel):
 
 
 class EpisodicMemory:
-    # pylint: disable=too-many-instance-attributes
     """
     Represents a single, isolated memory instance for a specific session.
 
@@ -102,31 +93,28 @@ class EpisodicMemory:
 
     def __init__(
         self,
-        param: EpisodicMemoryConf,
-        short_term_memory: ShortTermMemory | None = None,
-        long_term_memory: LongTermMemory | None = None,
+        params: EpisodicMemoryParams,
     ):
-        # pylint: disable=too-many-instance-attributes
         """
-        Initializes a EpisodicMemory instance.
+        Initialize a EpisodicMemory instance.
 
         Args:
-            manager: The EpisodicMemoryManager that created this instance.
-            param: The paraters required to initialize the episodic memory
+            params (EpisodicMemoryParams): Parameters for the EpisodicMemory.
         """
         self._closed = False
 
-        self._session_key = param.session_key
+        self._session_key = params.session_key
 
-        self._short_term_memory: ShortTermMemory | None = short_term_memory
-        self._long_term_memory: LongTermMemory | None = long_term_memory
-        metrics_manager = param.get_metrics_factory()
-        self._enabled = param.enabled
+        self._short_term_memory: ShortTermMemory | None = params.short_term_memory
+        self._long_term_memory: LongTermMemory | None = params.long_term_memory
+
+        self._enabled = params.enabled
         if not self._enabled:
             return
         if self._short_term_memory is None and self._long_term_memory is None:
             raise ValueError("No memory is configured")
 
+        metrics_manager = params.metrics_factory
         # Initialize metrics
         self._ingestion_latency_summary = metrics_manager.get_summary(
             "Ingestion_latency", "Latency of Episode ingestion in milliseconds"
@@ -140,26 +128,6 @@ class EpisodicMemory:
         self._query_counter = metrics_manager.get_counter(
             "query_count", "Count of query processing"
         )
-
-    @classmethod
-    async def create(
-        cls, resource_mgr: ResourceMgrProto, config: EpisodicMemoryConf
-    ) -> Self:
-        short_term_memory: ShortTermMemory | None = None
-        if config.short_term_memory and config.short_term_memory_enabled:
-            short_term_memory = await ShortTermMemory.create(
-                short_term_memory_params_from_config(resource_mgr, config.short_term_memory
-            ))
-
-        long_term_memory: LongTermMemory | None = None
-        if config.long_term_memory and config.long_term_memory_enabled:
-            long_term_memory = LongTermMemory(
-                long_term_memory_params_from_config(
-                    resource_mgr, config.long_term_memory
-                )
-            )
-
-        return EpisodicMemory(config, short_term_memory, long_term_memory)
 
     @property
     def short_term_memory(self) -> ShortTermMemory | None:
@@ -209,8 +177,6 @@ class EpisodicMemory:
         return self._session_key
 
     async def add_memory_episode(self, episode: Episode):
-        # pylint: disable=too-many-arguments
-        # pylint: disable=too-many-positional-arguments
         """
         Adds a new memory episode to both session and declarative memory.
 
