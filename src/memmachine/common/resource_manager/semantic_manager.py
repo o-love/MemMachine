@@ -3,25 +3,37 @@ import asyncio
 from pydantic import InstanceOf
 
 from memmachine.common.configuration import PromptConf, SemanticMemoryConf
-from memmachine.common.resource_manager import StorageManager, EmbedderManager, LanguageModelManager
+from memmachine.common.resource_manager import (
+    EmbedderManager,
+    LanguageModelManager,
+    StorageManager,
+)
 from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
-from memmachine.semantic_memory.semantic_model import ResourceRetriever, SetIdT, Resources
+from memmachine.semantic_memory.semantic_model import (
+    ResourceRetriever,
+    Resources,
+    SetIdT,
+)
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
-from memmachine.semantic_memory.semantic_session_resource import SessionIdManager, IsolationType
-from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import SqlAlchemyPgVectorSemanticStorage
+from memmachine.semantic_memory.semantic_session_resource import (
+    SessionIdManager,
+)
+from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
+    SqlAlchemyPgVectorSemanticStorage,
+)
 
 
 class SemanticResourceManager:
     def __init__(
-            self,
-            semantic_conf: SemanticMemoryConf,
-            prompt_conf: PromptConf,
-            storage_manager: StorageManager,
-            embedder_manager: EmbedderManager,
-            model_manager: LanguageModelManager,
-            history_storage: HistoryStorage,
-         ):
+        self,
+        semantic_conf: SemanticMemoryConf,
+        prompt_conf: PromptConf,
+        storage_manager: StorageManager,
+        embedder_manager: EmbedderManager,
+        model_manager: LanguageModelManager,
+        history_storage: HistoryStorage,
+    ):
         self._conf = semantic_conf
         self._prompt_conf = prompt_conf
         self._storage_manager = storage_manager
@@ -29,11 +41,9 @@ class SemanticResourceManager:
         self._model_manager = model_manager
         self._history_storage = history_storage
 
-
-
         self._simple_semantic_session_id_manager: SessionIdManager | None = None
         self._semantic_session_resource_manager: (
-                InstanceOf[ResourceRetriever] | None
+            InstanceOf[ResourceRetriever] | None
         ) = None
         self._semantic_service: SemanticService | None = None
         self._semantic_session_manager: SemanticSessionManager | None = None
@@ -45,7 +55,6 @@ class SemanticResourceManager:
             tasks.append(self._semantic_service.stop())
 
         await asyncio.gather(*tasks)
-
 
     @property
     def simple_semantic_session_id_manager(self) -> SessionIdManager:
@@ -64,7 +73,9 @@ class SemanticResourceManager:
 
         simple_session_id_manager = self.simple_semantic_session_id_manager
 
-        default_embedder = self._embedder_manager.get_embedder(self._conf.embedding_model)
+        default_embedder = self._embedder_manager.get_embedder(
+            self._conf.embedding_model
+        )
         default_model = self._model_manager.get_language_model(self._conf.llm_model)
 
         class SemanticResourceRetriever:

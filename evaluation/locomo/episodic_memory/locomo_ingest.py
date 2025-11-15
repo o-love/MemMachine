@@ -10,8 +10,8 @@ from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
 
-from memmachine.history_store.history_model import ContentType
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
+from memmachine.history_store.history_model import ContentType
 
 
 async def main():

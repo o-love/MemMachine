@@ -7,7 +7,9 @@ from memmachine.common.configuration.model_conf import (
     OpenAICompatibleModelConf,
     OpenAIModelConf,
 )
-from memmachine.common.resource_manager.language_model_manager import LanguageModelManager
+from memmachine.common.resource_manager.language_model_manager import (
+    LanguageModelManager,
+)
 
 
 @pytest.fixture

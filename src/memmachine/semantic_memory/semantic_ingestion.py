@@ -7,7 +7,7 @@ import numpy as np
 from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
-from memmachine.history_store.history_model import EpisodeIdT, Episode
+from memmachine.history_store.history_model import Episode, EpisodeIdT
 from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_llm import (
     LLMReducedFeature,
@@ -20,7 +20,8 @@ from memmachine.semantic_memory.semantic_model import (
     SemanticCategory,
     SemanticCommand,
     SemanticCommandType,
-    SemanticFeature, SetIdT,
+    SemanticFeature,
+    SetIdT,
 )
 from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
 

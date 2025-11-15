@@ -5,7 +5,7 @@ from types import ModuleType
 
 import pytest
 
-from memmachine.history_store.history_model import EpisodeIdT, Episode
+from memmachine.history_store.history_model import Episode, EpisodeIdT
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
     SemanticFeature,

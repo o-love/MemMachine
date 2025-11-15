@@ -148,9 +148,11 @@ async def test_initialize_resource_success(
     """
 
     # Call the function under test
-    episodic_manager, semantic_session_manager, session_id_manager = await initialize_resource(
-        mock_config_file
-    )
+    (
+        episodic_manager,
+        semantic_session_manager,
+        session_id_manager,
+    ) = await initialize_resource(mock_config_file)
 
     # Assert that the correct instances were returned
     assert episodic_manager == mock_dependencies["episodic_manager"]

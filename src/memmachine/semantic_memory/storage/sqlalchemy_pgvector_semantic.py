@@ -5,7 +5,7 @@ import numpy as np
 from alembic import command
 from alembic.config import Config
 from pgvector.sqlalchemy import Vector
-from pydantic import InstanceOf, validate_call, TypeAdapter
+from pydantic import InstanceOf, TypeAdapter, validate_call
 from sqlalchemy import (
     Boolean,
     Column,

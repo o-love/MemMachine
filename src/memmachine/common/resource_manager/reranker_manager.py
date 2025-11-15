@@ -1,8 +1,8 @@
 import boto3
 
 from ..configuration.reranker_conf import RerankerConf
-from ..reranker import Reranker
 from ..embedder import Embedder
+from ..reranker import Reranker
 
 
 class RerankerManager:

@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+
 from pydantic import BaseModel
 
 from memmachine.common.data_types import JSONValue
@@ -40,4 +41,3 @@ class Episode(BaseModel):
     content_type: ContentType | None = None
 
     metadata: dict[str, JSONValue] | None = None
-
