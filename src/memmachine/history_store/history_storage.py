@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 from pydantic import AwareDatetime
 
-from memmachine.episodic_memory.data_types import EpisodeType
-from memmachine.history_store.history_model import HistoryIdT, HistoryMessage
+from memmachine.common.data_types import JSONValue
+from memmachine.history_store.history_model import EpisodeIdT, Episode, EpisodeType
 
 
 class HistoryStorage(ABC):
@@ -17,16 +17,16 @@ class HistoryStorage(ABC):
         producer_role: str,
         produced_for_id: str | None = None,
         episode_type: EpisodeType | None = None,
-        metadata: dict[str, str] | None = None,
+        metadata: dict[str, JSONValue] | None = None,
         created_at: AwareDatetime | None = None,
-    ) -> HistoryIdT:
+    ) -> EpisodeIdT:
         raise NotImplementedError
 
     @abstractmethod
     async def get_history(
         self,
-        history_id: HistoryIdT,
-    ) -> HistoryMessage | None:
+        history_id: EpisodeIdT,
+    ) -> Episode | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -40,14 +40,14 @@ class HistoryStorage(ABC):
         episode_types: list[EpisodeType] | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, str] | None = None,
-    ) -> list[HistoryMessage]:
+        metadata: dict[str, JSONValue] | None = None,
+    ) -> list[Episode]:
         raise NotImplementedError
 
     @abstractmethod
     async def delete_history(
         self,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
     ):
         raise NotImplementedError
 
@@ -62,6 +62,6 @@ class HistoryStorage(ABC):
         episode_types: list[EpisodeType] | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, str] | None = None,
+        metadata: dict[str, JSONValue] | None = None,
     ):
         raise NotImplementedError

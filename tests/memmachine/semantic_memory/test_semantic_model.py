@@ -5,7 +5,7 @@ from types import ModuleType
 
 import pytest
 
-from memmachine.history_store.history_model import HistoryIdT, HistoryMessage
+from memmachine.history_store.history_model import EpisodeIdT, Episode
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
     SemanticFeature,
@@ -210,7 +210,7 @@ class TestHistoryMessage:
         from datetime import datetime
 
         now = datetime.now(UTC)
-        msg = HistoryMessage(
+        msg = Episode(
             content="Test message",
             created_at=now,
             session_key="session_key",
@@ -220,18 +220,18 @@ class TestHistoryMessage:
 
         assert msg.content == "Test message"
         assert msg.created_at == now
-        assert msg.metadata.id is None
+        assert msg.metadata.uuid is None
         assert msg.metadata.other is None
 
     def test_history_message_with_metadata(self):
         from datetime import datetime
 
         now = datetime.now(UTC)
-        msg = HistoryMessage(
+        msg = Episode(
             content="Test message",
             created_at=now,
-            metadata=HistoryMessage.Metadata(
-                id=HistoryIdT(123),
+            metadata=Episode.Metadata(
+                uuid=EpisodeIdT(123),
                 other={"source": "test", "priority": "high"},
             ),
             session_key="session_key",
@@ -241,7 +241,7 @@ class TestHistoryMessage:
 
         assert msg.content == "Test message"
         assert msg.created_at == now
-        assert msg.metadata.id == "123"
+        assert msg.metadata.uuid == "123"
         assert msg.metadata.other == {"source": "test", "priority": "high"}
 
 
@@ -269,10 +269,10 @@ class TestSemanticFeature:
         from datetime import datetime
 
         now = datetime.now(UTC)
-        citation = HistoryMessage(
+        citation = Episode(
             content="I love pasta",
             created_at=now,
-            metadata=HistoryMessage.Metadata(id="456aw3w"),
+            metadata=Episode.Metadata(uuid="456aw3w"),
             session_key="session_key",
             producer_id="profile_id",
             producer_role="user_role",
@@ -286,7 +286,7 @@ class TestSemanticFeature:
             value="pasta",
             metadata=SemanticFeature.Metadata(
                 id="a789",
-                citations=[citation.metadata.id],
+                citations=[citation.metadata.uuid],
                 other={"confidence": 0.95},
             ),
         )

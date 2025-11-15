@@ -126,7 +126,9 @@ class PromptConf(BaseModel):
             IsolationType.SESSION: [
                 semantic_categories[s_name] for s_name in self.session
             ],
-            IsolationType.ROLE: [semantic_categories[s_name] for s_name in self.role],
+            IsolationType.ROLE: [
+                semantic_categories[s_name] for s_name in self.role
+            ],
             IsolationType.USER: [
                 semantic_categories[s_name] for s_name in self.profile
             ],

@@ -20,7 +20,7 @@ from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
 from memmachine.session_manager_interface import SessionDataManager
 
-from ..data_types import Episode
+from ...history_store.history_model import Episode
 
 logger = logging.getLogger(__name__)
 
@@ -332,7 +332,7 @@ class ShortTermMemory:
 
                     matched = True
                     for key, value in filter.items():
-                        if e.user_metadata.get(key) != value:
+                        if e.metadata.get(key) != value:
                             matched = False
                             break
                     if not matched:
@@ -356,12 +356,12 @@ class ShortTermMemory:
             result += len(episode.content)
         else:
             result += len(repr(episode.content))
-        if episode.user_metadata is None:
+        if episode.metadata is None:
             return result
-        if isinstance(episode.user_metadata, str):
-            result += len(episode.user_metadata)
-        elif isinstance(episode.user_metadata, dict):
-            for _, v in episode.user_metadata.items():
+        if isinstance(episode.metadata, str):
+            result += len(episode.metadata)
+        elif isinstance(episode.metadata, dict):
+            for _, v in episode.metadata.items():
                 if isinstance(v, str):
                     result += len(v)
                 else:

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -26,7 +26,7 @@ class SemanticSessionManager:
 
     async def add_message(
         self,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
         session_data: SessionData,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
     ):
@@ -101,7 +101,7 @@ class SemanticSessionManager:
         value: str,
         tag: str,
         metadata: dict[str, str] | None = None,
-        citations: list[HistoryIdT] | None = None,
+        citations: list[EpisodeIdT] | None = None,
     ) -> FeatureIdT:
         set_ids = self._get_set_ids(session_data, [memory_type])
         if len(set_ids) != 1:

@@ -34,7 +34,7 @@ from starlette.types import Lifespan, Receive, Scope, Send
 from memmachine.common.configuration import load_config_yml_file
 from memmachine.common.resource_manager import ResourceManager
 from memmachine.episodic_memory import episodic_memory
-from memmachine.episodic_memory.data_types import ContentType
+from memmachine.history_store.history_model import ContentType
 from memmachine.episodic_memory.episodic_memory import (
     EpisodicMemory,
 )

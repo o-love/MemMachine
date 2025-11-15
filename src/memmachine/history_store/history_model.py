@@ -1,22 +1,30 @@
 from datetime import datetime
-from typing import Any
-
+from enum import Enum
 from pydantic import BaseModel
 
-from memmachine.episodic_memory.data_types import EpisodeType
+from memmachine.common.data_types import JSONValue
 
-HistoryIdT = str
+EpisodeIdT = str
 
 
-class HistoryMessage(BaseModel):
+class ContentType(Enum):
+    """Enumeration for the type of content within an Episode."""
+
+    STRING = "string"
+    # Other content types like 'vector', 'image' could be added here.
+
+
+class EpisodeType(Enum):
+    """Enumeration for the type of an Episode."""
+
+    MESSAGE = "message"
+    # Other episode types like 'thought', 'action' could be added here.
+
+
+class Episode(BaseModel):
     """Conversation message stored in history together with persistence metadata."""
 
-    class Metadata(BaseModel):
-        """Optional storage details for a history message (id, provider-specific info)."""
-
-        id: HistoryIdT | None = None
-        other: dict[str, Any] | None = None
-
+    uuid: EpisodeIdT | None = None
     content: str
     session_key: str
 
@@ -26,6 +34,10 @@ class HistoryMessage(BaseModel):
     producer_role: str
     produced_for_id: str | None = None
 
-    episode_type: EpisodeType | None = None
+    sequence_num: int | None = None
 
-    metadata: Metadata = Metadata()
+    episode_type: EpisodeType | None = None
+    content_type: ContentType | None = None
+
+    metadata: dict[str, JSONValue] | None = None
+

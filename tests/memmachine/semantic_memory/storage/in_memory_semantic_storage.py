@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
@@ -39,7 +39,7 @@ class _FeatureEntry:
     value: str
     embedding: np.ndarray
     metadata: dict[str, Any] | None = None
-    citations: list[HistoryIdT] = field(default_factory=list)
+    citations: list[EpisodeIdT] = field(default_factory=list)
     created_at: datetime = field(default_factory=_utcnow)
     updated_at: datetime = field(default_factory=_utcnow)
 
@@ -51,8 +51,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self._features_by_id: dict[FeatureIdT, _FeatureEntry] = {}
         self._feature_ids_by_set: dict[str, list[FeatureIdT]] = {}
         # History tracking mirrors the SetIngestedHistory table
-        self._set_history_map: dict[str, dict[HistoryIdT, bool]] = {}
-        self._history_to_sets: dict[HistoryIdT, dict[str, bool]] = {}
+        self._set_history_map: dict[str, dict[EpisodeIdT, bool]] = {}
+        self._history_to_sets: dict[EpisodeIdT, dict[str, bool]] = {}
         self._next_feature_id = 1
         self._next_history_id = 1
         self._lock = asyncio.Lock()
@@ -231,7 +231,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def add_citations(
         self,
         feature_id: FeatureIdT,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
     ):
         if not history_ids:
             return
@@ -242,9 +242,9 @@ class InMemorySemanticStorage(SemanticStorageBase):
             if entry is None:
                 return
 
-            existing: set[HistoryIdT] = set(entry.citations)
+            existing: set[EpisodeIdT] = set(entry.citations)
             for history_id in history_ids:
-                history_id = HistoryIdT(history_id)
+                history_id = EpisodeIdT(history_id)
                 if history_id not in existing:
                     entry.citations.append(history_id)
                     existing.add(history_id)
@@ -256,9 +256,9 @@ class InMemorySemanticStorage(SemanticStorageBase):
         set_ids: list[str] | None = None,
         limit: int | None = None,
         is_ingested: bool | None = None,
-    ) -> list[HistoryIdT]:
+    ) -> list[EpisodeIdT]:
         async with self._lock:
-            rows: list[tuple[HistoryIdT, bool]] = []
+            rows: list[tuple[EpisodeIdT, bool]] = []
             for set_id, history_map in self._set_history_map.items():
                 if set_ids is not None and set_id not in set_ids:
                     continue
@@ -299,11 +299,11 @@ class InMemorySemanticStorage(SemanticStorageBase):
     async def add_history_to_set(
         self,
         set_id: str,
-        history_id: HistoryIdT,
+        history_id: EpisodeIdT,
     ) -> None:
         async with self._lock:
             history_map = self._set_history_map.setdefault(set_id, {})
-            history_id = HistoryIdT(history_id)
+            history_id = EpisodeIdT(history_id)
             history_map[history_id] = history_map.get(history_id, False)
             self._history_to_sets.setdefault(history_id, {})[set_id] = history_map[
                 history_id
@@ -313,7 +313,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         self,
         *,
         set_id: str,
-        history_ids: list[HistoryIdT],
+        history_ids: list[EpisodeIdT],
     ) -> None:
         if not history_ids:
             raise ValueError("No ids provided")
@@ -324,7 +324,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 return
 
             for history_id in history_ids:
-                history_id = HistoryIdT(history_id)
+                history_id = EpisodeIdT(history_id)
                 if history_id in set_map:
                     set_map[history_id] = True
                     self._history_to_sets.setdefault(history_id, {})[set_id] = True
@@ -335,7 +335,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         *,
         load_citations: bool,
     ) -> SemanticFeature:
-        citations: list[HistoryIdT] | None = None
+        citations: list[EpisodeIdT] | None = None
         if load_citations:
             citations = list(entry.citations)
 
@@ -401,7 +401,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
             filtered.sort(key=lambda pair: pair[0], reverse=True)
             entries = [entry for _, entry in filtered]
         else:
-            entries.sort(key=lambda e: (e.created_at, e.id))
+            entries.sort(key=lambda e: (e.created_at, e.uuid))
 
         if k is not None:
             entries = entries[:k]

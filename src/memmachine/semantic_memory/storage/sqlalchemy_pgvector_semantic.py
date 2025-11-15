@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import func
 
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature, SetIdT
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
@@ -111,7 +111,7 @@ class Feature(BaseSemanticStorage):
     def to_typed_model(
         self,
         *,
-        citations: list[HistoryIdT] | None = None,
+        citations: list[EpisodeIdT] | None = None,
     ) -> SemanticFeature:
         return SemanticFeature(
             metadata=SemanticFeature.Metadata(
@@ -269,7 +269,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             result = await session.execute(stmt)
             feature = result.scalar_one_or_none()
 
-            citations_map: dict[int, list[HistoryIdT]] = {}
+            citations_map: dict[int, list[EpisodeIdT]] = {}
             if feature is not None and load_citations:
                 citations_map = await self._load_feature_citations(
                     session,
@@ -310,7 +310,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         async with self._create_session() as session:
             result = await session.execute(stmt)
             features = result.scalars().all()
-            citations_map: dict[int, list[HistoryIdT]] = {}
+            citations_map: dict[int, list[EpisodeIdT]] = {}
             if load_citations and features:
                 citations_map = await self._load_feature_citations(
                     session,
@@ -357,7 +357,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call()
     async def add_citations(
-        self, feature_id: FeatureIdT, history_ids: list[HistoryIdT]
+        self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT]
     ):
         rows = [
             {"feature_id": int(feature_id), "history_id": str(hid)}
@@ -377,7 +377,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         set_ids: list[str] | None = None,
         limit: int | None = None,
         is_ingested: bool | None = None,
-    ) -> list[HistoryIdT]:
+    ) -> list[EpisodeIdT]:
         stmt = select(SetIngestedHistory.history_id).order_by(
             SetIngestedHistory.history_id.asc()
         )
@@ -392,7 +392,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
             result = await session.execute(stmt)
             history_ids = result.scalars().all()
 
-        return TypeAdapter(list[HistoryIdT]).validate_python(history_ids)
+        return TypeAdapter(list[EpisodeIdT]).validate_python(history_ids)
 
     @validate_call
     async def get_history_messages_count(
@@ -417,7 +417,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def mark_messages_ingested(
-        self, set_id: str, history_ids: list[HistoryIdT]
+        self, set_id: str, history_ids: list[EpisodeIdT]
     ) -> None:
         if len(history_ids) == 0:
             raise ValueError("No ids provided")
@@ -437,7 +437,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     async def add_history_to_set(
         self,
         set_id: str,
-        history_id: HistoryIdT,
+        history_id: EpisodeIdT,
     ) -> None:
         stmt = insert(SetIngestedHistory).values(set_id=set_id, history_id=history_id)
 
@@ -524,7 +524,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         self,
         session: AsyncSession,
         feature_ids: list[int],
-    ) -> dict[int, list[HistoryIdT]]:
+    ) -> dict[int, list[EpisodeIdT]]:
         if not feature_ids:
             return {}
 
@@ -535,7 +535,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
         result = await session.execute(stmt)
 
-        citations: dict[int, list[HistoryIdT]] = {
+        citations: dict[int, list[EpisodeIdT]] = {
             feature_id: [] for feature_id in feature_ids
         }
 

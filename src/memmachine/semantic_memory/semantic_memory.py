@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel, InstanceOf, validate_call
 
-from ..history_store.history_model import HistoryIdT
+from ..history_store.history_model import EpisodeIdT
 from ..history_store.history_storage import HistoryStorage
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
@@ -125,7 +125,7 @@ class SemanticService:
         )
 
     @validate_call
-    async def add_messages(self, set_id: SetIdT, history_ids: list[HistoryIdT]):
+    async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]):
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -141,7 +141,7 @@ class SemanticService:
         await self._dirty_sets.mark_update([set_id])
 
     @validate_call
-    async def add_message_to_sets(self, history_id: HistoryIdT, set_ids: list[SetIdT]):
+    async def add_message_to_sets(self, history_id: EpisodeIdT, set_ids: list[SetIdT]):
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -172,7 +172,7 @@ class SemanticService:
         value: str,
         tag: str,
         metadata: dict[str, str] | None = None,
-        citations: list[HistoryIdT] | None = None,
+        citations: list[EpisodeIdT] | None = None,
     ) -> FeatureIdT:
         resources = self._resource_retriever.get_resources(set_id)
         embedding = (await resources.embedder.ingest_embed([value]))[0]

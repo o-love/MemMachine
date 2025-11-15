@@ -9,7 +9,7 @@ from memmachine.common.embedder import Embedder
 from memmachine.common.reranker import Reranker
 from memmachine.common.vector_graph_store import VectorGraphStore
 
-from ..data_types import ContentType, Episode, EpisodeType
+from ...history_store.history_model import EpisodeType, ContentType, Episode
 from ..declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
 from ..declarative_memory.data_types import (
     ContentType as DeclarativeMemoryContentType,
@@ -177,7 +177,7 @@ class LongTermMemory:
         declarative_memory_episode: DeclarativeMemoryEpisode,
     ) -> Episode:
         return Episode(
-            uuid=declarative_memory_episode.uuid,
+            uuid='declarative-'+str(declarative_memory_episode.uuid),
             sequence_num=cast(
                 int,
                 declarative_memory_episode.filterable_properties.get("sequence_num", 0),
@@ -203,7 +203,7 @@ class LongTermMemory:
                 )
             ),
             content=declarative_memory_episode.content,
-            timestamp=declarative_memory_episode.timestamp,
+            created_at=declarative_memory_episode.timestamp,
             producer_id=cast(
                 str,
                 declarative_memory_episode.filterable_properties.get("producer_id", ""),
@@ -218,5 +218,5 @@ class LongTermMemory:
                 str | None,
                 declarative_memory_episode.filterable_properties.get("produced_for_id"),
             ),
-            user_metadata=declarative_memory_episode.user_metadata,
+            metadata=declarative_memory_episode.user_metadata,
         )

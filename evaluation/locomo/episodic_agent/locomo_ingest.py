@@ -10,7 +10,7 @@ from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
 
-from memmachine.episodic_memory.data_types import ContentType
+from memmachine.history_store.history_model import ContentType
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 
 

@@ -6,8 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import pytest_asyncio
 
-from memmachine.episodic_memory.data_types import EpisodeType
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import EpisodeIdT, EpisodeType
 from memmachine.history_store.history_storage import HistoryStorage
 
 DEFAULT_HISTORY_ARGS = {
@@ -28,7 +27,7 @@ async def create_history_entry(
     metadata: dict[str, str] | None = None,
     created_at: datetime | None = None,
     episode_type: EpisodeType | None = None,
-) -> HistoryIdT:
+) -> EpisodeIdT:
     params = {
         "session_key": session_key or DEFAULT_HISTORY_ARGS["session_key"],
         "producer_id": producer_id or DEFAULT_HISTORY_ARGS["producer_id"],
@@ -78,11 +77,11 @@ async def test_add_and_get_history(history_storage: HistoryStorage):
         episode_type=EpisodeType.MESSAGE,
     )
 
-    assert type(history_id) is HistoryIdT
+    assert type(history_id) is EpisodeIdT
 
     history = await history_storage.get_history(history_id)
-    assert history.metadata.id == history_id
-    assert history.metadata.other == {"role": "user"}
+    assert history.uuid == history_id
+    assert history.metadata == {"role": "user"}
     assert history.content == "hello"
     assert history.session_key == "chat-session"
     assert history.producer_id == "user-123"
@@ -125,22 +124,22 @@ async def test_history_identity_filters(history_storage: HistoryStorage):
         by_session = await history_storage.get_history_messages(
             session_keys=["session-assistant"]
         )
-        assert [m.metadata.id for m in by_session] == [assistant_message]
+        assert [m.uuid for m in by_session] == [assistant_message]
 
         by_producer_id = await history_storage.get_history_messages(
             producer_ids=["system-id"]
         )
-        assert [m.metadata.id for m in by_producer_id] == [system_message]
+        assert [m.uuid for m in by_producer_id] == [system_message]
 
         by_producer_role = await history_storage.get_history_messages(
             producer_roles=["user"]
         )
-        assert [m.metadata.id for m in by_producer_role] == [user_message]
+        assert [m.uuid for m in by_producer_role] == [user_message]
 
         by_produced_for = await history_storage.get_history_messages(
             produced_for_ids=["user-id"]
         )
-        assert [m.metadata.id for m in by_produced_for] == [assistant_message]
+        assert [m.uuid for m in by_produced_for] == [assistant_message]
 
     finally:
         await history_storage.delete_history(
@@ -185,7 +184,7 @@ async def test_history_time_filters(
 
     assert len(window) == expected_count
     if expected_count:
-        assert window[0].metadata.id == message.metadata.id
+        assert window[0].uuid == message.uuid
 
 
 @pytest.mark.asyncio
@@ -202,7 +201,7 @@ async def test_history_metadata_filter(history_storage: HistoryStorage):
     )
 
     results = await history_storage.get_history_messages(metadata={"scope": "b"})
-    assert [entry.metadata.id for entry in results] == [second]
+    assert [entry.uuid for entry in results] == [second]
 
     await history_storage.delete_history([first, second])
 
@@ -230,7 +229,7 @@ async def test_delete_history_messages_by_range(history_storage: HistoryStorage)
     await history_storage.delete_history_messages(end_time=cutoff)
 
     remaining = await history_storage.get_history_messages()
-    assert [entry.metadata.id for entry in remaining] == [newer]
+    assert [entry.uuid for entry in remaining] == [newer]
 
     await history_storage.delete_history([newer])
 
@@ -253,7 +252,7 @@ async def test_delete_history_messages_with_identity_filters(
     await history_storage.delete_history_messages(producer_roles=["assistant"])
 
     remaining = await history_storage.get_history_messages()
-    assert [entry.metadata.id for entry in remaining] == [keep_history]
+    assert [entry.uuid for entry in remaining] == [keep_history]
 
     await history_storage.delete_history([keep_history])
 
@@ -280,11 +279,11 @@ async def test_history_time_window_workflow(history_storage: HistoryStorage):
     )
 
     before_third = await history_storage.get_history_messages(end_time=cutoff)
-    assert [m.metadata.id for m in before_third] == [first, second]
+    assert [m.uuid for m in before_third] == [first, second]
 
     await history_storage.delete_history_messages(end_time=cutoff)
     remaining = await history_storage.get_history_messages()
-    assert [m.metadata.id for m in remaining] == [third]
+    assert [m.uuid for m in remaining] == [third]
 
     await history_storage.delete_history_messages()
     assert await history_storage.get_history_messages() == []

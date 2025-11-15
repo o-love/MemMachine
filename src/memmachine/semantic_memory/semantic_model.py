@@ -7,7 +7,7 @@ from pydantic import BaseModel, InstanceOf
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import EpisodeIdT
 
 SetIdT = str
 FeatureIdT = str
@@ -53,7 +53,7 @@ class SemanticFeature(BaseModel):
     class Metadata(BaseModel):
         """Storage metadata for a semantic feature, including id and citations."""
 
-        citations: list[HistoryIdT] | None = None
+        citations: list[EpisodeIdT] | None = None
         id: FeatureIdT | None = None
         other: dict[str, Any] | None = None
 

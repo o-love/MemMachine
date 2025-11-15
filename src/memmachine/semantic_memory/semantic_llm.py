@@ -11,7 +11,7 @@ from pydantic import (
 )
 
 from memmachine.common.language_model import LanguageModel
-from memmachine.history_store.history_model import HistoryIdT
+from memmachine.history_store.history_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticCommand, SemanticFeature
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class SemanticConsolidateMemoryRes(BaseModel):
     """LLM response describing merged features and ids of features to retain."""
 
     consolidated_memories: list[LLMReducedFeature] = Field(default_factory=list)
-    keep_memories: list[HistoryIdT] | None
+    keep_memories: list[EpisodeIdT] | None
     model_config = ConfigDict(coerce_numbers_to_str=True)
 
 

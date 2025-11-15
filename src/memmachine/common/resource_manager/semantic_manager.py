@@ -1,5 +1,3 @@
-# Load custom prompts from files if specified in the config,
-# overriding defaults.
 import asyncio
 
 from pydantic import InstanceOf
@@ -13,27 +11,6 @@ from memmachine.semantic_memory.semantic_session_manager import SemanticSessionM
 from memmachine.semantic_memory.semantic_session_resource import SessionIdManager, IsolationType
 from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import SqlAlchemyPgVectorSemanticStorage
 
-
-def load_prompt(prompt_config: PromptConf, key: str, default_value: str) -> str:
-    """
-    Helper function to load a prompt from a file path specified in the
-    config.
-
-    Args:
-        prompt_config: The dictionary containing prompt file paths.
-        key: The key for the specific prompt to load.
-        default_value: The default prompt content to use if the file
-        is not specified or found.
-
-    Returns:
-        The content of the prompt.
-    """
-
-    custom_prompt_path = prompt_config.get(key)
-    if custom_prompt_path:
-        with open(custom_prompt_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return default_value
 
 class SemanticResourceManager:
     def __init__(

@@ -20,9 +20,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
-from memmachine.episodic_memory.data_types import EpisodeType
-from memmachine.history_store.history_model import HistoryMessage
-from memmachine.history_store.history_storage import HistoryIdT, HistoryStorage
+from memmachine.history_store.history_model import Episode, EpisodeType
+from memmachine.history_store.history_storage import EpisodeIdT, HistoryStorage
 
 
 class BaseHistoryStore(DeclarativeBase):
@@ -77,17 +76,14 @@ class History(BaseHistoryStore):
         ),
     )
 
-    def to_typed_model(self) -> HistoryMessage:
+    def to_typed_model(self) -> Episode:
         created_at = (
             self.created_at.replace(tzinfo=UTC)
             if self.created_at.tzinfo is None
             else self.created_at
         )
-        return HistoryMessage(
-            metadata=HistoryMessage.Metadata(
-                id=HistoryIdT(self.id),
-                other=self.json_metadata or None,
-            ),
+        return Episode(
+            uuid=EpisodeIdT(self.id),
             content=self.content,
             session_key=self.session_key,
             producer_id=self.producer_id,
@@ -95,6 +91,7 @@ class History(BaseHistoryStore):
             produced_for_id=self.produced_for_id,
             episode_type=self.episode_type,
             created_at=created_at,
+            metadata=self.json_metadata or None,
         )
 
 
@@ -123,7 +120,7 @@ class SqlAlchemyHistoryStore(HistoryStorage):
         episode_type: EpisodeType | None = None,
         metadata: dict[str, str] | None = None,
         created_at: AwareDatetime | None = None,
-    ) -> HistoryIdT:
+    ) -> EpisodeIdT:
         stmt = (
             insert(History)
             .values(
@@ -152,10 +149,10 @@ class SqlAlchemyHistoryStore(HistoryStorage):
             await session.commit()
             history_id = result.scalar_one()
 
-        return HistoryIdT(history_id)
+        return EpisodeIdT(history_id)
 
     @validate_call
-    async def get_history(self, history_id: HistoryIdT) -> HistoryMessage | None:
+    async def get_history(self, history_id: EpisodeIdT) -> Episode | None:
         stmt = (
             select(History)
             .where(History.id == int(history_id))
@@ -222,7 +219,7 @@ class SqlAlchemyHistoryStore(HistoryStorage):
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         metadata: dict[str, str] | None = None,
-    ) -> list[HistoryMessage]:
+    ) -> list[Episode]:
         stmt = select(History)
 
         stmt = self._apply_history_filter(
@@ -244,7 +241,7 @@ class SqlAlchemyHistoryStore(HistoryStorage):
         return [h.to_typed_model() for h in history_messages]
 
     @validate_call
-    async def delete_history(self, history_ids: list[HistoryIdT]):
+    async def delete_history(self, history_ids: list[EpisodeIdT]):
         history_ids = [int(h_id) for h_id in history_ids]
 
         stmt = delete(History).where(History.id.in_(history_ids))
