@@ -12,11 +12,8 @@ from memmachine.common.resource_manager.language_model_manager import (
     LanguageModelManager,
 )
 from memmachine.common.resource_manager.reranker_manager import RerankerManager
-from memmachine.common.resource_manager.semantic_manager import SemanticResourceManager
 from memmachine.common.resource_manager.storage_manager import StorageManager
 from memmachine.common.vector_graph_store import VectorGraphStore
-from memmachine.history_store.history_storage import HistoryStorage
-from memmachine.session_data_manager import SessionDataManager
 
 
 class ResourceManager:
@@ -29,9 +26,6 @@ class ResourceManager:
             self._conf.model
         )
         self._reranker_manager: RerankerManager = RerankerManager(self._conf.reranker)
-        self._session_data_manager: SessionDataManager | None = None
-        self._history_storage: HistoryStorage | None = None
-        self._semantic_manager: SemanticResourceManager | None = None
 
     def build(self):
         self._storage_manager.build_all(validate=True)
