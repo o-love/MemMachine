@@ -60,7 +60,7 @@ class SemanticSessionManager:
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
 
-        optionals_dft_args: dict[str, Any] = {
+        optionals_default_args: dict[str, Any] = {
             "set_ids": set_ids,
             "query": message,
             "category_names": category_names,
@@ -70,13 +70,13 @@ class SemanticSessionManager:
         }
 
         if min_distance is not None:
-            optionals_dft_args["min_distance"] = min_distance
+            optionals_default_args["min_distance"] = min_distance
 
         if limit is not None:
-            optionals_dft_args["limit"] = limit
+            optionals_default_args["limit"] = limit
 
         return await self._semantic_service.search(
-            **optionals_dft_args,
+            **optionals_default_args,
         )
 
     async def number_of_uningested_messages(
