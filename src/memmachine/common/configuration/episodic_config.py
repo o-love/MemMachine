@@ -118,7 +118,7 @@ class EpisodicMemoryConf(WithMetricsFactoryId):
     session_key: str = Field(
         ..., min_length=1, description="The unique identifier for the session"
     )
-    metrics_factory_id: str = Field(..., description="ID of the metrics factory")
+    metrics_factory_id: str = Field(default="prometheus", description="ID of the metrics factory")
     long_term_memory: LongTermMemoryConf | None = Field(
         default=None, description="The long-term memory configuration"
     )

@@ -22,13 +22,16 @@ class EpisodeType(Enum):
     # Other episode types like 'thought', 'action' could be added here.
 
 
+FILTERABLE_VALUE = str | int | float | bool | datetime
+
+
 class Episode(BaseModel):
     """Conversation message stored in history together with persistence metadata."""
 
     uuid: EpisodeIdT | None = None
     content: str
     session_key: str
-
+    sequence_num: int
     created_at: datetime
 
     producer_id: str
@@ -39,5 +42,5 @@ class Episode(BaseModel):
 
     episode_type: EpisodeType | None = None
     content_type: ContentType | None = None
-
+    filterable_metadata: dict[str, FILTERABLE_VALUE] | None = None
     metadata: dict[str, JSONValue] | None = None

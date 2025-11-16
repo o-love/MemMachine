@@ -4,15 +4,15 @@ from contextlib import asynccontextmanager
 
 from pydantic import BaseModel, Field, InstanceOf
 
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+from memmachine.common.resource_manager import ResourceManager
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.service_locator import (
     epsiodic_memory_params_from_config,
 )
 
-from .common.configuration.episodic_config import EpisodicMemoryConf
-from .common.resource_manager import ResourceManager
 from .instance_lru_cache import MemoryInstanceCache
-from .session_data_manager import SessionDataManager
 
 
 class EpisodicMemoryManagerParams(BaseModel):
@@ -43,7 +43,7 @@ class EpisodicMemoryManagerParams(BaseModel):
 
 class EpisodicMemoryManager:
     """
-    Manages the lifecycle and access of semantic memory instances.
+    Manages the lifecycle and access of episodic memory instances.
 
     This class is responsible for creating, retrieving, and closing
     `SemanticMemory` instances based on a session key. It uses a
@@ -95,7 +95,7 @@ class EpisodicMemoryManager:
             A SemanticMemory instance.
 
         Raises:
-            ValueError: If semantic memory is not enabled in the configuration.
+            ValueError: If episodic memory is not enabled in the configuration.
         """
         instance: EpisodicMemory | None = None
         async with self._lock:
@@ -158,7 +158,7 @@ class EpisodicMemoryManager:
             episodic_memory_params = await epsiodic_memory_params_from_config(
                 episodic_memory_config, self._resource_manager
             )
-            instance = await EpisodicMemory(episodic_memory_params)
+            instance = EpisodicMemory(episodic_memory_params)
             await self._instance_cache.add(session_key, instance)
         try:
             yield instance
@@ -197,8 +197,8 @@ class EpisodicMemoryManager:
                 params = await epsiodic_memory_params_from_config(
                     episodic_memory_config, self._resource_manager
                 )
-                instance = await EpisodicMemory(params)
-            await instance.delete_data()
+                instance = EpisodicMemory(params)
+            await instance.delete_session_episodes()
             await instance.close()
             await self._session_data_manager.delete_session(session_key)
 

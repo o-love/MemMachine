@@ -354,17 +354,21 @@ class EpisodicMemory:
         short_memory, long_memory, summary = await self.query_memory(
             query, limit, property_filter
         )
-        episodes = sorted(short_memory + long_memory, key=lambda x: x.timestamp)
+        episodes = sorted(short_memory + long_memory, key=lambda x: x.created_at)
 
         finalized_query = ""
         # Add summary if it exists
         if summary and len(summary) > 0:
             total_summary = ""
             for summ in summary:
+                if not summary:
+                    continue
                 total_summary = total_summary + summ + "\n"
-            finalized_query += "<Summary>\n"
-            finalized_query += total_summary
-            finalized_query += "\n</Summary>\n"
+            total_summary = total_summary.strip()
+            if total_summary:
+                finalized_query += "<Summary>\n"
+                finalized_query += total_summary
+                finalized_query += "\n</Summary>\n"
 
         # Add episodes if they exist
         if episodes and len(episodes) > 0:

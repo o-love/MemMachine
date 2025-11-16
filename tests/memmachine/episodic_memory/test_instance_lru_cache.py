@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from memmachine.instance_lru_cache import MemoryInstanceCache
+from memmachine.episodic_memory.instance_lru_cache import MemoryInstanceCache
 
 
 @pytest.fixture

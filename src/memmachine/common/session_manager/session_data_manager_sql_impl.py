@@ -29,7 +29,7 @@ from sqlalchemy.orm import (
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 
-from .session_manager_interface import SessionDataManager
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
 
 
 # Base class for declarative class definitions
@@ -48,7 +48,7 @@ JSONColumn = Annotated[dict, mapped_column(JSON_AUTO)]
 BinaryColumn = Annotated[bytes, mapped_column(LargeBinary)]
 
 
-class SessionDataManagerImpl(SessionDataManager):
+class SessionDataManagerSQL(SessionDataManager):
     """
     Handle's the session related data persistency.
     """

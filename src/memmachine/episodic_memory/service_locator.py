@@ -34,7 +34,9 @@ async def epsiodic_memory_params_from_config(
 
     return EpisodicMemoryParams(
         session_key=config.session_key,
-        metrics_factory=config.get_metrics_factory(),
+        metrics_factory=resource_manager.get_metrics_factory(
+            config.metrics_factory_id,
+        ),
         long_term_memory=long_term_memory,
         short_term_memory=short_term_memory,
         enabled=config.enabled,

@@ -11,6 +11,8 @@ from memmachine.common.resource_manager.language_model_manager import (
 from memmachine.common.resource_manager.reranker_manager import RerankerManager
 from memmachine.common.resource_manager.storage_manager import StorageManager
 from memmachine.common.vector_graph_store import VectorGraphStore
+from memmachine.common.metrics_factory import MetricsFactory, PrometheusMetricsFactory
+
 
 
 class ResourceManager:
@@ -23,6 +25,7 @@ class ResourceManager:
             self._conf.model
         )
         self._reranker_manager: RerankerManager = RerankerManager(self._conf.reranker)
+        self._metric_factory: dict[str, MetricsFactory] = {"prometheus": PrometheusMetricsFactory}
 
     def build(self):
         self._storage_manager.build_all(validate=True)
@@ -50,3 +53,6 @@ class ResourceManager:
 
     def get_reranker(self, name: str) -> Reranker:
         return self._reranker_manager.get_reranker(name)
+
+    def get_metrics_factory(self, name: str) -> MetricsFactory:
+        return self._metric_factory.get(name)

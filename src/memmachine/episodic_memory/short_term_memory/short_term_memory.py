@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, InstanceOf, field_validator
 
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
-from memmachine.session_manager_interface import SessionDataManager
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
 
 from ...history_store.history_model import Episode
 
@@ -124,6 +124,7 @@ class ShortTermMemory:
                     num_episodes,
                     seq_num,
                 ) = await params.data_manager.get_short_term_memory(params.session_key)
+                # ToDo: Retreive the episodes from raw data storage
                 return ShortTermMemory(params, summary)
             except ValueError:
                 pass
@@ -252,15 +253,15 @@ class ShortTermMemory:
             episode_content = ""
             for entry in episodes:
                 meta = ""
-                if entry.user_metadata is None:
+                if entry.metadata is None:
                     pass
-                elif isinstance(entry.user_metadata, str):
-                    meta = entry.user_metadata
-                elif isinstance(entry.user_metadata, dict):
-                    for k, v in entry.user_metadata.items():
+                elif isinstance(entry.metadata, str):
+                    meta = entry.metadata
+                elif isinstance(entry.metadata, dict):
+                    for k, v in entry.metadata.items():
                         meta += f"[{k}: {v}] "
                 else:
-                    meta = repr(entry.user_metadata)
+                    meta = repr(entry.metadata)
                 episode_content += f"[{str(entry.uuid)} : {meta} : {entry.content}]"
             msg = self._summary_user_prompt.format(
                 episodes=episode_content,
@@ -275,7 +276,6 @@ class ShortTermMemory:
                 await self._data_manager.save_short_term_memory(
                     self._session_key,
                     self._summary,
-                    episodes,
                     episodes[-1].sequence_num,
                     len(episodes),
                 )
@@ -288,7 +288,7 @@ class ShortTermMemory:
         except RuntimeError:
             logger.info("Runtime error when creating summary")
 
-    async def get_session_memory_context(
+    async def get_short_term_memory_context(
         self,
         query,
         limit: int = 0,
