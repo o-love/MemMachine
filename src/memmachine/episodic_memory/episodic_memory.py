@@ -26,10 +26,11 @@ from pydantic import BaseModel, Field, InstanceOf, model_validator
 
 from memmachine.common.data_types import FilterablePropertyValue
 from memmachine.common.metrics_factory import MetricsFactory
-
-from ..history_store.history_model import Episode
-from .long_term_memory.long_term_memory import LongTermMemory
-from .short_term_memory.short_term_memory import ShortTermMemory
+from memmachine.episodic_memory.long_term_memory.long_term_memory import LongTermMemory
+from memmachine.episodic_memory.short_term_memory.short_term_memory import (
+    ShortTermMemory,
+)
+from memmachine.history_store.history_model import Episode
 
 logger = logging.getLogger(__name__)
 

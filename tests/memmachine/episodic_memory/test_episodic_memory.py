@@ -1,5 +1,5 @@
-import asyncio
-import time
+"""Tests for the EpisodicMemory class."""
+
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, call, create_autospec
 from uuid import uuid4
@@ -7,18 +7,18 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 
+from memmachine.common.metrics_factory import MetricsFactory
 from memmachine.episodic_memory.episodic_memory import (
     EpisodicMemory,
     EpisodicMemoryParams,
 )
-from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.history_store.history_model import Episode
-from memmachine.episodic_memory.short_term_memory.short_term_memory import (
-    ShortTermMemory,
-)
 from memmachine.episodic_memory.long_term_memory.long_term_memory import (
     LongTermMemory,
 )
+from memmachine.episodic_memory.short_term_memory.short_term_memory import (
+    ShortTermMemory,
+)
+from memmachine.history_store.history_model import Episode
 
 
 def create_test_episode(**kwargs):
@@ -41,34 +41,16 @@ def mock_metrics_factory():
     return MagicMock(spec=MetricsFactory)
 
 
-
 @pytest.fixture
 def mock_short_term_memory():
+    """Fixture for a mocked ShortTermMemory."""
     return create_autospec(ShortTermMemory, instance=True)
-
-    """Fixture for a mocked ShortTermMemory.
-    short_term_memory = MagicMock(sepc=ShortTermMemory)
-    short_term_memory.close = AsyncMock()
-    short_term_memory.add_episode = AsyncMock()
-    short_term_memory.delete_episode = AsyncMock()
-    short_term_memory.clear_memory = AsyncMock()
-    short_term_memory.get_session_memory_context = AsyncMock()
-    return short_term_memory"""
 
 
 @pytest.fixture
 def mock_long_term_memory():
     """Fixture for a mocked LongTermMemory."""
-    long_term_memory = MagicMock(spec=LongTermMemory)
-    long_term_memory.close = AsyncMock()
-    long_term_memory.add_episodes = AsyncMock()
-    long_term_memory.delete_episodes = AsyncMock()
-    long_term_memory.delete_matching_episodes = AsyncMock()
-    long_term_memory.search = AsyncMock()
-    long_term_memory.get_episodes = AsyncMock()
-    long_term_memory.get_matching_episodes = AsyncMock()
-    return long_term_memory
-
+    return create_autospec(LongTermMemory, instance=True)
 
 
 @pytest.fixture
@@ -110,9 +92,7 @@ def test_init_no_memory_configured_raises_error(episodic_memory_params):
     """Test that initialization fails if no memory stores are provided when enabled."""
     episodic_memory_params.short_term_memory = None
     episodic_memory_params.long_term_memory = None
-    with pytest.raises(
-        ValueError
-    ):
+    with pytest.raises(ValueError):
         EpisodicMemory(episodic_memory_params)
 
 
@@ -223,7 +203,9 @@ async def test_query_memory_all_enabled(
 
 
 @pytest.mark.asyncio
-async def test_query_memory_short_term_only(episodic_memory_params, mock_short_term_memory):
+async def test_query_memory_short_term_only(
+    episodic_memory_params, mock_short_term_memory
+):
     """Test querying when only short-term memory is configured."""
     episodic_memory_params.long_term_memory = None
     memory = EpisodicMemory(episodic_memory_params)
@@ -241,7 +223,9 @@ async def test_query_memory_short_term_only(episodic_memory_params, mock_short_t
 
 
 @pytest.mark.asyncio
-async def test_query_memory_long_term_only(episodic_memory_params, mock_long_term_memory):
+async def test_query_memory_long_term_only(
+    episodic_memory_params, mock_long_term_memory
+):
     """Test querying when only long-term memory is configured."""
     episodic_memory_params.short_term_memory = None
     memory = EpisodicMemory(episodic_memory_params)
@@ -267,12 +251,21 @@ async def test_query_memory_when_disabled(episodic_memory_params):
 
 
 @pytest.mark.asyncio
-async def test_formalize_query_with_context(episodic_memory, mock_short_term_memory, mock_long_term_memory):
+async def test_formalize_query_with_context(
+    episodic_memory, mock_short_term_memory, mock_long_term_memory
+):
     """Test formalizing a query with context from memory."""
-    ep1 = create_test_episode(content="hello", created_at=datetime(2023, 1, 1, 12, 0, 0))
-    ep2 = create_test_episode(content="world", created_at=datetime(2023, 1, 1, 12, 0, 1))
+    ep1 = create_test_episode(
+        content="hello", created_at=datetime(2023, 1, 1, 12, 0, 0)
+    )
+    ep2 = create_test_episode(
+        content="world", created_at=datetime(2023, 1, 1, 12, 0, 1)
+    )
 
-    mock_short_term_memory.get_short_term_memory_context.return_value = ([ep1], "summary text")
+    mock_short_term_memory.get_short_term_memory_context.return_value = (
+        [ep1],
+        "summary text",
+    )
     mock_long_term_memory.search.return_value = [ep2]
 
     # Mock the timestamp attribute for sorting
@@ -295,7 +288,9 @@ async def test_formalize_query_with_context(episodic_memory, mock_short_term_mem
 
 
 @pytest.mark.asyncio
-async def test_formalize_query_no_context(episodic_memory, mock_short_term_memory, mock_long_term_memory):
+async def test_formalize_query_no_context(
+    episodic_memory, mock_short_term_memory, mock_long_term_memory
+):
     """Test formalizing a query when no context is found."""
     mock_short_term_memory.get_short_term_memory_context.return_value = ([], "")
     mock_long_term_memory.search.return_value = []

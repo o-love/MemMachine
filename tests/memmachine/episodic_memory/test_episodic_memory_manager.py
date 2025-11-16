@@ -1,11 +1,18 @@
+"""Tests for the EpisodicMemoryManager class."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.common.resource_manager import ResourceManager
+from memmachine.common.session_manager.session_data_manager_sql_impl import (
+    SessionDataManagerSQL,
+)
 from memmachine.episodic_memory.episodic_memory import (
     EpisodicMemory,
     EpisodicMemoryParams,
@@ -14,11 +21,7 @@ from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
     EpisodicMemoryManagerParams,
 )
-from memmachine.common.session_manager.session_data_manager_sql_impl import (
-    SessionDataManagerSQL,
-)
-from memmachine.common.resource_manager import ResourceManager
-from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+
 
 @pytest_asyncio.fixture
 async def db_engine():
@@ -94,9 +97,7 @@ def mock_episodic_memory_instance():
 @pytest.fixture
 def mock_episodic_memory_conf():
     """Fixture for a dummy EpisodicMemoryParams object."""
-    return EpisodicMemoryConf(
-        session_key="test_session", enabled=False
-    )
+    return EpisodicMemoryConf(session_key="test_session", enabled=False)
 
 
 @pytest.fixture
@@ -131,15 +132,22 @@ async def test_create_episodic_memory_success(
     mock_episodic_memory_cls.return_value = mock_episodic_memory_instance
 
     # Patch the service locator function
-    with patch("memmachine.episodic_memory.episodic_memory_manager.epsiodic_memory_params_from_config", new_callable=AsyncMock) as mock_params_from_config:
+    with patch(
+        "memmachine.episodic_memory.episodic_memory_manager.epsiodic_memory_params_from_config",
+        new_callable=AsyncMock,
+    ) as mock_params_from_config:
         mock_params_from_config.return_value = MagicMock(spec=EpisodicMemoryParams)
 
         async with manager.create_episodic_memory(
             session_key, mock_episodic_memory_conf, description, metadata
         ) as instance:
             assert instance is mock_episodic_memory_instance
-            mock_params_from_config.assert_awaited_once_with(mock_episodic_memory_conf, manager._resource_manager)
-            mock_episodic_memory_cls.assert_called_once_with(mock_params_from_config.return_value)
+            mock_params_from_config.assert_awaited_once_with(
+                mock_episodic_memory_conf, manager._resource_manager
+            )
+            mock_episodic_memory_cls.assert_called_once_with(
+                mock_params_from_config.return_value
+            )
             assert manager._instance_cache.get_ref_count(session_key) == 1  # 1 from add
 
     assert manager._instance_cache.get_ref_count(session_key) == 0  # put is called
@@ -274,9 +282,10 @@ async def test_delete_episodic_session_in_use_raises_error(
     async with manager.create_episodic_memory(
         session_key, mock_episodic_memory_conf, "", {}
     ):
-
         assert manager._instance_cache.get_ref_count(session_key) == 1
-        with pytest.raises(RuntimeError, match=f"Session {session_key} is still in use"):
+        with pytest.raises(
+            RuntimeError, match=f"Session {session_key} is still in use"
+        ):
             await manager.delete_episodic_session(session_key)
 
 
@@ -354,9 +363,7 @@ async def test_close_session_in_use_raises_error(
 
 
 @pytest.mark.asyncio
-async def test_manager_close(
-    manager: EpisodicMemoryManager, mock_episodic_memory_conf
-):
+async def test_manager_close(manager: EpisodicMemoryManager, mock_episodic_memory_conf):
     """Test the main close method of the manager."""
     session_key1 = "s1"
     session_key2 = "s2"

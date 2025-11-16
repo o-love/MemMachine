@@ -8,15 +8,17 @@ from memmachine.common.data_types import FilterablePropertyValue
 from memmachine.common.embedder import Embedder
 from memmachine.common.reranker import Reranker
 from memmachine.common.vector_graph_store import VectorGraphStore
-
-from ...history_store.history_model import ContentType, Episode, EpisodeType
-from ..declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
-from ..declarative_memory.data_types import (
+from memmachine.episodic_memory.declarative_memory import (
+    DeclarativeMemory,
+    DeclarativeMemoryParams,
+)
+from memmachine.episodic_memory.declarative_memory.data_types import (
     ContentType as DeclarativeMemoryContentType,
 )
-from ..declarative_memory.data_types import (
+from memmachine.episodic_memory.declarative_memory.data_types import (
     Episode as DeclarativeMemoryEpisode,
 )
+from memmachine.history_store.history_model import ContentType, Episode, EpisodeType
 
 
 class LongTermMemoryParams(BaseModel):

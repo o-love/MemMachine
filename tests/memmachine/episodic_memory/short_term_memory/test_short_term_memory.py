@@ -1,25 +1,23 @@
 import uuid
 from datetime import datetime
 from typing import Any, TypeVar
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
 
+from memmachine.common.configuration.episodic_config import (
+    EpisodicMemoryConf,
+)
 from memmachine.common.language_model import LanguageModel
-from memmachine.common.configuration.episodic_config import ShortTermMemoryConf, EpisodicMemoryConf
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
+from memmachine.episodic_memory.short_term_memory.short_term_memory import (
+    ShortTermMemory,
+    ShortTermMemoryParams,
+)
 from memmachine.history_store.history_model import (
     ContentType,
     Episode,
 )
-from memmachine.common.session_manager.session_data_manager import SessionDataManager
-
-from memmachine.episodic_memory.short_term_memory.short_term_memory import (
-    ShortTermMemory,
-)
-
-from memmachine.episodic_memory.short_term_memory.short_term_memory import ShortTermMemoryParams
-
 
 
 def create_test_episode(**kwargs):
@@ -50,18 +48,16 @@ class MockShortTermMemoryDataManager(SessionDataManager):
 
     async def create_tables(self):
         self.tables_created = True
-    
+
     async def drop_tables(self):
         pass
-    
+
     async def save_short_term_memory(
         self, session_key: str, summary: str, seq: int, num: int
     ):
         self.data[session_key] = (summary, seq, num)
 
-    async def get_short_term_memory(
-        self, session_key: str
-    ) -> tuple[str,  int, int]:
+    async def get_short_term_memory(self, session_key: str) -> tuple[str, int, int]:
         if session_key not in self.data:
             raise ValueError(f"No data for session key {session_key}")
         return self.data[session_key]
@@ -70,23 +66,23 @@ class MockShortTermMemoryDataManager(SessionDataManager):
         self.data = {}
         self.tables_created = False
 
-    async def create_new_session(self, session_key, configuration, param, description, metadata):
-        pass
-
-    async def create_tables(self):
-        pass
-
     async def create_new_session(
-        self, session_key: str, configuration: dict, param: EpisodicMemoryConf, description: str, metadata: dict
+        self,
+        session_key: str,
+        configuration: dict,
+        param: EpisodicMemoryConf,
+        description: str,
+        metadata: dict,
     ):
         pass
 
     async def delete_session(self, session_key: str):
         pass
 
-    async def get_session_info(self, session_key: str) -> tuple[dict, str, dict, EpisodicMemoryConf]:
+    async def get_session_info(
+        self, session_key: str
+    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         return {}, "", {}, EpisodicMemoryConf()
-
 
     async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
         return []

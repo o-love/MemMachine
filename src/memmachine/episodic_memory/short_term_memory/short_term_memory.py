@@ -19,8 +19,7 @@ from pydantic import BaseModel, Field, InstanceOf, field_validator
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
-
-from ...history_store.history_model import Episode
+from memmachine.history_store.history_model import Episode
 
 logger = logging.getLogger(__name__)
 
@@ -121,8 +120,8 @@ class ShortTermMemory:
             try:
                 (
                     summary,
-                    num_episodes,
-                    seq_num,
+                    _,
+                    _,
                 ) = await params.data_manager.get_short_term_memory(params.session_key)
                 # ToDo: Retreive the episodes from raw data storage
                 return ShortTermMemory(params, summary)
