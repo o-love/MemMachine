@@ -49,11 +49,15 @@ class ResourceManagerImpl:
         self._history_storage: EpisodeStorage | None = None
         self._semantic_manager: SemanticResourceManager | None = None
 
-    def build(self):
+    async def build(self):
         self._storage_manager.build_all(validate=True)
-        self._embedder_manager.build_all()
-        self._model_manager.build_all()
-        self._reranker_manager.build_all(self._embedder_manager.embedders)
+        tasks = [
+            self._embedder_manager.build_all(),
+            self._model_manager.build_all(),
+            self._reranker_manager.build_all(embedder_factory=self._embedder_manager),
+        ]
+
+        await asyncio.gather(*tasks)
 
     async def close(self):
         tasks = []
@@ -64,19 +68,19 @@ class ResourceManagerImpl:
 
         await asyncio.gather(*tasks)
 
-    def get_vector_graph_store(self, name: str) -> VectorGraphStore:
+    async def get_vector_graph_store(self, name: str) -> VectorGraphStore:
         return self._storage_manager.get_vector_graph_store(name)
 
-    def get_embedder(self, name: str) -> Embedder:
-        return self._embedder_manager.get_embedder(name)
+    async def get_embedder(self, name: str) -> Embedder:
+        return await self._embedder_manager.get_embedder(name)
 
-    def get_language_model(self, name: str) -> LanguageModel:
-        return self._model_manager.get_language_model(name)
+    async def get_language_model(self, name: str) -> LanguageModel:
+        return await self._model_manager.get_language_model(name)
 
-    def get_reranker(self, name: str) -> Reranker:
+    async def get_reranker(self, name: str) -> Reranker:
         return self._reranker_manager.get_reranker(name)
 
-    def get_metrics_factory(self, name: str) -> MetricsFactory:
+    async def get_metrics_factory(self, name: str) -> MetricsFactory:
         return self._metric_factory.get(name)
 
     @property
@@ -110,8 +114,7 @@ class ResourceManagerImpl:
 
         return self._history_storage
 
-    @property
-    def semantic_manager(self):
+    async def get_semantic_manager(self):
         if self._semantic_manager is not None:
             return self._semantic_manager
 
@@ -123,6 +126,6 @@ class ResourceManagerImpl:
         )
         return self._semantic_manager
 
-    @property
-    def semantic_session_manager(self) -> SemanticSessionManager:
-        return self.semantic_manager.semantic_session_manager
+    async def get_semantic_session_manager(self) -> SemanticSessionManager:
+        semantic_manager = await self.get_semantic_manager()
+        return await semantic_manager.get_semantic_session_manager()

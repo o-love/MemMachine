@@ -1,20 +1,28 @@
+from typing import Protocol
+
 import boto3
+from pydantic import InstanceOf
+from typing_extensions import runtime_checkable
 
 from ..configuration.reranker_conf import RerankerConf
 from ..embedder import Embedder
 from ..reranker import Reranker
 
+@runtime_checkable
+class EmbedderFactory(Protocol):
+    async def get_embedder(self, name: str) -> Embedder:
+        raise NotImplementedError
 
 class RerankerManager:
     def __init__(self, conf: RerankerConf):
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}
 
-    def build_all(self, embedders: dict[str, Embedder]) -> dict[str, Reranker]:
+    async def build_all(self, embedder_factory: InstanceOf[EmbedderFactory]) -> dict[str, Reranker]:
         self._build_bm25_rerankers()
         self._build_cross_encoder_rerankers()
         self._build_amazon_bedrock_rerankers()
-        self._build_embedder_rerankers(embedders)
+        await self._build_embedder_rerankers(embedder_factory)
         self._build_identity_rerankers()
         self._build_rrf_hybrid_rerankers()
         return self.rerankers
@@ -59,19 +67,15 @@ class RerankerManager:
             )
             self.rerankers[name] = AmazonBedrockReranker(params)
 
-    def _build_embedder_rerankers(self, embedders: dict[str, Embedder]):
+    async def _build_embedder_rerankers(self, embedder_factory: EmbedderFactory):
         from ..reranker.embedder_reranker import (
             EmbedderReranker,
             EmbedderRerankerParams,
         )
 
         for name, conf in self.conf.embedder.items():
-            embedder = embedders.get(conf.embedder_id, None)
-            if embedder is None:
-                raise ValueError(
-                    f"Embedder with id {conf.embedder_id} not found for "
-                    f"EmbedderReranker {name}."
-                )
+            embedder = await embedder_factory.get_embedder(conf.embedder_id)
+
             params = EmbedderRerankerParams(embedder=embedder)
             self.rerankers[name] = EmbedderReranker(params)
 

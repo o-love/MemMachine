@@ -46,32 +46,35 @@ def mock_conf():
     return conf
 
 
-def test_build_open_ai_model(mock_conf):
+@pytest.mark.asyncio
+async def test_build_open_ai_model(mock_conf):
     builder = LanguageModelManager(mock_conf)
-    builder._build_openai_model()
+    await builder.build_all()
 
-    assert "openai_4o_mini" in builder.language_models
-    assert "openai_3_5_turbo" in builder.language_models
+    assert "openai_4o_mini" in builder._language_models
+    assert "openai_3_5_turbo" in builder._language_models
 
     model = builder.get_language_model("openai_4o_mini")
     assert model is not None
 
 
-def test_build_aws_bedrock_model(mock_conf):
+@pytest.mark.asyncio
+async def test_build_aws_bedrock_model(mock_conf):
     builder = LanguageModelManager(mock_conf)
-    builder._build_aws_bedrock_model()
+    await builder.build_all()
 
-    assert "aws_model" in builder.language_models
+    assert "aws_model" in builder._language_models
 
     model = builder.get_language_model("aws_model")
     assert model is not None
 
 
-def test_build_openai_compatible_model(mock_conf):
+@pytest.mark.asyncio
+async def test_build_openai_compatible_model(mock_conf):
     builder = LanguageModelManager(mock_conf)
-    builder._build_openai_compatible_model()
+    await builder.build_all()
 
-    assert "ollama_model" in builder.language_models
+    assert "ollama_model" in builder._language_models
 
     model = builder.get_language_model("ollama_model")
     assert model is not None

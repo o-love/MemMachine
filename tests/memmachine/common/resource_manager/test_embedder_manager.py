@@ -36,37 +36,40 @@ def mock_conf():
     )
     return conf
 
-
-def test_build_amazon_bedrock_embedders(mock_conf):
+@pytest.mark.asyncio
+async def test_build_amazon_bedrock_embedders(mock_conf):
     builder = EmbedderManager(mock_conf)
-    builder._build_amazon_bedrock_embedders()
+    await builder.build_all()
 
     assert "aws_embedder_id" in builder._embedders
     embedder = builder._embedders["aws_embedder_id"]
     assert isinstance(embedder, Embedder)
 
 
-def test_build_openai_embedders(mock_conf):
+@pytest.mark.asyncio
+async def test_build_openai_embedders(mock_conf):
     builder = EmbedderManager(mock_conf)
-    builder._build_openai_embedders()
+    await builder.build_all()
 
     assert "openai_embedder_id" in builder._embedders
     embedder = builder._embedders["openai_embedder_id"]
     assert isinstance(embedder, Embedder)
 
 
-def test_build_sentence_transformer_embedders(mock_conf):
+@pytest.mark.asyncio
+async def test_build_sentence_transformer_embedders(mock_conf):
     builder = EmbedderManager(mock_conf)
-    builder._build_sentence_transformer_embedders()
+    await builder.build_all()
 
     assert "sentence_transformer_id" in builder._embedders
     embedder = builder._embedders["sentence_transformer_id"]
     assert isinstance(embedder, Embedder)
 
 
-def test_build_all(mock_conf):
+@pytest.mark.asyncio
+async def test_build_all(mock_conf):
     builder = EmbedderManager(mock_conf)
-    all_embedders = builder.build_all()
+    all_embedders = await builder.build_all()
 
     assert "aws_embedder_id" in all_embedders
     assert "openai_embedder_id" in all_embedders
