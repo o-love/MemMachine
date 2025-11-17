@@ -321,7 +321,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def delete_features(self, feature_ids: list[FeatureIdT]):
-        stmt = delete(Feature).where(Feature.id.in_(feature_ids))
+        feature_ids_ints = [int(f_id) for f_id in feature_ids]
+
+        stmt = delete(Feature).where(Feature.id.in_(feature_ids_ints))
         async with self._create_session() as session:
             await session.execute(stmt)
             await session.commit()

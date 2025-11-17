@@ -5,7 +5,7 @@ from types import ModuleType
 
 import pytest
 
-from memmachine.history_store.history_model import Episode, EpisodeIdT
+from memmachine.history_store.history_model import Episode
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
     SemanticFeature,
@@ -220,8 +220,8 @@ class TestHistoryMessage:
 
         assert msg.content == "Test message"
         assert msg.created_at == now
-        assert msg.metadata.uuid is None
-        assert msg.metadata.other is None
+        assert msg.uuid is None
+        assert msg.metadata is None
 
     def test_history_message_with_metadata(self):
         from datetime import datetime
@@ -230,10 +230,8 @@ class TestHistoryMessage:
         msg = Episode(
             content="Test message",
             created_at=now,
-            metadata=Episode.Metadata(
-                uuid=EpisodeIdT(123),
-                other={"source": "test", "priority": "high"},
-            ),
+            uuid="123",
+            metadata={"source": "test", "priority": "high"},
             session_key="session_key",
             producer_id="profile_id",
             producer_role="user_role",
@@ -241,8 +239,8 @@ class TestHistoryMessage:
 
         assert msg.content == "Test message"
         assert msg.created_at == now
-        assert msg.metadata.uuid == "123"
-        assert msg.metadata.other == {"source": "test", "priority": "high"}
+        assert msg.uuid == "123"
+        assert msg.metadata == {"source": "test", "priority": "high"}
 
 
 class TestSemanticFeature:
@@ -272,7 +270,7 @@ class TestSemanticFeature:
         citation = Episode(
             content="I love pasta",
             created_at=now,
-            metadata=Episode.Metadata(uuid="456aw3w"),
+            uuid="456aw3w",
             session_key="session_key",
             producer_id="profile_id",
             producer_role="user_role",
@@ -286,7 +284,7 @@ class TestSemanticFeature:
             value="pasta",
             metadata=SemanticFeature.Metadata(
                 id="a789",
-                citations=[citation.metadata.uuid],
+                citations=[citation.uuid],
                 other={"confidence": 0.95},
             ),
         )

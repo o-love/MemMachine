@@ -92,7 +92,7 @@ class IngestionService:
             semantic_category: InstanceOf[SemanticCategory],
         ):
             for message in messages:
-                if message.metadata.uuid is None:
+                if message.uuid is None:
                     raise ValueError(
                         "Message ID is None for message %s", message.model_dump()
                     )
@@ -123,11 +123,11 @@ class IngestionService:
                     commands=commands,
                     set_id=set_id,
                     category_name=semantic_category.name,
-                    citation_id=message.metadata.uuid,
+                    citation_id=message.uuid,
                     embedder=resources.embedder,
                 )
 
-                mark_messages.append(message.metadata.uuid)
+                mark_messages.append(message.uuid)
 
         mark_messages: list[EpisodeIdT] = []
         semantic_category_runners = []

@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.metrics_factory import MetricsFactory
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
-from memmachine.common.session_manager.session_data_manager_sql_impl import SessionDataManagerSQL
+from memmachine.common.session_manager.session_data_manager_sql_impl import (
+    SessionDataManagerSQL,
+)
 from memmachine.episodic_memory.episodic_memory import EpisodicMemoryParams
 
 

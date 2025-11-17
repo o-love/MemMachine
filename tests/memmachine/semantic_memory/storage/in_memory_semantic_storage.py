@@ -401,7 +401,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
             filtered.sort(key=lambda pair: pair[0], reverse=True)
             entries = [entry for _, entry in filtered]
         else:
-            entries.sort(key=lambda e: (e.created_at, e.uuid))
+            # Provide deterministic ordering matching creation time, then id
+            entries.sort(key=lambda e: (e.created_at, e.id))
 
         if k is not None:
             entries = entries[:k]
