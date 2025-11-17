@@ -47,35 +47,96 @@ class LanguageModelManager:
             return llm_model
 
     def _build_language_model(self, name: str) -> LanguageModel:
-        if name in self.conf.openai_confs:
-            return self._build_openai_model(name)
-        elif name in self.conf.aws_bedrock_confs:
-            return self._build_aws_bedrock_model(name)
-        elif name in self.conf.openai_compatible_confs:
-            return self._build_openai_compatible_model(name)
+        if name in self.conf.openai_responses_language_model_confs:
+            return self._build_openai_responses_language_model(name)
+        elif name in self.conf.openai_chat_completions_language_model_confs:
+            return self._build_openai_chat_completions_language_model(name)
+        elif name in self.conf.amazon_bedrock_language_model_confs:
+            return self._build_amazon_bedrock_language_model(name)
         else:
             raise ValueError(f"Language model with name {name} not found.")
 
-    def _build_openai_model(self, name: str) -> LanguageModel:
-        from memmachine.common.language_model.openai_language_model import (
-            OpenAILanguageModel,
+    def _build_openai_responses_language_models(self, name: str) -> LanguageModel:
+        import openai
+
+        from ..language_model.openai_responses_language_model import (
+            OpenAIResponsesLanguageModel,
+            OpenAIResponsesLanguageModelParams,
         )
 
-        conf = self.conf.openai_confs[name]
-        return OpenAILanguageModel(conf)
+        conf = self.conf.openai_language_model_confs[name]
 
-    def _build_aws_bedrock_model(self, name: str) -> LanguageModel:
-        from memmachine.common.language_model.amazon_bedrock_language_model import (
+        return OpenAIResponsesLanguageModel(
+            OpenAIResponsesLanguageModelParams(
+                client=openai.AsyncOpenAI(
+                    api_key=conf.api_key,
+                    base_url=conf.base_url,
+                ),
+                model=conf.model,
+                max_retry_interval_seconds=conf.max_retry_interval_seconds,
+                metrics_factory=conf.get_metrics_factory(),
+                user_metrics_labels=conf.user_metrics_labels,
+            )
+        )
+
+    def _build_openai_chat_completions_language_models(
+        self, name: str
+    ) -> LanguageModel:
+        import openai
+
+        from ..language_model.openai_chat_completions_language_model import (
+            OpenAIChatCompletionsLanguageModel,
+            OpenAIChatCompletionsLanguageModelParams,
+        )
+
+        conf = self.conf.openai_compatible_language_model_confs[name]
+
+        return OpenAIChatCompletionsLanguageModel(
+            OpenAIChatCompletionsLanguageModelParams(
+                client=openai.AsyncOpenAI(
+                    api_key=conf.api_key,
+                    base_url=conf.base_url,
+                ),
+                model=conf.model,
+                max_retry_interval_seconds=conf.max_retry_interval_seconds,
+                metrics_factory=conf.get_metrics_factory(),
+                user_metrics_labels=conf.user_metrics_labels,
+            )
+        )
+
+    def _build_amazon_bedrock_language_models(self, name: str) -> LanguageModel:
+        import boto3
+        import botocore
+
+        from ..language_model.amazon_bedrock_language_model import (
             AmazonBedrockLanguageModel,
+            AmazonBedrockLanguageModelParams,
         )
 
-        conf = self.conf.aws_bedrock_confs[name]
-        return AmazonBedrockLanguageModel(conf)
+        conf = self.conf.amazon_bedrock_language_model_confs[name]
 
-    def _build_openai_compatible_model(self, name: str) -> LanguageModel:
-        from memmachine.common.language_model.openai_compatible_language_model import (
-            OpenAICompatibleLanguageModel,
+        client = boto3.client(
+            "bedrock-runtime",
+            region_name=conf.region,
+            aws_access_key_id=conf.aws_access_key_id.get_secret_value(),
+            aws_secret_access_key=conf.aws_secret_access_key.get_secret_value(),
+            aws_session_token=conf.aws_session_token.get_secret_value(),
+            config=botocore.config.Config(
+                retries={
+                    "total_max_attempts": 1,
+                    "mode": "standard",
+                }
+            ),
         )
 
-        conf = self.conf.openai_compatible_confs[name]
-        return OpenAICompatibleLanguageModel(conf)
+        return AmazonBedrockLanguageModel(
+            AmazonBedrockLanguageModelParams(
+                client=client,
+                model_id=conf.model_id,
+                inference_config=conf.inference_config,
+                additional_model_request_fields=conf.additional_model_request_fields,
+                max_retry_interval_seconds=conf.max_retry_interval_seconds,
+                metrics_factory=conf.get_metrics_factory(),
+                user_metrics_labels=conf.user_metrics_labels,
+            )
+        )

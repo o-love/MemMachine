@@ -1,6 +1,6 @@
 from typing import Self
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from memmachine.common.configuration.metrics_conf import WithMetricsFactoryId
 from memmachine.common.data_types import SimilarityMetric
@@ -12,11 +12,17 @@ class AmazonBedrockEmbedderConfig(BaseModel):
 
     Attributes:
         region (str):
-            AWS region where Bedrock is hosted.
-        aws_access_key_id (SecretStr):
-            AWS access key ID for authentication.
-        aws_secret_access_key (SecretStr):
-            AWS secret access key for authentication.
+            AWS region where Bedrock is hosted
+            (default: 'us-east-1').
+        aws_access_key_id (SecretStr | None):
+            AWS access key ID for authentication
+            (default: None).
+        aws_secret_access_key (SecretStr | None):
+            AWS secret access key for authentication
+            (default: None).
+        aws_session_token (SecretStr | None):
+            AWS session token for authentication
+            (default: None).
         model_id (str):
             ID of the Bedrock model to use for embedding
             (e.g. 'amazon.titan-embed-text-v2:0').
@@ -29,14 +35,14 @@ class AmazonBedrockEmbedderConfig(BaseModel):
     """
 
     region: str = Field(
-        "us-west-2",
+        "us-east-1",
         description="AWS region where Bedrock is hosted.",
     )
-    aws_access_key_id: SecretStr = Field(
-        default=SecretStr(""), description="AWS access key ID for authentication."
+    aws_access_key_id: SecretStr | None = Field(
+        default=None, description="AWS access key ID for authentication."
     )
-    aws_secret_access_key: SecretStr = Field(
-        default=SecretStr(""), description="AWS secret access key for authentication."
+    aws_secret_access_key: SecretStr | None = Field(
+        default=None, description="AWS secret access key for authentication."
     )
     aws_session_token: SecretStr | None = Field(
         default=None,
@@ -44,8 +50,7 @@ class AmazonBedrockEmbedderConfig(BaseModel):
     )
     model_id: str = Field(
         default="amazon.titan-embed-text-v2:0",
-        description="ID of the Bedrock model to use for generation "
-        "(e.g. 'openai.gpt-oss-20b-1:0').",
+        description="ID of the Bedrock model to use for embedding (e.g. 'amazon.titan-embed-text-v2:0').",
     )
     similarity_metric: SimilarityMetric = Field(
         default=SimilarityMetric.COSINE, description="Similarity metric to use"
@@ -61,31 +66,36 @@ class OpenAIEmbedderConf(WithMetricsFactoryId):
     model: str = Field(
         default="text-embedding-3-small",
         min_length=1,
-        description="OpenAPI embedding model",
+        description="OpenAI Embeddings API-compatible model",
     )
     api_key: SecretStr = Field(
         ...,
-        description="API key for OpenAPI authentication",
+        description="OpenAI Chat Completions API key for authentication",
         min_length=1,
     )
     dimensions: int | None = Field(
         default=1536,
-        description="Dimensionality of the embeddings (default: model-specific).",
+        description="Dimensionality of the embeddings; must be provided if different from the default (1536)",
         gt=0,
     )
     base_url: str | None = Field(
         default=None,
-        description=(
-            "Base URL for OpenAPI API requests. If set to None, "
-            "the environment variable OPENAI_BASE_URL will be used. "
-            "(default: None)."
-        ),
+        description=("OpenAI Embeddings API base URL"),
     )
     max_retry_interval_seconds: int = Field(
         default=120,
-        description="Maximal retry interval in seconds when retrying API calls.",
+        description="Maximal retry interval in seconds when retrying API calls",
         gt=0,
     )
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, v: str) -> str:
+        if v is not None:
+            parsed_url = urlparse(v)
+            if not parsed_url.scheme or not parsed_url.netloc:
+                raise ValueError(f"Invalid base URL: base_url={v}")
+        return v
 
 
 class SentenceTransformerEmbedderConfig(WithMetricsFactoryId):
@@ -109,19 +119,21 @@ class EmbedderConf(BaseModel):
         openai_dict = {}
         sentence_transformer_dict = {}
 
-        for embedder_id, value in embedder.items():
-            name = value.get("provider")
-            conf = value.get("config", {})
-            if name == "openai":
+        for embedder_id, resource_definition in embedder.items():
+            provider = resource_definition.get("provider")
+            conf = resource_definition.get("config", {})
+            if provider == "openai":
                 openai_dict[embedder_id] = OpenAIEmbedderConf(**conf)
-            elif name == "amazon-bedrock":
+            elif provider == "amazon-bedrock":
                 amazon_bedrock_dict[embedder_id] = AmazonBedrockEmbedderConfig(**conf)
-            elif name == "sentence-transformer":
+            elif provider == "sentence-transformer":
                 sentence_transformer_dict[embedder_id] = (
                     SentenceTransformerEmbedderConfig(**conf)
                 )
             else:
-                raise ValueError(f"Unknown embedder: {name}")
+                raise ValueError(
+                    f"Unknown embedder provider '{provider}' for embedder id {embedder_id}"
+                )
         return cls(
             amazon_bedrock=amazon_bedrock_dict,
             openai=openai_dict,

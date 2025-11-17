@@ -1,5 +1,5 @@
 """
-OpenAI-based language model implementation.
+OpenAI-completions API based language model implementation.
 """
 
 import asyncio
@@ -10,62 +10,90 @@ from typing import Any
 from uuid import uuid4
 
 import openai
+from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.data_types import ExternalServiceAPIError
+from memmachine.common.metrics_factory import MetricsFactory
 
-from ..configuration.model_conf import OpenAIModelConf
 from .language_model import LanguageModel
 
 logger = logging.getLogger(__name__)
 
 
-class OpenAILanguageModel(LanguageModel):
+class OpenAIChatCompletionsLanguageModelParams(BaseModel):
     """
-    Language model that uses OpenAI's models
+    Parameters for OpenAIChatCompletionsLanguageModel.
+
+    Attributes:
+        client (openai.AsyncOpenAI):
+            AsyncOpenAI client to use for making API calls.
+        model (str):
+            Name of the OpenAI model to use
+            (e.g. 'gpt-5-nano').
+        max_retry_interval_seconds (int):
+            Maximal retry interval in seconds when retrying API calls
+            (default: 120).
+        metrics_factory (MetricsFactory | None):
+            An instance of MetricsFactory
+            for collecting usage metrics
+            (default: None).
+        user_metrics_labels (dict[str, str]):
+            Labels to attach to the collected metrics
+            (default: {}).
+    """
+
+    client: InstanceOf[openai.AsyncOpenAI] = Field(
+        ...,
+        description="AsyncOpenAI client to use for making API calls",
+    )
+    model: str = Field(
+        ...,
+        description="Name of the OpenAI model to use (e.g. 'gpt-5-nano')",
+    )
+    max_retry_interval_seconds: int = Field(
+        120,
+        description="Maximal retry interval in seconds when retrying API calls",
+        gt=0,
+    )
+    metrics_factory: InstanceOf[MetricsFactory] | None = Field(
+        None,
+        description="An instance of MetricsFactory for collecting usage metrics",
+    )
+    user_metrics_labels: dict[str, str] = Field(
+        default_factory=dict,
+        description="Labels to attach to the collected metrics",
+    )
+
+
+class OpenAIChatCompletionsLanguageModel(LanguageModel):
+    """
+    Language model that uses OpenAI's completions API
     to generate responses based on prompts and tools.
     """
 
-    def __init__(self, config: OpenAIModelConf) -> None:
+    def __init__(self, params: OpenAIChatCompletionsLanguageModelParams):
         """
-        Initialize an OpenAILanguageModel
-        with the provided configuration.
+        Initialize an OpenAIChatCompletionsLanguageModel
+        with the provided parameters.
 
         Args:
-            config (dict[str, Any]):
-                Configuration dictionary containing:
-                - api_key (str):
-                  API key for accessing the OpenAI service.
-                - model (str, optional):
-                  Name of the OpenAI model to use
-                - metrics_factory (MetricsFactory, optional):
-                  An instance of MetricsFactory
-                  for collecting usage metrics.
-                - user_metrics_labels (dict[str, str], optional):
-                  Labels to attach to the collected metrics.
-                - max_retry_interval_seconds(int, optional):
-                  Maximal retry interval in seconds when retrying API calls.
-                  The default value is 120 seconds.
-
-        Raises:
-            ValueError:
-                If configuration argument values are missing or invalid.
-            TypeError:
-                If configuration argument values are of incorrect type.
+            params (OpenAIChatCompletionsLanguageModelParams):
+                Parameters for the OpenAIChatCompletionsLanguageModel.
         """
         super().__init__()
 
-        self._model = config.model
-        api_key = config.api_key
-        self._client = openai.AsyncOpenAI(api_key=api_key.get_secret_value())
-        self._max_retry_interval_seconds = config.max_retry_interval_seconds
+        self._client = params.client
 
-        metrics_factory = config.get_metrics_factory()
+        self._model = params.model
+
+        self._max_retry_interval_seconds = params.max_retry_interval_seconds
+
+        metrics_factory = params.metrics_factory
+
         self._should_collect_metrics = False
         if metrics_factory is not None:
             self._should_collect_metrics = True
-            self._user_metrics_labels = config.user_metrics_labels
-            if not isinstance(self._user_metrics_labels, dict):
-                raise TypeError("user_metrics_labels must be a dictionary")
+            self._user_metrics_labels = params.user_metrics_labels
             label_names = self._user_metrics_labels.keys()
 
             self._input_tokens_usage_counter = metrics_factory.get_counter(
@@ -73,22 +101,9 @@ class OpenAILanguageModel(LanguageModel):
                 "Number of input tokens used for OpenAI language model",
                 label_names=label_names,
             )
-            self._input_cached_tokens_usage_counter = metrics_factory.get_counter(
-                "language_model_openai_usage_input_cached_tokens",
-                (
-                    "Number of tokens retrieved from cache "
-                    "used for OpenAI language model"
-                ),
-                label_names=label_names,
-            )
             self._output_tokens_usage_counter = metrics_factory.get_counter(
                 "language_model_openai_usage_output_tokens",
                 "Number of output tokens used for OpenAI language model",
-                label_names=label_names,
-            )
-            self._output_reasoning_tokens_usage_counter = metrics_factory.get_counter(
-                "language_model_openai_usage_output_reasoning_tokens",
-                ("Number of reasoning tokens used for OpenAI language model"),
                 label_names=label_names,
             )
             self._total_tokens_usage_counter = metrics_factory.get_counter(
@@ -124,10 +139,10 @@ class OpenAILanguageModel(LanguageModel):
         try:
             response = await self._client.with_options(
                 max_retries=max_attempts
-            ).responses.parse(
+            ).chat.completions.parse(
                 model=self._model,  # type: ignore[arg-type]
-                input=input_prompts,  # type: ignore[arg-type]
-                text_format=output_format,
+                messages=input_prompts,  # type: ignore[arg-type]
+                response_format=output_format,
             )
         except openai.OpenAIError as e:
             error_message = (
@@ -146,7 +161,7 @@ class OpenAILanguageModel(LanguageModel):
             end_time,
         )
 
-        return response.output_parsed
+        return response.choices[0].message.parsed
 
     async def generate_response(
         self,
@@ -163,29 +178,22 @@ class OpenAILanguageModel(LanguageModel):
             {"role": "system", "content": system_prompt or ""},
             {"role": "user", "content": user_prompt or ""},
         ]
-
         generate_response_call_uuid = uuid4()
 
         start_time = time.monotonic()
-
         sleep_seconds = 1
         for attempt in range(1, max_attempts + 1):
             try:
-                logger.debug(
-                    "[call uuid: %s] "
-                    "Attempting to generate response using %s OpenAI language model: "
-                    "on attempt %d with max attempts %d",
-                    generate_response_call_uuid,
-                    self._model,
-                    attempt,
-                    max_attempts,
-                )
-                response = await self._client.responses.create(
-                    model=self._model,
-                    input=input_prompts,
-                    tools=tools,
-                    tool_choice=tool_choice if tool_choice is not None else "auto",
-                )  # type: ignore
+                args: dict = {
+                    "model": self._model,
+                    "messages": input_prompts,
+                }
+                if tools:
+                    args["tools"] = tools
+                    args["tool_choice"] = (
+                        tool_choice if tool_choice is not None else "auto"
+                    )
+                response = await self._client.chat.completions.create(**args)  # type: ignore
                 break
             except (
                 openai.RateLimitError,
@@ -228,11 +236,6 @@ class OpenAILanguageModel(LanguageModel):
                 raise ExternalServiceAPIError(error_message)
 
         end_time = time.monotonic()
-        logger.debug(
-            "[call uuid: %s] Response generated in %.3f seconds",
-            generate_response_call_uuid,
-            end_time - start_time,
-        )
 
         self._collect_metrics(
             response,
@@ -240,26 +243,34 @@ class OpenAILanguageModel(LanguageModel):
             end_time,
         )
 
-        if response.output is None:
-            return (response.output_text or "", [])
-
+        function_calls_arguments = []
         try:
-            function_calls_arguments = [
-                {
-                    "call_id": output.call_id,
-                    "function": {
-                        "name": output.name,
-                        "arguments": json.loads(output.arguments),
-                    },
-                }
-                for output in response.output
-                if output.type == "function_call"
-            ]
+            if response.choices[0].message.tool_calls:
+                for tool_call in response.choices[0].message.tool_calls:
+                    if isinstance(
+                        tool_call,
+                        openai.types.chat.ChatCompletionMessageFunctionToolCall,
+                    ):
+                        function_calls_arguments.append(
+                            {
+                                "call_id": tool_call.id,
+                                "function": {
+                                    "name": tool_call.function.name,
+                                    "arguments": json.loads(
+                                        tool_call.function.arguments
+                                    ),
+                                },
+                            }
+                        )
+                    else:
+                        logger.info(
+                            "Unsupported tool call type: %s", type(tool_call).__name__
+                        )
         except json.JSONDecodeError as e:
             raise ValueError("JSON decode error") from e
 
         return (
-            response.output_text,
+            response.choices[0].message.content or "",
             function_calls_arguments,
         )
 
@@ -267,19 +278,11 @@ class OpenAILanguageModel(LanguageModel):
         if self._should_collect_metrics:
             if response.usage is not None:
                 self._input_tokens_usage_counter.increment(
-                    value=response.usage.input_tokens,
-                    labels=self._user_metrics_labels,
-                )
-                self._input_cached_tokens_usage_counter.increment(
-                    value=response.usage.input_tokens_details.cached_tokens,
+                    value=response.usage.prompt_tokens,
                     labels=self._user_metrics_labels,
                 )
                 self._output_tokens_usage_counter.increment(
-                    value=response.usage.output_tokens,
-                    labels=self._user_metrics_labels,
-                )
-                self._output_reasoning_tokens_usage_counter.increment(
-                    value=response.usage.output_tokens_details.reasoning_tokens,
+                    value=response.usage.completion_tokens,
                     labels=self._user_metrics_labels,
                 )
                 self._total_tokens_usage_counter.increment(
