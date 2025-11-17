@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 
-from memmachine.history_store.history_model import EpisodeIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.semantic_session_resource import (

@@ -7,7 +7,7 @@ from pydantic import BaseModel, InstanceOf
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
-from memmachine.history_store.history_model import EpisodeIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 
 SetIdT = str
 FeatureIdT = str

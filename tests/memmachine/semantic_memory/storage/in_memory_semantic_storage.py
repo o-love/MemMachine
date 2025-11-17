@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
-from memmachine.history_store.history_model import EpisodeIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,

@@ -20,8 +20,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
-from memmachine.history_store.history_model import Episode, EpisodeType
-from memmachine.history_store.history_storage import EpisodeIdT, HistoryStorage
+from memmachine.episode_store.episode_model import Episode, EpisodeType
+from memmachine.episode_store.episode_storage import EpisodeIdT, EpisodeStorage
 
 
 class BaseHistoryStore(DeclarativeBase):
@@ -95,8 +95,8 @@ class History(BaseHistoryStore):
         )
 
 
-class SqlAlchemyHistoryStore(HistoryStorage):
-    """SQLAlchemy history store implementation."""
+class SqlAlchemyEpisodeStore(EpisodeStorage):
+    """SQLAlchemy episode store implementation."""
 
     def __init__(self, engine: AsyncEngine):
         self._engine: AsyncEngine = engine

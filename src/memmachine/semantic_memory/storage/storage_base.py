@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
-from memmachine.history_store.history_storage import EpisodeIdT
+from memmachine.episode_store.episode_storage import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import (
     FeatureIdT,
     SemanticFeature,

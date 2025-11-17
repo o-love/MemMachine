@@ -13,8 +13,8 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel, InstanceOf, validate_call
 
-from ..history_store.history_model import EpisodeIdT
-from ..history_store.history_storage import HistoryStorage
+from ..episode_store.episode_model import EpisodeIdT
+from ..episode_store.episode_storage import EpisodeStorage
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
 from .semantic_tracker import SemanticUpdateTrackerManager
@@ -36,7 +36,7 @@ class SemanticService:
         """Infrastructure dependencies and background-update configuration."""
 
         semantic_storage: InstanceOf[SemanticStorageBase]
-        history_storage: InstanceOf[HistoryStorage]
+        history_storage: InstanceOf[EpisodeStorage]
         consolidation_threshold: int = 20
 
         feature_update_interval_sec: float = 2.0

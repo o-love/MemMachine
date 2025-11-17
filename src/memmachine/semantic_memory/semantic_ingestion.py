@@ -7,8 +7,8 @@ import numpy as np
 from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
-from memmachine.history_store.history_model import Episode, EpisodeIdT
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_model import Episode, EpisodeIdT
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_llm import (
     LLMReducedFeature,
     llm_consolidate_features,
@@ -39,7 +39,7 @@ class IngestionService:
         """Dependencies and tuning knobs for the ingestion workflow."""
 
         semantic_storage: InstanceOf[SemanticStorageBase]
-        history_store: InstanceOf[HistoryStorage]
+        history_store: InstanceOf[EpisodeStorage]
         resource_retriever: InstanceOf[ResourceRetriever]
         consolidated_threshold: int = 20
         debug_fail_loudly: bool = False

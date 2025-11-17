@@ -179,9 +179,9 @@ async def test_get_feature_set_min_cos_vector_search(
 @pytest_asyncio.fixture
 async def feature_and_citations(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
-    h1_id = await history_storage.add_history(
+    h1_id = await episode_storage.add_history(
         content="first",
         session_key="session_id",
         producer_id="profile_id",
@@ -191,7 +191,7 @@ async def feature_and_citations(
         set_id="user",
         history_id=h1_id,
     )
-    h2_id = await history_storage.add_history(
+    h2_id = await episode_storage.add_history(
         content="second",
         session_key="session_id",
         producer_id="profile_id",
@@ -214,7 +214,7 @@ async def feature_and_citations(
     yield feature_id, {h1_id, h2_id}
 
     await semantic_storage.delete_features([feature_id])
-    await history_storage.delete_history([h1_id, h2_id])
+    await episode_storage.delete_history([h1_id, h2_id])
 
 
 @pytest.mark.asyncio
@@ -280,21 +280,21 @@ async def test_delete_feature_with_citations(
 @pytest.mark.asyncio
 async def test_history_message_counts_by_set(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
-    h1_id = await history_storage.add_history(
+    h1_id = await episode_storage.add_history(
         content="first",
         session_key="session_id",
         producer_id="profile_id",
         producer_role="dev",
     )
-    h2_id = await history_storage.add_history(
+    h2_id = await episode_storage.add_history(
         content="second",
         session_key="session_id",
         producer_id="profile_id",
         producer_role="dev",
     )
-    h3_id = await history_storage.add_history(
+    h3_id = await episode_storage.add_history(
         content="third",
         session_key="session_id",
         producer_id="profile_id",
@@ -384,9 +384,9 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorageBase):
 @pytest.mark.asyncio
 async def test_complex_semantic_search_and_citations(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
-    history_id = await history_storage.add_history(
+    history_id = await episode_storage.add_history(
         content="context note",
         metadata={"source": "chat"},
         session_key="session_key",
@@ -469,10 +469,10 @@ async def test_complex_semantic_search_and_citations(
 @pytest.mark.asyncio
 async def test_history_ingestion_tracking(
     semantic_storage: SemanticStorageBase,
-    history_storage,
+    episode_storage,
 ):
     history_ids = [
-        await history_storage.add_history(
+        await episode_storage.add_history(
             content=f"message-{idx}",
             session_key="session_id",
             producer_id="profile_id",

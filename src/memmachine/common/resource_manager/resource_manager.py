@@ -20,12 +20,12 @@ from memmachine.common.session_manager.session_data_manager_sql_impl import (
     SessionDataManagerSQL,
 )
 from memmachine.common.vector_graph_store import VectorGraphStore
+from memmachine.episode_store.episode_sqlalchemy_store import SqlAlchemyEpisodeStore
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
     EpisodicMemoryManagerParams,
 )
-from memmachine.history_store.history_sqlalchemy_store import SqlAlchemyHistoryStore
-from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 
 
@@ -46,7 +46,7 @@ class ResourceManagerImpl:
         self._session_data_manager: SessionDataManager | None = None
         self._episodic_memory_manager: EpisodicMemoryManager | None = None
 
-        self._history_storage: HistoryStorage | None = None
+        self._history_storage: EpisodeStorage | None = None
         self._semantic_manager: SemanticResourceManager | None = None
 
     def build(self):
@@ -99,14 +99,14 @@ class ResourceManagerImpl:
         return self._episodic_memory_manager
 
     @property
-    def history_storage(self) -> HistoryStorage:
+    def history_storage(self) -> EpisodeStorage:
         if self._history_storage is not None:
             return self._history_storage
 
         conf = self._conf.history_storage
         engine = self._storage_manager.get_sql_engine(conf.database)
 
-        self._history_storage = SqlAlchemyHistoryStore(engine)
+        self._history_storage = SqlAlchemyEpisodeStore(engine)
 
         return self._history_storage
 

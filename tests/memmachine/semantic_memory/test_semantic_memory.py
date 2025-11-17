@@ -5,7 +5,7 @@ import pytest_asyncio
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
@@ -106,11 +106,11 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 async def semantic_service(
     semantic_storage: SemanticStorageBase,
     resource_retriever: MockResourceRetriever,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
 ) -> SemanticService:
     params = SemanticService.Params(
         semantic_storage=semantic_storage,
-        history_storage=history_storage,
+        history_storage=episode_storage,
         resource_retriever=resource_retriever,
         feature_update_interval_sec=0.05,
         feature_update_message_limit=10,
@@ -121,7 +121,7 @@ async def semantic_service(
     await service.stop()
 
 
-async def add_history(history_storage: HistoryStorage, content: str):
+async def add_history(history_storage: EpisodeStorage, content: str):
     history_id = await history_storage.add_history(
         content=content,
         session_key="session_id",
@@ -290,11 +290,11 @@ async def test_delete_feature_set_applies_filters(
 async def test_add_messages_tracks_uningested_counts(
     semantic_service: SemanticService,
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
 ):
     # Given a stored history message
     history_id = await add_history(
-        history_storage=history_storage, content="Alpha memory"
+        history_storage=episode_storage, content="Alpha memory"
     )
 
     # When associating the message to a set
@@ -315,11 +315,11 @@ async def test_add_messages_tracks_uningested_counts(
 async def test_add_message_to_sets_supports_multiple_targets(
     semantic_service: SemanticService,
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
 ):
     # Given a history entry
     history_id = await add_history(
-        history_storage=history_storage, content="Alpha shared memory"
+        history_storage=episode_storage, content="Alpha shared memory"
     )
 
     # When linking the message to multiple sets

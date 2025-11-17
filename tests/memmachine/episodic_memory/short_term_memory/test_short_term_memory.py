@@ -10,13 +10,13 @@ from memmachine.common.configuration.episodic_config import (
 )
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
+from memmachine.episode_store.episode_model import (
+    ContentType,
+    Episode,
+)
 from memmachine.episodic_memory.short_term_memory.short_term_memory import (
     ShortTermMemory,
     ShortTermMemoryParams,
-)
-from memmachine.history_store.history_model import (
-    ContentType,
-    Episode,
 )
 
 

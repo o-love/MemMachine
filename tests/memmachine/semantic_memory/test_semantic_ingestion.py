@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_ingestion import IngestionService
 from memmachine.semantic_memory.semantic_llm import (
     LLMReducedFeature,
@@ -54,7 +54,7 @@ def llm_model(mock_llm_model):
     return mock_llm_model
 
 
-async def add_history(history_storage: HistoryStorage, content: str):
+async def add_history(history_storage: EpisodeStorage, content: str):
     return await history_storage.add_history(
         content=content,
         session_key="session_id",
@@ -84,12 +84,12 @@ def resource_retriever(resources: Resources) -> MockResourceRetriever:
 @pytest_asyncio.fixture
 async def ingestion_service(
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     resource_retriever: MockResourceRetriever,
 ) -> IngestionService:
     params = IngestionService.Params(
         semantic_storage=semantic_storage,
-        history_store=history_storage,
+        history_store=episode_storage,
         resource_retriever=resource_retriever,
         consolidated_threshold=2,
     )
@@ -119,12 +119,12 @@ async def test_process_single_set_returns_when_no_messages(
 async def test_process_single_set_applies_commands(
     ingestion_service: IngestionService,
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     embedder_double: MockEmbedder,
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    message_id = await add_history(history_storage, content="I love blue cars")
+    message_id = await add_history(episode_storage, content="I love blue cars")
     await semantic_storage.add_history_to_set(set_id="user-123", history_id=message_id)
 
     await semantic_storage.add_feature(
@@ -197,13 +197,13 @@ async def test_process_single_set_applies_commands(
 async def test_consolidation_groups_by_tag(
     ingestion_service: IngestionService,
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     resources: Resources,
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    first_history = await add_history(history_storage, content="thin crust")
-    second_history = await add_history(history_storage, content="deep dish")
+    first_history = await add_history(episode_storage, content="thin crust")
+    second_history = await add_history(episode_storage, content="deep dish")
 
     first_feature = await semantic_storage.add_feature(
         set_id="user-456",
@@ -245,13 +245,13 @@ async def test_consolidation_groups_by_tag(
 async def test_deduplicate_features_merges_and_relabels(
     ingestion_service: IngestionService,
     semantic_storage: SemanticStorageBase,
-    history_storage: HistoryStorage,
+    episode_storage: EpisodeStorage,
     resources: Resources,
     semantic_category: SemanticCategory,
     monkeypatch,
 ):
-    keep_history = await add_history(history_storage, content="keep")
-    drop_history = await add_history(history_storage, content="drop")
+    keep_history = await add_history(episode_storage, content="keep")
+    drop_history = await add_history(episode_storage, content="drop")
 
     keep_feature_id = await semantic_storage.add_feature(
         set_id="user-789",

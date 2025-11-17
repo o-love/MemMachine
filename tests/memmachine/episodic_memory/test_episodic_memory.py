@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.episode_store.episode_model import Episode
 from memmachine.episodic_memory.episodic_memory import (
     EpisodicMemory,
     EpisodicMemoryParams,
@@ -17,7 +18,6 @@ from memmachine.episodic_memory.long_term_memory.long_term_memory import (
 from memmachine.episodic_memory.short_term_memory.short_term_memory import (
     ShortTermMemory,
 )
-from memmachine.history_store.history_model import Episode
 
 
 def create_test_episode(**kwargs):

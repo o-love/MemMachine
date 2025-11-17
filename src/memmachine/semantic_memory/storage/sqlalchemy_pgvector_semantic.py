@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import func
 
-from memmachine.history_store.history_model import EpisodeIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature, SetIdT
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,

@@ -3,10 +3,10 @@ from abc import ABC, abstractmethod
 from pydantic import AwareDatetime
 
 from memmachine.common.data_types import JSONValue
-from memmachine.history_store.history_model import Episode, EpisodeIdT, EpisodeType
+from memmachine.episode_store.episode_model import Episode, EpisodeIdT, EpisodeType
 
 
-class HistoryStorage(ABC):
+class EpisodeStorage(ABC):
     @abstractmethod
     async def add_history(
         self,

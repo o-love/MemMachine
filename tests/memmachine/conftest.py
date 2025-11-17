@@ -25,9 +25,9 @@ from memmachine.common.language_model.openai_compatible_language_model import (
     OpenAICompatibleLanguageModel,
 )
 from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
-from memmachine.history_store.history_sqlalchemy_store import (
+from memmachine.episode_store.episode_sqlalchemy_store import (
     BaseHistoryStore,
-    SqlAlchemyHistoryStore,
+    SqlAlchemyEpisodeStore,
 )
 from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
     SqlAlchemyPgVectorSemanticStorage,
@@ -264,12 +264,12 @@ def semantic_storage(request):
 
 
 @pytest_asyncio.fixture
-async def history_storage(sqlalchemy_engine: AsyncEngine):
+async def episode_storage(sqlalchemy_engine: AsyncEngine):
     engine = sqlalchemy_engine
     async with engine.begin() as conn:
         await conn.run_sync(BaseHistoryStore.metadata.create_all)
 
-    storage = SqlAlchemyHistoryStore(engine)
+    storage = SqlAlchemyEpisodeStore(engine)
     try:
         yield storage
     finally:

@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, InstanceOf, field_validator
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
-from memmachine.history_store.history_model import Episode
+from memmachine.episode_store.episode_model import Episode
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from pydantic import (
 )
 
 from memmachine.common.language_model import LanguageModel
-from memmachine.history_store.history_model import EpisodeIdT
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticCommand, SemanticFeature
 
 logger = logging.getLogger(__name__)

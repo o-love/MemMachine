@@ -6,7 +6,7 @@ import numpy as np
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
-from memmachine.history_store.history_model import Episode
+from memmachine.episode_store.episode_model import Episode
 from memmachine.semantic_memory.semantic_model import (
     Resources,
     SemanticFeature,

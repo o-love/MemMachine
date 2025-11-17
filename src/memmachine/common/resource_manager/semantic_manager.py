@@ -4,7 +4,7 @@ from pydantic import InstanceOf
 
 from memmachine.common.configuration import PromptConf, SemanticMemoryConf
 from memmachine.common.resource_manager import CommonResourceManager
-from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     ResourceRetriever,
@@ -27,7 +27,7 @@ class SemanticResourceManager:
         semantic_conf: SemanticMemoryConf,
         prompt_conf: PromptConf,
         resource_manager: CommonResourceManager,
-        history_storage: HistoryStorage,
+        history_storage: EpisodeStorage,
     ):
         self._resource_manager = resource_manager
         self._conf = semantic_conf
