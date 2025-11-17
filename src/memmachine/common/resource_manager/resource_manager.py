@@ -1,5 +1,7 @@
 import asyncio
 
+from sqlalchemy.ext.asyncio import AsyncEngine
+
 from memmachine.common.configuration import Configuration
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
@@ -67,6 +69,9 @@ class ResourceManagerImpl:
         tasks.append(self._storage_manager.close())
 
         await asyncio.gather(*tasks)
+
+    async def get_sql_engine(self, name: str) -> AsyncEngine:
+        return self._storage_manager.get_sql_engine(name)
 
     async def get_vector_graph_store(self, name: str) -> VectorGraphStore:
         return self._storage_manager.get_vector_graph_store(name)
