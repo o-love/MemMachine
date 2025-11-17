@@ -2,10 +2,11 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from memmachine.session_manager import SessionDataManagerImpl
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
+from memmachine.common.session_manager.session_data_manager_sql_impl import SessionDataManagerSQL
 from memmachine.episodic_memory.episodic_memory import EpisodicMemoryParams
 
 
@@ -54,7 +55,7 @@ def episodic_memory_params(mock_metrics_factory):
 @pytest_asyncio.fixture
 async def session_manager(sqlalchemy_engine: AsyncEngine):
     """Fixture for SessionDataManagerImpl, with tables created."""
-    manager = SessionDataManagerImpl(engine=sqlalchemy_engine)
+    manager = SessionDataManagerSQL(engine=sqlalchemy_engine)
     await manager.create_tables()
     yield manager
     await manager.drop_tables()
@@ -64,13 +65,13 @@ async def session_manager(sqlalchemy_engine: AsyncEngine):
 @pytest.mark.asyncio
 async def test_create_tables(sqlalchemy_engine: AsyncEngine):
     """Test that create_tables creates the expected tables."""
-    manager = SessionDataManagerImpl(engine=sqlalchemy_engine)
+    manager = SessionDataManagerSQL(engine=sqlalchemy_engine)
     await manager.create_tables()
 
 
 @pytest.mark.asyncio
 async def test_create_new_session(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test creating a new session successfully."""
@@ -95,7 +96,7 @@ async def test_create_new_session(
 
 @pytest.mark.asyncio
 async def test_create_existing_session_raises_error(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test that creating a session that already exists raises a ValueError."""
@@ -112,7 +113,7 @@ async def test_create_existing_session_raises_error(
 
 @pytest.mark.asyncio
 async def test_delete_session(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test deleting an existing session."""
@@ -134,7 +135,7 @@ async def test_delete_session(
 
 @pytest.mark.asyncio
 async def test_delete_nonexistent_session_raises_error(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
 ):
     """Test that deleting a non-existent session raises a ValueError."""
     session_key = "nonexistent_session"
@@ -144,7 +145,7 @@ async def test_delete_nonexistent_session_raises_error(
 
 @pytest.mark.asyncio
 async def test_get_session_info_nonexistent_raises_error(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
 ):
     """Test that getting info for a non-existent session raises a ValueError."""
     session_key = "nonexistent_session"
@@ -154,7 +155,7 @@ async def test_get_session_info_nonexistent_raises_error(
 
 @pytest.mark.asyncio
 async def test_get_sessions(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test retrieving session keys with and without filters."""
@@ -193,7 +194,7 @@ async def test_get_sessions(
 
 
 @pytest.mark.asyncio
-async def test_get_sessions_empty(session_manager: SessionDataManagerImpl):
+async def test_get_sessions_empty(session_manager: SessionDataManager):
     """Test retrieving sessions when none exist."""
     sessions = await session_manager.get_sessions()
     assert sessions == []
@@ -201,7 +202,7 @@ async def test_get_sessions_empty(session_manager: SessionDataManagerImpl):
 
 @pytest.mark.asyncio
 async def test_save_short_term_memory_new(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test saving short-term memory for a session for the first time."""
@@ -229,7 +230,7 @@ async def test_save_short_term_memory_new(
 
 @pytest.mark.asyncio
 async def test_save_short_term_memory_update(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test updating existing short-term memory for a session."""
@@ -260,7 +261,7 @@ async def test_save_short_term_memory_update(
 
 @pytest.mark.asyncio
 async def test_save_short_term_memory_for_nonexistent_session(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
 ):
     """Test that saving STM for a non-existent session raises a ValueError."""
     session_key = "nonexistent_session"
@@ -270,7 +271,7 @@ async def test_save_short_term_memory_for_nonexistent_session(
 
 @pytest.mark.asyncio
 async def test_get_short_term_memory_nonexistent(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test that getting STM for which none has been saved raises a ValueError."""
@@ -287,7 +288,7 @@ async def test_get_short_term_memory_nonexistent(
 
 @pytest.mark.asyncio
 async def test_delete_session_cascades_to_short_term_memory(
-    session_manager: SessionDataManagerImpl,
+    session_manager: SessionDataManager,
     episodic_memory_params: EpisodicMemoryParams,
 ):
     """Test that deleting a session also deletes its associated short-term memory data."""

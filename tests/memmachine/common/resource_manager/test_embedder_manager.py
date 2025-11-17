@@ -8,7 +8,7 @@ from memmachine.common.configuration.embedder_conf import (
     SentenceTransformerEmbedderConfig,
 )
 from memmachine.common.embedder import Embedder
-from memmachine.common.resource_manager import EmbedderManager
+from memmachine.common.resource_manager.embedder_manager import EmbedderManager
 
 
 @pytest.fixture
