@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
 from neo4j import AsyncDriver
+from neo4j.graph import Node as Neo4jNode
 from pydantic import InstanceOf, validate_call
 
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
-    SemanticStorageBase,
+    SemanticStorage,
 )
 
 
@@ -38,9 +40,15 @@ class _FeatureEntry:
     updated_at_ts: float
 
 
+def _required_str_prop(props: Mapping[str, Any], key: str) -> str:
+    value = props.get(key)
+    if value is None:
+        raise ValueError(f"Feature node missing '{key}' property")
+    return str(value)
+
+
 def _sanitize_identifier(value: str) -> str:
     """Sanitize user-provided ids for Neo4j labels/index names."""
-
     if not value:
         return "_u0_"
     sanitized = []
@@ -54,7 +62,6 @@ def _sanitize_identifier(value: str) -> str:
 
 def _desanitize_identifier(value: str) -> str:
     """Inverse of :func:`_sanitize_identifier`."""
-
     if not value:
         return ""
 
@@ -68,14 +75,19 @@ def _desanitize_identifier(value: str) -> str:
     return re.sub(r"_u([0-9A-Fa-f]+)_", _replace, value)
 
 
-class Neo4jSemanticStorage(SemanticStorageBase):
+class Neo4jSemanticStorage(SemanticStorage):
     """Concrete :class:`SemanticStorageBase` backed by Neo4j."""
 
     _VECTOR_INDEX_PREFIX = "feature_embedding_index"
     _DEFAULT_VECTOR_QUERY_CANDIDATES = 100
     _SET_LABEL_PREFIX = "FeatureSet_"
 
-    def __init__(self, driver: InstanceOf[AsyncDriver], owns_driver: bool = False):
+    def __init__(
+        self,
+        driver: InstanceOf[AsyncDriver],
+        owns_driver: bool = False,
+    ) -> None:
+        """Initialize the storage with a Neo4j driver."""
         self._driver = driver
         self._owns_driver = owns_driver
         # Exposed for fixtures to know which backend is in use
@@ -83,31 +95,31 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         self._vector_index_by_set: dict[str, int] = {}
         self._set_embedding_dimensions: dict[str, int] = {}
 
-    async def startup(self):
+    async def startup(self) -> None:
         await self._driver.execute_query(
             """
             CREATE CONSTRAINT set_history_unique IF NOT EXISTS
             FOR (h:SetHistory)
             REQUIRE (h.set_id, h.history_id) IS UNIQUE
-            """
+            """,
         )
         await self._driver.execute_query(
             """
             CREATE CONSTRAINT set_embedding_unique IF NOT EXISTS
             FOR (s:SetEmbedding)
             REQUIRE s.set_id IS UNIQUE
-            """
+            """,
         )
         await self._backfill_embedding_dimensions()
         await self._load_set_embedding_dimensions()
         await self._ensure_existing_set_labels()
         await self._hydrate_vector_index_state()
 
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         if self._owns_driver:
             await self._driver.close()
 
-    async def delete_all(self):
+    async def delete_all(self) -> None:
         await self._driver.execute_query("MATCH (f:Feature) DETACH DELETE f")
         await self._driver.execute_query("MATCH (h:SetHistory) DELETE h")
         await self._driver.execute_query("MATCH (s:SetEmbedding) DELETE s")
@@ -141,7 +153,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         metadata: dict[str, Any] | None = None,
     ) -> FeatureIdT:
         timestamp = _utc_timestamp()
-        dimensions = int(len(np.array(embedding, dtype=float)))
+        dimensions = len(np.array(embedding, dtype=float))
 
         await self._ensure_set_embedding_dimensions(set_id, dimensions)
 
@@ -191,7 +203,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         tag: str | None = None,
         embedding: InstanceOf[np.ndarray] | None = None,
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         record = await self._get_feature_dimensions(feature_id)
         if record is None:
             return
@@ -199,7 +211,8 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         existing_set_id = record["set_id"]
         target_set_id = set_id or existing_set_id
         target_dimensions = self._target_dimensions(
-            record.get("embedding_dimensions"), embedding
+            record.get("embedding_dimensions"),
+            embedding,
         )
         if target_set_id is None or target_dimensions is None:
             raise ValueError("Unable to resolve embedding dimensions for feature")
@@ -227,11 +240,11 @@ class Neo4jSemanticStorage(SemanticStorageBase):
 
     def _target_dimensions(
         self,
-        existing_dimensions: Any,
+        existing_dimensions: int | None,
         embedding: InstanceOf[np.ndarray] | None,
     ) -> int | None:
         if embedding is not None:
-            return int(len(np.array(embedding, dtype=float)))
+            return len(np.array(embedding, dtype=float))
         if existing_dimensions is None:
             return None
         dims = int(existing_dimensions or 0)
@@ -294,7 +307,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         return [float(x) for x in np.array(embedding, dtype=float).tolist()]
 
     def _build_label_updates(
-        self, existing_set_id: str | None, new_set_id: str | None
+        self,
+        existing_set_id: str | None,
+        new_set_id: str | None,
     ) -> list[str]:
         if new_set_id is None or new_set_id == existing_set_id:
             return []
@@ -326,7 +341,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         entry = self._node_to_entry(records[0]["f"])
         return self._entry_to_model(entry, load_citations=load_citations)
 
-    async def delete_features(self, feature_ids: list[FeatureIdT]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         if not feature_ids:
             return
 
@@ -348,7 +363,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
         limit: int | None = None,
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
+        vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
@@ -392,8 +407,8 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         tags: list[str] | None = None,
         thresh: int | None = None,
         limit: int | None = None,
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
-    ):
+        vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
+    ) -> None:
         entries = await self.get_feature_set(
             set_ids=set_ids,
             category_names=category_names,
@@ -405,14 +420,14 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             load_citations=False,
         )
         await self.delete_features(
-            [FeatureIdT(entry.metadata.id) for entry in entries if entry.metadata.id]
+            [FeatureIdT(entry.metadata.id) for entry in entries if entry.metadata.id],
         )
 
     async def add_citations(
         self,
         feature_id: FeatureIdT,
         history_ids: list[EpisodeIdT],
-    ):
+    ) -> None:
         if not history_ids:
             return
         records, _, _ = await self._driver.execute_query(
@@ -486,6 +501,36 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         records, _, _ = await self._driver.execute_query("\n".join(query), **params)
         return int(records[0]["cnt"]) if records else 0
 
+    async def get_history_set_ids(
+        self,
+        *,
+        min_uningested_messages: int | None = None,
+    ) -> list[str]:
+        if min_uningested_messages is None or min_uningested_messages <= 0:
+            records, _, _ = await self._driver.execute_query(
+                """
+                MATCH (h:SetHistory)
+                RETURN DISTINCT h.set_id AS set_id
+                """,
+            )
+        else:
+            records, _, _ = await self._driver.execute_query(
+                """
+                MATCH (h:SetHistory)
+                WITH h.set_id AS set_id,
+                     sum(CASE WHEN coalesce(h.is_ingested, false) = false THEN 1 ELSE 0 END) AS uningested_count
+                WHERE uningested_count >= $min_uningested_messages
+                RETURN set_id
+                """,
+                min_uningested_messages=min_uningested_messages,
+            )
+
+        return [
+            str(record.get("set_id"))
+            for record in records
+            if record.get("set_id") is not None
+        ]
+
     async def add_history_to_set(self, set_id: str, history_id: EpisodeIdT) -> None:
         await self._driver.execute_query(
             """
@@ -536,7 +581,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         records, _, _ = await self._driver.execute_query("\n".join(query), **params)
         return [self._node_to_entry(record["f"]) for record in records]
 
-    def _node_to_entry(self, node) -> _FeatureEntry:
+    def _node_to_entry(self, node: Neo4jNode) -> _FeatureEntry:
         props = dict(node)
         node_id = getattr(node, "element_id", None)
         if node_id is None:
@@ -548,11 +593,11 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         citations = [EpisodeIdT(cid) for cid in props.get("citations", [])]
         return _FeatureEntry(
             feature_id=feature_id,
-            set_id=props.get("set_id"),
-            category_name=props.get("category_name"),
-            tag=props.get("tag"),
-            feature_name=props.get("feature"),
-            value=props.get("value"),
+            set_id=_required_str_prop(props, "set_id"),
+            category_name=_required_str_prop(props, "category_name"),
+            tag=_required_str_prop(props, "tag"),
+            feature_name=_required_str_prop(props, "feature"),
+            value=_required_str_prop(props, "value"),
             embedding=embedding,
             metadata=props.get("metadata") or None,
             citations=citations,
@@ -590,7 +635,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None,
         tags: list[str] | None,
         limit: int | None,
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts,
+        vector_search_opts: SemanticStorage.VectorSearchOpts,
     ) -> list[_FeatureEntry]:
         embedding_array = np.array(vector_search_opts.query_embedding, dtype=float)
         embedding = [float(x) for x in embedding_array.tolist()]
@@ -617,7 +662,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         for set_id in self._matching_set_ids(set_ids, embedding_dims):
             index_name = await self._ensure_vector_index(set_id, embedding_dims)
             combined.extend(
-                await self._query_vector_index(query_text, index_name, params_base)
+                await self._query_vector_index(query_text, index_name, params_base),
             )
 
         combined.sort(key=lambda item: item[0], reverse=True)
@@ -658,7 +703,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         return "\n".join(query_parts)
 
     def _matching_set_ids(
-        self, requested_set_ids: list[str] | None, expected_dims: int
+        self,
+        requested_set_ids: list[str] | None,
+        expected_dims: int,
     ) -> list[str]:
         candidate_ids = self._deduplicated_set_ids(requested_set_ids)
         return [
@@ -719,7 +766,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             params["tags"] = tags
         return conditions, params
 
-    async def _hydrate_vector_index_state(self):
+    async def _hydrate_vector_index_state(self) -> None:
         self._vector_index_by_set.clear()
         records, _, _ = await self._driver.execute_query(
             """
@@ -747,7 +794,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             return
         await self._driver.execute_query(f"DROP INDEX {name} IF EXISTS")
 
-    def _set_id_from_record(self, record: Any) -> str | None:
+    def _set_id_from_record(self, record: Mapping[str, Any]) -> str | None:
         labels = record.get("labelsOrTypes") or []
         for label in labels or []:
             set_id = self._set_id_from_label(label)
@@ -756,7 +803,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         return None
 
     @staticmethod
-    def _dimensions_from_record(record: Any) -> int | None:
+    def _dimensions_from_record(record: Mapping[str, Any]) -> int | None:
         options = record.get("options") or {}
         config = options.get("indexConfig") or {}
         dimensions = config.get("vector.dimensions")
@@ -771,7 +818,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             if cached != dimensions:
                 raise ValueError(
                     "Embedding dimension mismatch for set_id "
-                    f"{set_id}: expected {cached}, got {dimensions}"
+                    f"{set_id}: expected {cached}, got {dimensions}",
                 )
             return index_name
 
@@ -799,14 +846,14 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         sanitized = _sanitize_identifier(set_id)
         return f"{self._VECTOR_INDEX_PREFIX}_{sanitized}"
 
-    async def _backfill_embedding_dimensions(self):
+    async def _backfill_embedding_dimensions(self) -> None:
         await self._driver.execute_query(
             """
             MATCH (f:Feature)
             WHERE f.embedding IS NOT NULL AND f.embedding_dimensions IS NULL
             WITH f, size(f.embedding) AS dims
             SET f.embedding_dimensions = dims
-            """
+            """,
         )
         await self._driver.execute_query(
             """
@@ -814,13 +861,13 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             WHERE f.embedding_dimensions IS NOT NULL AND f.set_id IS NOT NULL
             MERGE (s:SetEmbedding {set_id: f.set_id})
             ON CREATE SET s.dimensions = f.embedding_dimensions
-            """
+            """,
         )
 
-    async def _load_set_embedding_dimensions(self):
+    async def _load_set_embedding_dimensions(self) -> None:
         self._set_embedding_dimensions.clear()
         records, _, _ = await self._driver.execute_query(
-            "MATCH (s:SetEmbedding) RETURN s.set_id AS set_id, s.dimensions AS dims"
+            "MATCH (s:SetEmbedding) RETURN s.set_id AS set_id, s.dimensions AS dims",
         )
         for record in records:
             set_id = record.get("set_id")
@@ -829,19 +876,23 @@ class Neo4jSemanticStorage(SemanticStorageBase):
                 continue
             self._set_embedding_dimensions[str(set_id)] = int(dims)
 
-    async def _ensure_existing_set_labels(self):
+    async def _ensure_existing_set_labels(self) -> None:
         if not self._set_embedding_dimensions:
             return
         for set_id in list(self._set_embedding_dimensions.keys()):
             await self._ensure_set_label_applied(set_id)
 
-    async def _ensure_set_embedding_dimensions(self, set_id: str, dimensions: int):
+    async def _ensure_set_embedding_dimensions(
+        self,
+        set_id: str,
+        dimensions: int,
+    ) -> None:
         cached = self._set_embedding_dimensions.get(set_id)
         if cached is not None:
             if cached != dimensions:
                 raise ValueError(
                     "Embedding dimension mismatch for set_id "
-                    f"{set_id}: expected {cached}, got {dimensions}"
+                    f"{set_id}: expected {cached}, got {dimensions}",
                 )
             await self._ensure_vector_index(set_id, dimensions)
             return
@@ -862,13 +913,13 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         if db_dims != dimensions:
             raise ValueError(
                 "Embedding dimension mismatch for set_id "
-                f"{set_id}: expected {db_dims}, got {dimensions}"
+                f"{set_id}: expected {db_dims}, got {dimensions}",
             )
         self._set_embedding_dimensions[set_id] = db_dims
         await self._ensure_set_label_applied(set_id)
         await self._ensure_vector_index(set_id, db_dims)
 
-    async def _ensure_set_label_applied(self, set_id: str):
+    async def _ensure_set_label_applied(self, set_id: str) -> None:
         label = self._set_label_for_set(set_id)
         await self._driver.execute_query(
             f"""
@@ -902,7 +953,10 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             f"OR ({alias}.id IS NOT NULL AND toString({alias}.id) IN ${param}))"
         )
 
-    async def _get_feature_dimensions(self, feature_id: FeatureIdT):
+    async def _get_feature_dimensions(
+        self,
+        feature_id: FeatureIdT,
+    ) -> dict[str, Any] | None:
         records, _, _ = await self._driver.execute_query(
             f"""
             MATCH (f:Feature)

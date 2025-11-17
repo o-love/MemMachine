@@ -4,18 +4,19 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
-from memmachine.semantic_memory.semantic_model import SemanticFeature
-from memmachine.semantic_memory.storage.storage_base import SemanticStorageBase
+from memmachine.episode_store.episode_model import EpisodeIdT
+from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
+from memmachine.semantic_memory.storage.storage_base import SemanticStorage
 
 
 @pytest.mark.asyncio
-async def test_empty_storage(semantic_storage: SemanticStorageBase):
+async def test_empty_storage(semantic_storage: SemanticStorage):
     assert await semantic_storage.get_feature_set(set_ids=["user"]) == []
 
 
 @pytest.mark.asyncio
 async def test_multiple_features(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     with_multiple_features,
 ):
     # Given a storage with two features
@@ -37,7 +38,7 @@ async def test_multiple_features(
 
 
 @pytest.mark.asyncio
-async def test_delete_feature(semantic_storage: SemanticStorageBase):
+async def test_delete_feature(semantic_storage: SemanticStorage):
     idx_a = await semantic_storage.add_feature(
         set_id="user",
         category_name="default",
@@ -63,7 +64,7 @@ async def test_delete_feature(semantic_storage: SemanticStorageBase):
 
 @pytest.mark.asyncio
 async def test_delete_feature_set_by_set_id(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     with_multiple_sets,
 ):
     # Given a storage with two sets
@@ -96,7 +97,7 @@ async def test_delete_feature_set_by_set_id(
 
 
 @pytest_asyncio.fixture
-async def oposite_vector_features(semantic_storage: SemanticStorageBase):
+async def oposite_vector_features(semantic_storage: SemanticStorage):
     embed_a = np.array([1.0], dtype=float)
     value_a = "pizza"
 
@@ -130,7 +131,7 @@ async def oposite_vector_features(semantic_storage: SemanticStorageBase):
 
 @pytest.mark.asyncio
 async def test_get_feature_set_basic_vector_search(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     oposite_vector_features,
 ):
     if getattr(semantic_storage, "backend_name", None) == "neo4j":
@@ -138,13 +139,13 @@ async def test_get_feature_set_basic_vector_search(
 
     # Given a storage with fully distinct features
     embed_a, value_a = oposite_vector_features[0]
-    embed_b, value_b = oposite_vector_features[1]
+    _embed_b, value_b = oposite_vector_features[1]
 
     # When doing a vector search
     results = await semantic_storage.get_feature_set(
         set_ids=["user"],
         limit=10,
-        vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+        vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=embed_a,
             min_distance=None,
         ),
@@ -158,7 +159,7 @@ async def test_get_feature_set_basic_vector_search(
 
 @pytest.mark.asyncio
 async def test_get_feature_set_min_cos_vector_search(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     oposite_vector_features,
 ):
     # Given a storage with fully distinct features
@@ -168,7 +169,7 @@ async def test_get_feature_set_min_cos_vector_search(
     results = await semantic_storage.get_feature_set(
         set_ids=["user"],
         limit=10,
-        vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+        vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=embed_a,
             min_distance=0.5,
         ),
@@ -181,7 +182,7 @@ async def test_get_feature_set_min_cos_vector_search(
 
 @pytest.mark.asyncio
 async def test_set_embedding_length_fixed_per_set(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
 ):
     if getattr(semantic_storage, "backend_name", None) != "neo4j":
         pytest.skip("Neo4j-specific validation")
@@ -195,7 +196,7 @@ async def test_set_embedding_length_fixed_per_set(
         embedding=np.ones(2, dtype=float),
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Embedding"):
         await semantic_storage.add_feature(
             set_id="user",
             category_name="default",
@@ -208,7 +209,7 @@ async def test_set_embedding_length_fixed_per_set(
 
 @pytest.mark.asyncio
 async def test_update_feature_respects_set_embedding_length(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
 ):
     if getattr(semantic_storage, "backend_name", None) != "neo4j":
         pytest.skip("Neo4j-specific validation")
@@ -230,13 +231,13 @@ async def test_update_feature_respects_set_embedding_length(
         embedding=np.ones(3, dtype=float),
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Embedding"):
         await semantic_storage.update_feature(
             feature_id,
             set_id="user2",
         )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Embedding"):
         await semantic_storage.update_feature(
             feature_id,
             embedding=np.ones(3, dtype=float),
@@ -245,10 +246,10 @@ async def test_update_feature_respects_set_embedding_length(
 
 @pytest_asyncio.fixture
 async def feature_and_citations(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     episode_storage,
 ):
-    h1_id = await episode_storage.add_history(
+    h1_id = await episode_storage.add_episode(
         content="first",
         session_key="session_id",
         producer_id="profile_id",
@@ -258,7 +259,7 @@ async def feature_and_citations(
         set_id="user",
         history_id=h1_id,
     )
-    h2_id = await episode_storage.add_history(
+    h2_id = await episode_storage.add_episode(
         content="second",
         session_key="session_id",
         producer_id="profile_id",
@@ -281,12 +282,13 @@ async def feature_and_citations(
     yield feature_id, {h1_id, h2_id}
 
     await semantic_storage.delete_features([feature_id])
-    await episode_storage.delete_history([h1_id, h2_id])
+    await episode_storage.delete_episode([h1_id, h2_id])
 
 
 @pytest.mark.asyncio
 async def test_add_feature_with_citations(
-    semantic_storage: SemanticStorageBase, feature_and_citations
+    semantic_storage: SemanticStorage,
+    feature_and_citations: tuple[FeatureIdT, set[EpisodeIdT]],
 ):
     feature_id, citations = feature_and_citations
 
@@ -312,25 +314,28 @@ async def test_add_feature_with_citations(
 
 @pytest.mark.asyncio
 async def test_get_feature_without_citations(
-    semantic_storage: SemanticStorageBase, feature_and_citations
+    semantic_storage: SemanticStorage,
+    feature_and_citations,
 ):
     feature_id, citations = feature_and_citations
     await semantic_storage.add_citations(feature_id, list(citations))
 
     without_citations = await semantic_storage.get_feature(
-        feature_id=feature_id, load_citations=False
+        feature_id=feature_id,
+        load_citations=False,
     )
     assert without_citations.metadata.citations is None
 
     with_citations = await semantic_storage.get_feature(
-        feature_id=feature_id, load_citations=True
+        feature_id=feature_id,
+        load_citations=True,
     )
     assert len(with_citations.metadata.citations) == len(citations)
 
 
 @pytest.mark.asyncio
 async def test_delete_feature_with_citations(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     feature_and_citations,
 ):
     feature_id, citations = feature_and_citations
@@ -339,29 +344,30 @@ async def test_delete_feature_with_citations(
     await semantic_storage.delete_features([feature_id])
 
     after_delete = await semantic_storage.get_feature(
-        feature_id=feature_id, load_citations=True
+        feature_id=feature_id,
+        load_citations=True,
     )
     assert after_delete is None
 
 
 @pytest.mark.asyncio
 async def test_history_message_counts_by_set(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     episode_storage,
 ):
-    h1_id = await episode_storage.add_history(
+    h1_id = await episode_storage.add_episode(
         content="first",
         session_key="session_id",
         producer_id="profile_id",
         producer_role="dev",
     )
-    h2_id = await episode_storage.add_history(
+    h2_id = await episode_storage.add_episode(
         content="second",
         session_key="session_id",
         producer_id="profile_id",
         producer_role="dev",
     )
-    h3_id = await episode_storage.add_history(
+    h3_id = await episode_storage.add_episode(
         content="third",
         session_key="session_id",
         producer_id="profile_id",
@@ -380,7 +386,7 @@ async def test_history_message_counts_by_set(
 
 
 @pytest.mark.asyncio
-async def test_complex_feature_lifecycle(semantic_storage: SemanticStorageBase):
+async def test_complex_feature_lifecycle(semantic_storage: SemanticStorage):
     embed = np.array([1.0] * 1536, dtype=float)
 
     await semantic_storage.add_feature(
@@ -436,7 +442,8 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorageBase):
     assert ("default", "food", "likes") not in grouped_after_delete
 
     await semantic_storage.delete_feature_set(
-        set_ids=["user"], category_names=["tenant_A"]
+        set_ids=["user"],
+        category_names=["tenant_A"],
     )
     tenant_only = await semantic_storage.get_feature_set(
         set_ids=["user"],
@@ -450,10 +457,10 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorageBase):
 
 @pytest.mark.asyncio
 async def test_complex_semantic_search_and_citations(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     episode_storage,
 ):
-    history_id = await episode_storage.add_history(
+    history_id = await episode_storage.add_episode(
         content="context note",
         metadata={"source": "chat"},
         session_key="session_key",
@@ -486,7 +493,7 @@ async def test_complex_semantic_search_and_citations(
     results = await semantic_storage.get_feature_set(
         set_ids=["user"],
         limit=10,
-        vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+        vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=np.array([1.0, 0.0]),
             min_distance=0.0,
         ),
@@ -502,7 +509,7 @@ async def test_complex_semantic_search_and_citations(
     filtered = await semantic_storage.get_feature_set(
         set_ids=["user"],
         limit=1,
-        vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+        vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=np.array([1.0, 0.0]),
             min_distance=0.5,
         ),
@@ -535,11 +542,11 @@ async def test_complex_semantic_search_and_citations(
 
 @pytest.mark.asyncio
 async def test_history_ingestion_tracking(
-    semantic_storage: SemanticStorageBase,
+    semantic_storage: SemanticStorage,
     episode_storage,
 ):
     history_ids = [
-        await episode_storage.add_history(
+        await episode_storage.add_episode(
             content=f"message-{idx}",
             session_key="session_id",
             producer_id="profile_id",
@@ -552,22 +559,102 @@ async def test_history_ingestion_tracking(
         await semantic_storage.add_history_to_set(set_id="user", history_id=h_id)
 
     assert await semantic_storage.get_history_messages_count(
-        set_ids=["user"], is_ingested=False
+        set_ids=["user"],
+        is_ingested=False,
     ) == len(history_ids)
 
     await semantic_storage.mark_messages_ingested(
-        set_id="user", history_ids=history_ids[:2]
+        set_id="user",
+        history_ids=history_ids[:2],
     )
 
     assert (
         await semantic_storage.get_history_messages_count(
-            set_ids=["user"], is_ingested=False
+            set_ids=["user"],
+            is_ingested=False,
         )
         == 1
     )
     assert (
         await semantic_storage.get_history_messages_count(
-            set_ids=["user"], is_ingested=True
+            set_ids=["user"],
+            is_ingested=True,
         )
         == 2
     )
+
+
+@pytest.mark.asyncio
+async def test_get_set_ids(
+    semantic_storage: SemanticStorage,
+):
+    await semantic_storage.add_history_to_set(
+        set_id="user_a",
+        history_id="fake_a",
+    )
+    await semantic_storage.add_history_to_set(
+        set_id="user_b",
+        history_id="fake_b",
+    )
+    await semantic_storage.add_history_to_set(
+        set_id="user_c",
+        history_id="fake_c",
+    )
+
+    set_ids = await semantic_storage.get_history_set_ids()
+    set_ids.sort()
+
+    assert set_ids == ["user_a", "user_b", "user_c"]
+
+
+@pytest.mark.asyncio
+async def test_get_set_ids_with_min_uningested(
+    semantic_storage: SemanticStorage,
+):
+    await semantic_storage.add_history_to_set(
+        set_id="user_a",
+        history_id="fake_a",
+    )
+    await semantic_storage.add_history_to_set(
+        set_id="user_a",
+        history_id="fake_b",
+    )
+    await semantic_storage.add_history_to_set(
+        set_id="user_b",
+        history_id="fake_c",
+    )
+    await semantic_storage.add_history_to_set(
+        set_id="user_c",
+        history_id="fake_d",
+    )
+    await semantic_storage.add_history_to_set(
+        set_id="user_c",
+        history_id="fake_a",
+    )
+
+    await semantic_storage.mark_messages_ingested(
+        set_id="user_a",
+        history_ids=["fake_a"],
+    )
+    await semantic_storage.mark_messages_ingested(
+        set_id="user_b",
+        history_ids=["fake_c"],
+    )
+
+    set_ids = await semantic_storage.get_history_set_ids(
+        min_uningested_messages=0,
+    )
+    set_ids.sort()
+
+    assert set_ids == ["user_a", "user_b", "user_c"]
+
+    set_ids = await semantic_storage.get_history_set_ids(
+        min_uningested_messages=1,
+    )
+    set_ids.sort()
+    assert set_ids == ["user_a", "user_c"]
+
+    set_ids = await semantic_storage.get_history_set_ids(
+        min_uningested_messages=2,
+    )
+    assert set_ids == ["user_c"]

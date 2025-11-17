@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -53,7 +53,7 @@ def vector_graph_store(neo4j_driver):
         Neo4jVectorGraphStoreParams(
             driver=neo4j_driver,
             force_exact_similarity_search=True,
-        )
+        ),
     )
 
 
@@ -68,7 +68,7 @@ def vector_graph_store_ann(neo4j_driver):
             range_index_hierarchies=[["group", "session"]],
             range_index_creation_threshold=0,
             vector_index_creation_threshold=0,
-        )
+        ),
     )
 
 
@@ -79,7 +79,7 @@ async def db_cleanup(neo4j_driver):
 
     # Drop all constraints.
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW CONSTRAINTS YIELD name RETURN name"
+        "SHOW CONSTRAINTS YIELD name RETURN name",
     )
     drop_constraint_tasks = [
         neo4j_driver.execute_query(f"DROP CONSTRAINT {record['name']} IF EXISTS")
@@ -88,7 +88,7 @@ async def db_cleanup(neo4j_driver):
 
     # Drop all range indexes.
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW RANGE INDEXES YIELD name RETURN name"
+        "SHOW RANGE INDEXES YIELD name RETURN name",
     )
     drop_range_index_tasks = [
         neo4j_driver.execute_query(f"DROP INDEX {record['name']} IF EXISTS")
@@ -97,7 +97,7 @@ async def db_cleanup(neo4j_driver):
 
     # Drop all vector indexes.
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW VECTOR INDEXES YIELD name RETURN name"
+        "SHOW VECTOR INDEXES YIELD name RETURN name",
     )
     drop_vector_index_tasks = [
         neo4j_driver.execute_query(f"DROP INDEX {record['name']} IF EXISTS")
@@ -123,21 +123,21 @@ async def test_add_nodes(neo4j_driver, vector_graph_store):
 
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Node1"},
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Node2"},
         ),
         Node(
-            uuid=uuid4(),
-            properties={"name": "Node3", "time": datetime.now()},
+            uid=str(uuid4()),
+            properties={"name": "Node3", "time": datetime.now(tz=UTC)},
             embeddings={
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
                     SimilarityMetric.COSINE,
-                )
+                ),
             },
         ),
     ]
@@ -150,27 +150,27 @@ async def test_add_nodes(neo4j_driver, vector_graph_store):
 
 @pytest.mark.asyncio
 async def test_add_edges(neo4j_driver, vector_graph_store):
-    node1_uuid = uuid4()
-    node2_uuid = uuid4()
-    node3_uuid = uuid4()
+    node1_uid = str(uuid4())
+    node2_uid = str(uuid4())
+    node3_uid = str(uuid4())
 
     nodes = [
         Node(
-            uuid=node1_uuid,
+            uid=node1_uid,
             properties={"name": "Node1"},
         ),
         Node(
-            uuid=node2_uuid,
+            uid=node2_uid,
             properties={"name": "Node2"},
         ),
         Node(
-            uuid=node3_uuid,
-            properties={"name": "Node3", "time": datetime.now()},
+            uid=node3_uid,
+            properties={"name": "Node3", "time": datetime.now(tz=UTC)},
             embeddings={
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
                     SimilarityMetric.COSINE,
-                )
+                ),
             },
         ),
     ]
@@ -188,48 +188,51 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
 
     related_to_edges = [
         Edge(
-            uuid=uuid4(),
-            source_uuid=node1_uuid,
-            target_uuid=node2_uuid,
-            properties={"description": "Node1 to Node2", "time": datetime.now()},
+            uid=str(uuid4()),
+            source_uid=node1_uid,
+            target_uid=node2_uid,
+            properties={"description": "Node1 to Node2", "time": datetime.now(tz=UTC)},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node2_uuid,
-            target_uuid=node1_uuid,
+            uid=str(uuid4()),
+            source_uid=node2_uid,
+            target_uid=node1_uid,
             properties={"description": "Node2 to Node1"},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node1_uuid,
-            target_uuid=node3_uuid,
+            uid=str(uuid4()),
+            source_uid=node1_uid,
+            target_uid=node3_uid,
             properties={"description": "Node1 to Node3"},
             embeddings={
                 "embedding_name": (
                     [0.4, 0.5, 0.6],
                     SimilarityMetric.DOT,
-                )
+                ),
             },
         ),
     ]
 
     is_edges = [
         Edge(
-            uuid=uuid4(),
-            source_uuid=node1_uuid,
-            target_uuid=node1_uuid,
+            uid=str(uuid4()),
+            source_uid=node1_uid,
+            target_uid=node1_uid,
             properties={"description": "Node1 loop"},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node2_uuid,
-            target_uuid=node2_uuid,
+            uid=str(uuid4()),
+            source_uid=node2_uid,
+            target_uid=node2_uid,
             properties={"description": "Node2 loop"},
         ),
     ]
 
     await vector_graph_store.add_edges(
-        "RELATED_TO", "Entity", "Entity", related_to_edges
+        "RELATED_TO",
+        "Entity",
+        "Entity",
+        related_to_edges,
     )
     await vector_graph_store.add_edges("IS", "Entity", "Entity", is_edges)
 
@@ -241,7 +244,7 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
 async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Node1",
             },
@@ -257,7 +260,7 @@ async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Node2",
                 "include?": "yes",
@@ -274,7 +277,7 @@ async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Node3",
                 "include?": "no",
@@ -291,7 +294,7 @@ async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Node4",
                 "include?": "no",
@@ -308,7 +311,7 @@ async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Node5",
                 "include?": "no",
@@ -325,7 +328,7 @@ async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Node6",
                 "include?": "no",
@@ -430,56 +433,56 @@ async def test_search_similar_nodes(vector_graph_store, vector_graph_store_ann):
 
 @pytest.mark.asyncio
 async def test_search_related_nodes(vector_graph_store):
-    node1_uuid = uuid4()
-    node2_uuid = uuid4()
-    node3_uuid = uuid4()
-    node4_uuid = uuid4()
+    node1_uid = str(uuid4())
+    node2_uid = str(uuid4())
+    node3_uid = str(uuid4())
+    node4_uid = str(uuid4())
 
     nodes = [
         Node(
-            uuid=node1_uuid,
+            uid=node1_uid,
             properties={"name": "Node1"},
         ),
         Node(
-            uuid=node2_uuid,
+            uid=node2_uid,
             properties={"name": "Node2", "extra!": "something"},
         ),
         Node(
-            uuid=node3_uuid,
+            uid=node3_uid,
             properties={"name": "Node3", "marker?": "A"},
         ),
         Node(
-            uuid=node4_uuid,
+            uid=node4_uid,
             properties={"name": "Node4", "marker?": "B"},
         ),
     ]
 
     related_to_edges = [
         Edge(
-            uuid=uuid4(),
-            source_uuid=node1_uuid,
-            target_uuid=node2_uuid,
+            uid=str(uuid4()),
+            source_uid=node1_uid,
+            target_uid=node2_uid,
             properties={"description": "Node1 to Node2"},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node2_uuid,
-            target_uuid=node1_uuid,
+            uid=str(uuid4()),
+            source_uid=node2_uid,
+            target_uid=node1_uid,
             properties={"description": "Node2 to Node1"},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node3_uuid,
-            target_uuid=node2_uuid,
+            uid=str(uuid4()),
+            source_uid=node3_uid,
+            target_uid=node2_uid,
             properties={
                 "description": "Node3 to Node2",
                 "extra": 1,
             },
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node3_uuid,
-            target_uuid=node4_uuid,
+            uid=str(uuid4()),
+            source_uid=node3_uid,
+            target_uid=node4_uid,
             properties={
                 "description": "Node3 to Node4",
                 "extra": 2,
@@ -489,28 +492,31 @@ async def test_search_related_nodes(vector_graph_store):
 
     is_edges = [
         Edge(
-            uuid=uuid4(),
-            source_uuid=node1_uuid,
-            target_uuid=node1_uuid,
+            uid=str(uuid4()),
+            source_uid=node1_uid,
+            target_uid=node1_uid,
             properties={"description": "Node1 loop"},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node2_uuid,
-            target_uuid=node2_uuid,
+            uid=str(uuid4()),
+            source_uid=node2_uid,
+            target_uid=node2_uid,
             properties={"description": "Node2 loop"},
         ),
         Edge(
-            uuid=uuid4(),
-            source_uuid=node3_uuid,
-            target_uuid=node3_uuid,
+            uid=str(uuid4()),
+            source_uid=node3_uid,
+            target_uid=node3_uid,
             properties={"description": "Node3 loop"},
         ),
     ]
 
     await vector_graph_store.add_nodes("Entity", nodes)
     await vector_graph_store.add_edges(
-        "RELATED_TO", "Entity", "Entity", related_to_edges
+        "RELATED_TO",
+        "Entity",
+        "Entity",
+        related_to_edges,
     )
     await vector_graph_store.add_edges("RELATED_TO", "Entity", "Entity", is_edges)
 
@@ -518,7 +524,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node1_uuid,
+        this_node_uid=node1_uid,
     )
     assert len(results) == 2
     assert results[0].properties["name"] != results[1].properties["name"]
@@ -529,7 +535,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node1_uuid,
+        this_node_uid=node1_uid,
         required_node_properties={"extra!": "something"},
     )
     assert len(results) == 1
@@ -539,7 +545,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node2_uuid,
+        this_node_uid=node2_uid,
         find_sources=False,
     )
     assert len(results) == 2
@@ -551,7 +557,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node3_uuid,
+        this_node_uid=node3_uid,
         find_targets=False,
     )
     assert len(results) == 1
@@ -561,7 +567,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node3_uuid,
+        this_node_uid=node3_uid,
         required_node_properties={"marker?": "A"},
     )
     assert len(results) == 1
@@ -571,7 +577,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node3_uuid,
+        this_node_uid=node3_uid,
         required_node_properties={"marker?": "A"},
         include_missing_node_properties=True,
     )
@@ -581,7 +587,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node3_uuid,
+        this_node_uid=node3_uid,
         required_edge_properties={"extra": 1},
     )
     assert len(results) == 1
@@ -590,7 +596,7 @@ async def test_search_related_nodes(vector_graph_store):
         relation="RELATED_TO",
         other_collection="Entity",
         this_collection="Entity",
-        this_node_uuid=node3_uuid,
+        this_node_uid=node3_uid,
         required_edge_properties={"extra": 1},
         include_missing_edge_properties=True,
     )
@@ -599,19 +605,19 @@ async def test_search_related_nodes(vector_graph_store):
 
 @pytest.mark.asyncio
 async def test_search_directional_nodes(vector_graph_store):
-    time = datetime.now()
+    time = datetime.now(tz=UTC)
     delta = timedelta(days=1)
 
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event1",
                 "timestamp": time,
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event2",
                 "timestamp": time + delta,
@@ -619,14 +625,14 @@ async def test_search_directional_nodes(vector_graph_store):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event3",
                 "timestamp": time + 2 * delta,
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event4",
                 "timestamp": time + 3 * delta,
@@ -711,14 +717,15 @@ async def test_search_directional_nodes(vector_graph_store):
 
 @pytest.mark.asyncio
 async def test_search_directional_nodes_multiple_by_properties(
-    neo4j_driver, vector_graph_store
+    neo4j_driver,
+    vector_graph_store,
 ):
-    time = datetime.now()
+    time = datetime.now(tz=UTC)
     delta = timedelta(days=1)
 
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event1",
                 "timestamp": time,
@@ -727,7 +734,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event2",
                 "timestamp": time,
@@ -736,7 +743,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event3",
                 "timestamp": time,
@@ -745,7 +752,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event4",
                 "timestamp": time,
@@ -754,7 +761,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event5",
                 "timestamp": time,
@@ -763,7 +770,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event6",
                 "timestamp": time,
@@ -772,7 +779,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event7",
                 "timestamp": time + delta,
@@ -781,7 +788,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event8",
                 "timestamp": time + delta,
@@ -790,7 +797,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event9",
                 "timestamp": time + delta,
@@ -799,7 +806,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event10",
                 "timestamp": time + delta,
@@ -808,7 +815,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event11",
                 "timestamp": time + delta,
@@ -817,7 +824,7 @@ async def test_search_directional_nodes_multiple_by_properties(
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Event12",
                 "timestamp": time + delta,
@@ -968,7 +975,7 @@ async def test_search_directional_nodes_multiple_by_properties(
 async def test_search_matching_nodes(vector_graph_store):
     person_nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Alice",
                 "age!with$pecialchars": 30,
@@ -977,7 +984,7 @@ async def test_search_matching_nodes(vector_graph_store):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Bob",
                 "age!with$pecialchars": 25,
@@ -986,14 +993,14 @@ async def test_search_matching_nodes(vector_graph_store):
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "Charlie",
                 "city": "New York",
             },
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={
                 "name": "David",
                 "age!with$pecialchars": 30,
@@ -1004,7 +1011,7 @@ async def test_search_matching_nodes(vector_graph_store):
 
     robot_nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Eve", "city": "Axiom"},
         ),
     ]
@@ -1089,15 +1096,15 @@ async def test_search_matching_nodes(vector_graph_store):
 async def test_get_nodes(vector_graph_store):
     nodes = [
         Node(
-            uuid=uuid4(),
-            properties={"name": "Node1", "time": datetime.now()},
+            uid=str(uuid4()),
+            properties={"name": "Node1", "time": datetime.now(tz=UTC)},
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Node2"},
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Node3"},
         ),
     ]
@@ -1105,15 +1112,17 @@ async def test_get_nodes(vector_graph_store):
     await vector_graph_store.add_nodes("Entity", nodes)
 
     fetched_nodes = await vector_graph_store.get_nodes(
-        "Entity", [node.uuid for node in nodes]
+        "Entity",
+        [node.uid for node in nodes],
     )
     assert len(fetched_nodes) == 3
 
     for fetched_node in fetched_nodes:
-        assert fetched_node.uuid in {node.uuid for node in nodes}
+        assert fetched_node.uid in {node.uid for node in nodes}
 
     fetched_nodes = await vector_graph_store.get_nodes(
-        "Entity", [nodes[0].uuid, uuid4()]
+        "Entity",
+        [nodes[0].uid, uuid4()],
     )
     assert len(fetched_nodes) == 1
     assert fetched_nodes[0] == nodes[0]
@@ -1123,22 +1132,22 @@ async def test_get_nodes(vector_graph_store):
 async def test_delete_nodes(neo4j_driver, vector_graph_store):
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
     ]
 
@@ -1146,11 +1155,11 @@ async def test_delete_nodes(neo4j_driver, vector_graph_store):
     records, _, _ = await neo4j_driver.execute_query("MATCH (n) RETURN n")
     assert len(records) == 6
 
-    await vector_graph_store.delete_nodes("Bad", [node.uuid for node in nodes[:-3]])
+    await vector_graph_store.delete_nodes("Bad", [node.uid for node in nodes[:-3]])
     records, _, _ = await neo4j_driver.execute_query("MATCH (n) RETURN n")
     assert len(records) == 6
 
-    await vector_graph_store.delete_nodes("Entity", [node.uuid for node in nodes[:-3]])
+    await vector_graph_store.delete_nodes("Entity", [node.uid for node in nodes[:-3]])
     records, _, _ = await neo4j_driver.execute_query("MATCH (n) RETURN n")
     assert len(records) == 3
 
@@ -1159,22 +1168,22 @@ async def test_delete_nodes(neo4j_driver, vector_graph_store):
 async def test_delete_all_data(neo4j_driver, vector_graph_store):
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
         ),
     ]
 
@@ -1187,7 +1196,7 @@ async def test_delete_all_data(neo4j_driver, vector_graph_store):
     assert len(records) == 0
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def vector_graph_store_indexing(neo4j_driver):
     return Neo4jVectorGraphStore(
         Neo4jVectorGraphStoreParams(
@@ -1198,16 +1207,17 @@ def vector_graph_store_indexing(neo4j_driver):
             range_index_hierarchies=[["group", "session"]],
             range_index_creation_threshold=10,
             vector_index_creation_threshold=10,
-        )
+        ),
     )
 
 
 @pytest.mark.asyncio
 async def test__create_unique_constraint_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing
+    neo4j_driver,
+    vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW CONSTRAINTS YIELD name RETURN name"
+        "SHOW CONSTRAINTS YIELD name RETURN name",
     )
     existing_constraints = {record["name"] for record in records}
 
@@ -1269,7 +1279,7 @@ async def test__create_unique_constraint_if_not_exists(
     await asyncio.gather(*create_unique_constraint_tasks)
 
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW CONSTRAINTS YIELD name RETURN name"
+        "SHOW CONSTRAINTS YIELD name RETURN name",
     )
 
     updated_constraints = {record["name"] for record in records}
@@ -1279,10 +1289,11 @@ async def test__create_unique_constraint_if_not_exists(
 
 @pytest.mark.asyncio
 async def test__create_range_index_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing
+    neo4j_driver,
+    vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW RANGE INDEXES YIELD name RETURN name"
+        "SHOW RANGE INDEXES YIELD name RETURN name",
     )
     existing_indexes = {record["name"] for record in records}
 
@@ -1376,7 +1387,7 @@ async def test__create_range_index_if_not_exists(
     await asyncio.gather(*create_range_index_tasks)
 
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW RANGE INDEXES YIELD name RETURN name"
+        "SHOW RANGE INDEXES YIELD name RETURN name",
     )
 
     updated_indexes = {record["name"] for record in records}
@@ -1386,10 +1397,11 @@ async def test__create_range_index_if_not_exists(
 
 @pytest.mark.asyncio
 async def test__create_vector_index_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing
+    neo4j_driver,
+    vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW VECTOR INDEXES YIELD name RETURN name"
+        "SHOW VECTOR INDEXES YIELD name RETURN name",
     )
     existing_indexes = {record["name"] for record in records}
 
@@ -1469,7 +1481,7 @@ async def test__create_vector_index_if_not_exists(
     await asyncio.gather(*create_vector_index_tasks)
 
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW VECTOR INDEXES YIELD name RETURN name"
+        "SHOW VECTOR INDEXES YIELD name RETURN name",
     )
 
     updated_indexes = {record["name"] for record in records}
@@ -1490,7 +1502,7 @@ def test__sanitize_desanitize_name():
 
     sanitized_names = [Neo4jVectorGraphStore._sanitize_name(name) for name in names]
 
-    for original, sanitized in zip(names, sanitized_names):
+    for original, sanitized in zip(names, sanitized_names, strict=False):
         assert len(sanitized) > 0
         assert sanitized[0].isalpha()
         assert all(c.isalnum() or c == "_" for c in sanitized)
@@ -1533,12 +1545,12 @@ def test__index_name():
     for entity_type in entity_types:
         for collection_or_relation_name in collection_or_relation_names:
             sanitized_collection_or_relation = Neo4jVectorGraphStore._sanitize_name(
-                collection_or_relation_name
+                collection_or_relation_name,
             )
             for property_names in property_names_list:
                 if isinstance(property_names, str):
                     sanitized_property_names = Neo4jVectorGraphStore._sanitize_name(
-                        property_names
+                        property_names,
                     )
                 else:
                     sanitized_property_names = [
@@ -1564,21 +1576,21 @@ async def test__nodes_from_neo4j_nodes(neo4j_driver, vector_graph_store):
 
     nodes = [
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Node1"},
         ),
         Node(
-            uuid=uuid4(),
+            uid=str(uuid4()),
             properties={"name": "Node2"},
         ),
         Node(
-            uuid=uuid4(),
-            properties={"name": "Node3", "time": datetime.now()},
+            uid=str(uuid4()),
+            properties={"name": "Node3", "time": datetime.now(tz=UTC)},
             embeddings={
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
                     SimilarityMetric.COSINE,
-                )
+                ),
             },
         ),
     ]

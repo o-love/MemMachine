@@ -1,5 +1,4 @@
-"""
-MemMachine Client Demo
+"""MemMachine Client Demo
 
 This script demonstrates the MemMachine client library usage.
 
@@ -25,14 +24,14 @@ import sys
 from memmachine import MemMachineClient
 
 
-def print_section(title):
+def print_section(title) -> None:
     """Print a formatted section header."""
     print(f"\n{'=' * 60}")
     print(f" {title}")
     print(f"{'=' * 60}")
 
 
-def print_memory_results(results, query=""):
+def print_memory_results(results, query="") -> None:
     """Pretty print memory search results."""
     if query:
         print(f"\n🔍 Query: {query}")
@@ -52,7 +51,7 @@ def print_memory_results(results, query=""):
             print()
 
 
-def demo_advanced_memory_features():
+def demo_advanced_memory_features() -> None:
     """Demonstrate advanced memory features."""
     print_section("Advanced Memory Features")
 
@@ -143,7 +142,7 @@ def demo_advanced_memory_features():
     print(f"\nMemory context: {json.dumps(memory.get_context(), indent=2)}")
 
 
-def demo_basic_client():
+def demo_basic_client() -> bool:
     """Demonstrate basic client usage."""
     print_section("Basic Client Usage")
 
@@ -167,7 +166,7 @@ def demo_basic_client():
     return True
 
 
-def demo_memory_operations():
+def demo_memory_operations() -> None:
     """Demonstrate memory operations."""
     print_section("Memory Operations")
 
@@ -223,7 +222,7 @@ def demo_memory_operations():
     print(f"\nMemory context: {json.dumps(memory.get_context(), indent=2)}")
 
 
-def demo_multiple_users():
+def demo_multiple_users() -> None:
     """Demonstrate multiple users scenario."""
     print_section("Multiple Users Scenario")
 
@@ -287,7 +286,7 @@ def demo_multiple_users():
         print(f"\n{user.capitalize()}: {json.dumps(memory.get_context(), indent=2)}")
 
 
-def main():
+def main() -> None:
     """Main demo function."""
     print("MemMachine Client Demo")
     print("This demo shows how to use the MemMachine client library")
@@ -296,7 +295,7 @@ def main():
     base_url = os.getenv("MEMORY_BACKEND_URL", "http://localhost:8080")
     print("\nConfiguration:")
     print(
-        f"  MEMORY_BACKEND_URL: {os.getenv('MEMORY_BACKEND_URL', 'not set (using default)')}"
+        f"  MEMORY_BACKEND_URL: {os.getenv('MEMORY_BACKEND_URL', 'not set (using default)')}",
     )
     print(f"  Using base_url: {base_url}")
     print(f"\nMake sure MemMachine server is running on {base_url}")

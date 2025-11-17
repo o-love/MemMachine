@@ -1,4 +1,5 @@
-"""Change history id to string
+"""
+Change history id to string.
 
 Revision ID: 79f00a9f2409
 Revises: adb5618bd4ee

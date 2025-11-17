@@ -133,20 +133,24 @@ async def test_create_episodic_memory_success(
 
     # Patch the service locator function
     with patch(
-        "memmachine.episodic_memory.episodic_memory_manager.epsiodic_memory_params_from_config",
+        "memmachine.episodic_memory.episodic_memory_manager.episodic_memory_params_from_config",
         new_callable=AsyncMock,
     ) as mock_params_from_config:
         mock_params_from_config.return_value = MagicMock(spec=EpisodicMemoryParams)
 
         async with manager.create_episodic_memory(
-            session_key, mock_episodic_memory_conf, description, metadata
+            session_key,
+            mock_episodic_memory_conf,
+            description,
+            metadata,
         ) as instance:
             assert instance is mock_episodic_memory_instance
             mock_params_from_config.assert_awaited_once_with(
-                mock_episodic_memory_conf, manager._resource_manager
+                mock_episodic_memory_conf,
+                manager._resource_manager,
             )
             mock_episodic_memory_cls.assert_called_once_with(
-                mock_params_from_config.return_value
+                mock_params_from_config.return_value,
             )
             assert manager._instance_cache.get_ref_count(session_key) == 1  # 1 from add
 
@@ -155,23 +159,30 @@ async def test_create_episodic_memory_success(
 
 @pytest.mark.asyncio
 async def test_create_episodic_memory_already_exists(
-    manager: EpisodicMemoryManager, mock_episodic_memory_conf
+    manager: EpisodicMemoryManager,
+    mock_episodic_memory_conf,
 ):
     """Test that creating a session that already exists raises an error."""
     session_key = "existing_session"
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         with pytest.raises(ValueError, match=f"Session {session_key} already exists"):
             async with manager.create_episodic_memory(
-                session_key, mock_episodic_memory_conf, "", {}
+                session_key,
+                mock_episodic_memory_conf,
+                "",
+                {},
             ):
                 pass  # This part should not be reached
 
 
 @pytest.mark.asyncio
 @patch(
-    "memmachine.episodic_memory.episodic_memory_manager.epsiodic_memory_params_from_config",
+    "memmachine.episodic_memory.episodic_memory_manager.episodic_memory_params_from_config",
     new_callable=AsyncMock,
 )
 @patch("memmachine.episodic_memory.episodic_memory_manager.EpisodicMemory")
@@ -189,7 +200,10 @@ async def test_open_episodic_memory_new_instance(
     mock_params_from_config.return_value = mock_params
 
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ) as instance:
         assert instance is mock_episodic_memory_instance
     await manager.close_session(session_key)
@@ -221,7 +235,10 @@ async def test_open_episodic_memory_cached_instance(
 
     # Pre-populate the cache
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         pass
 
@@ -252,7 +269,10 @@ async def test_delete_episodic_session_not_in_use(
 
     # Create and release the session so it's in cache but not in use
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         pass
 
@@ -280,11 +300,15 @@ async def test_delete_episodic_session_in_use_raises_error(
 
     # Create and release the session so it's in cache but not in use
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         assert manager._instance_cache.get_ref_count(session_key) == 1
         with pytest.raises(
-            RuntimeError, match=f"Session {session_key} is still in use"
+            RuntimeError,
+            match=f"Session {session_key} is still in use",
         ):
             await manager.delete_episodic_session(session_key)
 
@@ -302,7 +326,10 @@ async def test_delete_episodic_session_not_in_cache(
     mock_episodic_memory_cls.return_value = mock_episodic_memory_instance
 
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         pass
     await manager.close_session(session_key)
@@ -333,7 +360,10 @@ async def test_close_session_not_in_use(
     mock_episodic_memory_cls.return_value = mock_episodic_memory_instance
 
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         pass  # Enters and exits context, ref_count becomes 0
 
@@ -356,7 +386,10 @@ async def test_close_session_in_use_raises_error(
     mock_episodic_memory_cls.return_value = mock_episodic_memory_instance
 
     async with manager.create_episodic_memory(
-        session_key, mock_episodic_memory_conf, "", {}
+        session_key,
+        mock_episodic_memory_conf,
+        "",
+        {},
     ):
         with pytest.raises(RuntimeError, match=f"Session {session_key} is busy"):
             await manager.close_session(session_key)
@@ -376,11 +409,17 @@ async def test_manager_close(manager: EpisodicMemoryManager, mock_episodic_memor
     ):
         # Create two sessions and leave them in the cache
         async with manager.create_episodic_memory(
-            session_key1, mock_episodic_memory_conf, "", {}
+            session_key1,
+            mock_episodic_memory_conf,
+            "",
+            {},
         ):
             pass
         async with manager.create_episodic_memory(
-            session_key2, mock_episodic_memory_conf, "", {}
+            session_key2,
+            mock_episodic_memory_conf,
+            "",
+            {},
         ):
             pass
 

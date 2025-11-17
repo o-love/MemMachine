@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 import pytest
@@ -23,13 +23,13 @@ from memmachine.episodic_memory.short_term_memory.short_term_memory import (
 def create_test_episode(**kwargs):
     """Helper function to create a valid Episode for testing."""
     defaults = {
-        "uuid": str(uuid.uuid4()),
+        "uid": str(uuid.uuid4()),
         "sequence_num": 1,
         "session_key": "session1",
         "episode_type": "message",
         "content_type": ContentType.STRING,
         "content": "default content",
-        "created_at": datetime.now(),
+        "created_at": datetime.now(tz=UTC),
         "producer_id": "user1",
         "producer_role": "user",
         "produced_for_id": None,
@@ -53,7 +53,11 @@ class MockShortTermMemoryDataManager(SessionDataManager):
         pass
 
     async def save_short_term_memory(
-        self, session_key: str, summary: str, seq: int, num: int
+        self,
+        session_key: str,
+        summary: str,
+        seq: int,
+        num: int,
     ):
         self.data[session_key] = (summary, seq, num)
 
@@ -80,11 +84,12 @@ class MockShortTermMemoryDataManager(SessionDataManager):
         pass
 
     async def get_session_info(
-        self, session_key: str
+        self,
+        session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         return {}, "", {}, EpisodicMemoryConf()
 
-    async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
+    async def get_sessions(self, filters: dict[str, str] | None = None) -> list[str]:
         return []
 
 
@@ -206,7 +211,7 @@ class TestSessionMemoryPublicAPI:
         await memory.add_episode(ep2)
         await memory.add_episode(ep3)
 
-        await memory.delete_episode(ep2.uuid)
+        await memory.delete_episode(ep2.uid)
         episodes, _ = await memory.get_short_term_memory_context(query="test")
         assert episodes == [ep1, ep3]
 
@@ -230,7 +235,8 @@ class TestSessionMemoryPublicAPI:
 
         # Test with message length limit that fits all
         episodes, summary = await memory.get_short_term_memory_context(
-            query="test", max_message_length=100
+            query="test",
+            max_message_length=100,
         )
         assert len(episodes) == 3
         assert episodes == [ep1, ep2, ep3]
@@ -242,14 +248,16 @@ class TestSessionMemoryPublicAPI:
         # add ep2 (length 6), length=19. Now length >= 19, so loop breaks.
         # Should return [ep1, ep2]
         episodes, summary = await memory.get_short_term_memory_context(
-            query="test", max_message_length=19
+            query="test",
+            max_message_length=19,
         )
         assert len(episodes) == 2
         assert episodes == [ep2, ep3]
 
         # Test with episode limit
         episodes, summary = await memory.get_short_term_memory_context(
-            query="test", limit=1
+            query="test",
+            limit=1,
         )
         assert len(episodes) == 1
         assert episodes == [ep3]

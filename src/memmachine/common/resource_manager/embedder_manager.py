@@ -1,12 +1,17 @@
+"""Manager for building and caching embedder instances."""
+
 import asyncio
 from asyncio import Lock
 
-from memmachine.common.configuration.embedder_conf import EmbedderConf
+from memmachine.common.configuration.embedder_conf import EmbeddersConf
 from memmachine.common.embedder import Embedder
 
 
 class EmbedderManager:
-    def __init__(self, conf: EmbedderConf):
+    """Create and cache embedders defined in configuration."""
+
+    def __init__(self, conf: EmbeddersConf) -> None:
+        """Store embedder configuration and initialize caches."""
         self.conf = conf
         self._embedders: dict[str, Embedder] = {}
 
@@ -14,6 +19,7 @@ class EmbedderManager:
         self._embedders_lock: dict[str, Lock] = {}
 
     async def build_all(self) -> dict[str, Embedder]:
+        """Build all configured embedders and return the cache."""
         names = set()
         for name in self.conf.amazon_bedrock:
             names.add(name)
@@ -27,6 +33,7 @@ class EmbedderManager:
         return self._embedders
 
     async def get_embedder(self, name: str) -> Embedder:
+        """Return a named embedder, building it on first access."""
         if name in self._embedders:
             return self._embedders[name]
 
@@ -44,14 +51,14 @@ class EmbedderManager:
             return embedder
 
     def _build_embedder(self, name: str) -> Embedder:
+        """Construct an embedder based on provider."""
         if name in self.conf.amazon_bedrock:
             return self._build_amazon_bedrock_embedders(name)
-        elif name in self.conf.openai:
+        if name in self.conf.openai:
             return self._build_openai_embedders(name)
-        elif name in self.conf.sentence_transformer:
+        if name in self.conf.sentence_transformer:
             return self._build_sentence_transformer_embedders(name)
-        else:
-            raise ValueError(f"Embedder with name {name} not found.")
+        raise ValueError(f"Embedder with name {name} not found.")
 
     def _build_amazon_bedrock_embedders(self, name: str) -> Embedder:
         conf = self.conf.amazon_bedrock[name]
@@ -74,7 +81,7 @@ class EmbedderManager:
                 retries={
                     "total_max_attempts": 1,
                     "mode": "standard",
-                }
+                },
             ),
         )
         params = AmazonBedrockEmbedderParams(
@@ -97,7 +104,7 @@ class EmbedderManager:
 
         params = OpenAIEmbedderParams(
             client=openai.AsyncOpenAI(
-                api_key=conf.api_key,
+                api_key=conf.api_key.get_secret_value(),
                 base_url=conf.base_url,
             ),
             model=conf.model,

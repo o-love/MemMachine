@@ -1,9 +1,9 @@
 import pytest
 from pydantic import SecretStr
 
-from memmachine.common.configuration.model_conf import (
+from memmachine.common.configuration.language_model_conf import (
     AmazonBedrockLanguageModelConf,
-    LanguageModelConf,
+    LanguageModelsConf,
     OpenAIChatCompletionsLanguageModelConf,
     OpenAIResponsesLanguageModelConf,
 )
@@ -14,9 +14,9 @@ from memmachine.common.resource_manager.language_model_manager import (
 
 @pytest.fixture
 def mock_conf():
-    """Mock LanguageModelConf with dummy configurations."""
-    conf = LanguageModelConf(
-        openai_confs={
+    """Mock LanguageModelsConf with dummy configurations."""
+    conf = LanguageModelsConf(
+        openai_responses_language_model_confs={
             "openai_4o_mini": OpenAIResponsesLanguageModelConf(
                 model="gpt-4o-mini",
                 api_key=SecretStr("DUMMY_OPENAI_API_KEY_1"),
@@ -26,7 +26,7 @@ def mock_conf():
                 api_key=SecretStr("DUMMY_OPENAI_API_KEY_2"),
             ),
         },
-        aws_bedrock_confs={
+        amazon_bedrock_language_model_confs={
             "aws_model": AmazonBedrockLanguageModelConf(
                 region="us-west-2",
                 aws_access_key_id=SecretStr("DUMMY_AWS_ACCESS_KEY_ID"),
@@ -35,7 +35,7 @@ def mock_conf():
                 additional_model_request_fields={},
             ),
         },
-        openai_compatible_confs={
+        openai_chat_completions_language_model_confs={
             "ollama_model": OpenAIChatCompletionsLanguageModelConf(
                 model="llama3",
                 api_key=SecretStr("DUMMY_OLLAMA_API_KEY"),
@@ -70,7 +70,7 @@ async def test_build_aws_bedrock_model(mock_conf):
 
 
 @pytest.mark.asyncio
-async def test_build_openai_compatible_model(mock_conf):
+async def test_build_openai_chat_completions_model(mock_conf):
     builder = LanguageModelManager(mock_conf)
     await builder.build_all()
 

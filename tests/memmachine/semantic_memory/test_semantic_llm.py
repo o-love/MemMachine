@@ -18,7 +18,7 @@ from memmachine.semantic_memory.semantic_model import (
 def magic_mock_llm_model():
     mock = MagicMock(spec=LanguageModel)
     mock.generate_parsed_response = AsyncMock()
-    yield mock
+    return mock
 
 
 @pytest.fixture
@@ -71,8 +71,8 @@ async def test_single_command_update_response(
                 "tag": "car",
                 "feature": "favorite_car_color",
                 "value": "blue",
-            }
-        ]
+            },
+        ],
     }
 
     commands = await llm_feature_update(
@@ -88,7 +88,7 @@ async def test_single_command_update_response(
             tag="car",
             feature="favorite_car_color",
             value="blue",
-        )
+        ),
     ]
 
 
@@ -111,7 +111,7 @@ async def test_multiple_commands_update_response(
                 "feature": "favorite_car",
                 "value": "Tesla",
             },
-        ]
+        ],
     }
 
     commands = await llm_feature_update(
@@ -213,7 +213,7 @@ async def test_llm_feature_update_handles_model_api_error(
 
     # Given an LLM that raises API error
     magic_mock_llm_model.generate_parsed_response.side_effect = ExternalServiceAPIError(
-        "API timeout"
+        "API timeout",
     )
 
     with pytest.raises(ExternalServiceAPIError):
@@ -237,8 +237,8 @@ async def test_llm_feature_update_with_delete_command(
                 "tag": "food",
                 "feature": "favorite_pizza",
                 "value": "",
-            }
-        ]
+            },
+        ],
     }
 
     commands = await llm_feature_update(

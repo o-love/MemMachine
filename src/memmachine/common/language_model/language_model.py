@@ -1,6 +1,4 @@
-"""
-Abstract base class for a language model.
-"""
+"""Abstract base class for a language model."""
 
 from abc import ABC, abstractmethod
 from typing import Any, TypeVar
@@ -9,9 +7,7 @@ T = TypeVar("T")
 
 
 class LanguageModel(ABC):
-    """
-    Abstract base class for a language model.
-    """
+    """Abstract base class for a language model."""
 
     @abstractmethod
     async def generate_parsed_response(
@@ -48,6 +44,7 @@ class LanguageModel(ABC):
                 Errors from the underlying language model API.
             ValueError:
                 Invalid input or max_attempts.
+
         """
         raise NotImplementedError
 
@@ -94,5 +91,6 @@ class LanguageModel(ABC):
                 Errors from the underlying embedding API.
             ValueError:
                 Invalid input or max_attempts.
+
         """
         raise NotImplementedError

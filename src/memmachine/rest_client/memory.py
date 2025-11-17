@@ -5,11 +5,16 @@ This module provides the Memory class that handles episodic and profile memory
 operations for a specific context.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import requests
+
+if TYPE_CHECKING:
+    from .client import MemMachineClient
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +44,18 @@ class Memory:
         # Search memories
         results = memory.search("What do I like to eat?")
         ```
+
     """
 
     def __init__(
         self,
-        client,
+        client: MemMachineClient,
         group_id: str | None = None,
         agent_id: str | list[str] | None = None,
         user_id: str | list[str] | None = None,
         session_id: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: dict[str, Any],
+    ) -> None:
         """
         Initialize Memory instance.
 
@@ -60,9 +66,11 @@ class Memory:
             user_id: User identifier(s)
             session_id: Session identifier
             **kwargs: Additional configuration options
+
         """
         self.client = client
         self._client_closed = False
+        self._extra_options = kwargs
 
         # Store group_id as private attribute
         self.__group_id = group_id
@@ -88,7 +96,7 @@ class Memory:
         # Validate required fields
         if not self.__user_id or not self.__agent_id:
             raise ValueError(
-                "Both user_id and agent_id are required and cannot be empty"
+                "Both user_id and agent_id are required and cannot be empty",
             )
 
         # Ensure group_id is non-empty to avoid server defaulting issues
@@ -103,6 +111,7 @@ class Memory:
 
         Returns:
             List of user identifiers, or None if not set
+
         """
         return self.__user_id
 
@@ -113,6 +122,7 @@ class Memory:
 
         Returns:
             List of agent identifiers, or None if not set
+
         """
         return self.__agent_id
 
@@ -123,6 +133,7 @@ class Memory:
 
         Returns:
             Group identifier, or None if not set
+
         """
         return self.__group_id
 
@@ -133,10 +144,11 @@ class Memory:
 
         Returns:
             Session identifier
+
         """
         return self.__session_id
 
-    def add(
+    def add(  # noqa: C901
         self,
         content: str,
         producer: str | None = None,
@@ -160,6 +172,7 @@ class Memory:
         Raises:
             requests.RequestException: If the request fails
             RuntimeError: If the client has been closed
+
         """
         if self._client_closed:
             raise RuntimeError("Cannot add memory: client has been closed")
@@ -170,11 +183,11 @@ class Memory:
         # we can safely use the first element
         if self.__user_id is None or len(self.__user_id) == 0:
             raise RuntimeError(
-                "user_id must not be None or empty. This should have been validated in __init__."
+                "user_id must not be None or empty. This should have been validated in __init__.",
             )
         if self.__agent_id is None or len(self.__agent_id) == 0:
             raise RuntimeError(
-                "agent_id must not be None or empty. This should have been validated in __init__."
+                "agent_id must not be None or empty. This should have been validated in __init__.",
             )
         if not producer:
             producer = self.__user_id[0]
@@ -188,12 +201,12 @@ class Memory:
         if producer not in self.__user_id and producer not in self.__agent_id:
             raise ValueError(
                 f"producer '{producer}' must be in user_id {self.__user_id} or agent_id {self.__agent_id}. "
-                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}"
+                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}",
             )
         if produced_for not in self.__user_id and produced_for not in self.__agent_id:
             raise ValueError(
                 f"produced_for '{produced_for}' must be in user_id {self.__user_id} or agent_id {self.__agent_id}. "
-                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}"
+                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}",
             )
 
         episode_data = {
@@ -219,21 +232,26 @@ class Memory:
 
         # Log the request details for debugging
         logger.debug(
-            f"Adding memory: producer={producer}, produced_for={produced_for}, "
-            f"user_id={self.__user_id}, agent_id={self.__agent_id}, "
-            f"group_id={self.__group_id}, session_id={self.__session_id}"
+            (
+                "Adding memory: producer=%s, produced_for=%s, user_id=%s, "
+                "agent_id=%s, group_id=%s, session_id=%s"
+            ),
+            producer,
+            produced_for,
+            self.__user_id,
+            self.__agent_id,
+            self.__group_id,
+            self.__session_id,
         )
 
         try:
-            response = self.client._session.post(
+            response = self.client.session.post(
                 f"{self.client.base_url}/v1/memories",
                 json=episode_data,
                 headers=headers,
                 timeout=self.client.timeout,
             )
             response.raise_for_status()
-            logger.debug(f"Successfully added memory: {content[:50]}...")
-            return True
         except requests.RequestException as e:
             # Try to get detailed error information from response
             error_detail = ""
@@ -242,11 +260,14 @@ class Memory:
                     error_detail = f" Response: {e.response.text}"
                 except Exception:
                     error_detail = f" Status: {e.response.status_code}"
-            logger.error(f"Failed to add memory: {e}{error_detail}")
+            logger.exception("Failed to add memory%s", error_detail)
             raise
-        except Exception as e:
-            logger.error(f"Failed to add memory: {e}")
+        except Exception:
+            logger.exception("Failed to add memory")
             raise
+        else:
+            logger.debug("Successfully added memory: %s...", content[:50])
+            return True
 
     def search(
         self,
@@ -268,6 +289,7 @@ class Memory:
         Raises:
             requests.RequestException: If the request fails
             RuntimeError: If the client has been closed
+
         """
         if self._client_closed:
             raise RuntimeError("Cannot search memories: client has been closed")
@@ -286,7 +308,7 @@ class Memory:
             headers["user-id"] = ",".join(self.__user_id)
 
         try:
-            response = self.client._session.post(
+            response = self.client.session.post(
                 f"{self.client.base_url}/v1/memories/search",
                 json=search_data,
                 headers=headers,
@@ -294,10 +316,10 @@ class Memory:
             )
             response.raise_for_status()
             data = response.json()
-            logger.info(f"Search completed for query: {query}")
+            logger.info("Search completed for query: %s", query)
             return data.get("content", {})
-        except Exception as e:
-            logger.error(f"Failed to search memories: {e}")
+        except Exception:
+            logger.exception("Failed to search memories")
             raise
 
     def get_context(self) -> dict[str, Any]:
@@ -306,6 +328,7 @@ class Memory:
 
         Returns:
             Dictionary containing the context information
+
         """
         return {
             "group_id": self.__group_id,
@@ -314,5 +337,14 @@ class Memory:
             "session_id": self.__session_id,
         }
 
-    def __repr__(self):
-        return f"Memory(group_id='{self.group_id}', user_id='{self.user_id}', session_id='{self.session_id}')"
+    def mark_client_closed(self) -> None:
+        """Mark this memory instance as closed by its owning client."""
+        self._client_closed = True
+
+    def __repr__(self) -> str:
+        """Return a developer-friendly description of the memory context."""
+        return (
+            f"Memory(group_id='{self.group_id}', "
+            f"user_id='{self.user_id}', "
+            f"session_id='{self.session_id}')"
+        )

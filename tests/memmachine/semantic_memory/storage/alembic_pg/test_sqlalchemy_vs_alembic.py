@@ -85,7 +85,7 @@ async def test_legacy_schema_upgrades_to_modern_layout(
 async def _reset_database(async_engine: AsyncEngine) -> None:
     async with async_engine.begin() as conn:
         await conn.run_sync(
-            lambda sync_conn: BaseSemanticStorage.metadata.drop_all(bind=sync_conn)
+            lambda sync_conn: BaseSemanticStorage.metadata.drop_all(bind=sync_conn),
         )
         for statement in RESET_STATEMENTS:
             await conn.execute(text(statement))
@@ -109,7 +109,8 @@ async def _collect_schema(engine: AsyncEngine) -> SchemaSnapshot:
 
 
 def _assert_schema_equivalence(
-    migrated: SchemaSnapshot, metadata: SchemaSnapshot
+    migrated: SchemaSnapshot,
+    metadata: SchemaSnapshot,
 ) -> None:
     assert "alembic_version" in migrated.tables, (
         "alembic_version table is missing after migrations"
@@ -136,7 +137,7 @@ def _assert_schema_equivalence(
             migrated_meta = migrated_columns[column]
 
             assert normalize_type(migrated_meta["type"]) == normalize_type(
-                column_meta["type"]
+                column_meta["type"],
             ), f"Type mismatch for {table_name}.{column}"
 
             if not column_meta["nullable"]:
@@ -155,7 +156,8 @@ def _assert_schema_equivalence(
 
 
 def get_table_columns(
-    inspector: Inspector, table_name: str
+    inspector: Inspector,
+    table_name: str,
 ) -> Mapping[str, dict[str, object]]:
     columns = inspector.get_columns(table_name)
     return {
@@ -168,7 +170,8 @@ def get_table_columns(
 
 
 def get_index_column_sets(
-    inspector: Inspector, table_name: str
+    inspector: Inspector,
+    table_name: str,
 ) -> set[tuple[str, ...]]:
     indexes = inspector.get_indexes(table_name)
     return {

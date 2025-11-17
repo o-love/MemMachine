@@ -1,3 +1,5 @@
+"""LLM helpers for extracting and consolidating semantic features."""
+
 import json
 import logging
 
@@ -46,6 +48,7 @@ async def llm_feature_update(
     model: InstanceOf[LanguageModel],
     update_prompt: str,
 ) -> list[SemanticCommand]:
+    """Generate feature update commands from an incoming message using the LLM."""
     user_prompt = (
         "The old feature set is provided below:\n"
         "<OLD_PROFILE>\n"
@@ -65,7 +68,7 @@ async def llm_feature_update(
     )
 
     validated_output = TypeAdapter(_SemanticFeatureUpdateRes).validate_python(
-        parsed_output
+        parsed_output,
     )
     return validated_output.commands
 
@@ -92,6 +95,7 @@ async def llm_consolidate_features(
     model: InstanceOf[LanguageModel],
     consolidate_prompt: str,
 ) -> SemanticConsolidateMemoryRes | None:
+    """Merge overlapping features and return consolidation commands from the LLM."""
     parsed_output = await model.generate_parsed_response(
         system_prompt=consolidate_prompt,
         user_prompt=json.dumps(_features_to_llm_format(features)),
@@ -99,6 +103,6 @@ async def llm_consolidate_features(
     )
 
     validated_output = TypeAdapter(SemanticConsolidateMemoryRes).validate_python(
-        parsed_output
+        parsed_output,
     )
     return validated_output

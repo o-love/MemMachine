@@ -1,3 +1,5 @@
+"""Manage semantic memory sessions and associated lifecycle hooks."""
+
 import asyncio
 from typing import Any
 
@@ -12,7 +14,8 @@ from memmachine.semantic_memory.semantic_session_resource import (
 
 
 class SemanticSessionManager:
-    """Maps high-level session operations onto set_ids managed by `SemanticService`.
+    """
+    Maps high-level session operations onto set_ids managed by `SemanticService`.
 
     The manager persists conversation history, resolves the relevant set_ids from
     `SessionData`, and dispatches calls to `SemanticService`.
@@ -21,27 +24,28 @@ class SemanticSessionManager:
     def __init__(
         self,
         semantic_service: SemanticService,
-    ):
+    ) -> None:
+        """Initialize the manager with the underlying semantic service."""
         self._semantic_service: SemanticService = semantic_service
 
     async def add_message(
         self,
-        history_ids: list[EpisodeIdT],
+        episode_ids: list[EpisodeIdT],
         session_data: SessionData,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-    ):
-        if len(history_ids) == 0:
+    ) -> None:
+        if len(episode_ids) == 0:
             return
 
         set_ids = self._get_set_ids(session_data, memory_type)
 
-        if len(history_ids) == 1:
-            await self._semantic_service.add_message_to_sets(history_ids[0], set_ids)
+        if len(episode_ids) == 1:
+            await self._semantic_service.add_message_to_sets(episode_ids[0], set_ids)
             return
 
-        tasks = []
-        for s_id in set_ids:
-            tasks.append(self._semantic_service.add_messages(s_id, history_ids))
+        tasks = [
+            self._semantic_service.add_messages(s_id, episode_ids) for s_id in set_ids
+        ]
 
         await asyncio.gather(*tasks)
 
@@ -119,10 +123,13 @@ class SemanticSessionManager:
         )
 
     async def get_feature(
-        self, feature_id: FeatureIdT, load_citations: bool = False
+        self,
+        feature_id: FeatureIdT,
+        load_citations: bool = False,
     ) -> SemanticFeature | None:
         return await self._semantic_service.get_feature(
-            feature_id, load_citations=load_citations
+            feature_id,
+            load_citations=load_citations,
         )
 
     async def update_feature(
@@ -134,7 +141,7 @@ class SemanticSessionManager:
         value: str | None = None,
         tag: str | None = None,
         metadata: dict[str, str] | None = None,
-    ):
+    ) -> None:
         await self._semantic_service.update_feature(
             feature_id,
             category_name=category_name,
@@ -144,7 +151,7 @@ class SemanticSessionManager:
             metadata=metadata,
         )
 
-    async def delete_features(self, feature_ids: list[FeatureIdT]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         await self._semantic_service.delete_features(feature_ids)
 
     async def get_set_features(
@@ -164,7 +171,7 @@ class SemanticSessionManager:
                 category_names=category_names,
                 feature_names=feature_names,
                 tags=tag_names,
-            )
+            ),
         )
 
     async def delete_feature_set(
@@ -175,7 +182,7 @@ class SemanticSessionManager:
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-    ):
+    ) -> None:
         set_ids = self._get_set_ids(session_data, memory_type)
 
         search_opts: dict[str, Any] = {
@@ -188,7 +195,7 @@ class SemanticSessionManager:
         return await self._semantic_service.delete_feature_set(
             SemanticService.FeatureSearchOpts(
                 **search_opts,
-            )
+            ),
         )
 
     @staticmethod

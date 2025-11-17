@@ -2,10 +2,6 @@ name: Run Python integration tests
 on:
   push:
     branches: [ main ]
-#  pull_request_target:
-
-  # Run integration tests on pull requests if the workflow file has changed.
-  # This will force the user to set up the secrets for the integration tests when adding integration tests.
   pull_request:
 
 permissions:
@@ -26,15 +22,14 @@ jobs:
       matrix:
         # Each integration test is a separate job to allow for parallel execution
         test-paths: [
+          # Session manager tests
+          "tests/memmachine/common/session_manager/",
           # Vector Graph Store tests
-          "tests/memmachine/common/vector_graph_store/test_neo4j_vector_graph_store.py",
-
+          "tests/memmachine/common/vector_graph_store/",
+          # Episodic Store tests
+          "tests/memmachine/episode_store/",
           # Semantic Memory tests
-          "tests/memmachine/semantic_memory/test_semantic_llm_integration.py",
-          "tests/memmachine/semantic_memory/test_semantic_memory_integration.py",
-
-          # Semantic Storage tests
-          "tests/memmachine/semantic_memory/storage/test_semantic_storage.py",
+          "tests/memmachine/semantic_memory/",
         ]
         os: [ ubuntu-latest, ubuntu-24.04-arm ]
         python-version: [ "3.12", "3.13", "3.14" ]

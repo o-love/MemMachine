@@ -7,7 +7,7 @@ from memmachine.common.configuration.reranker_conf import (
     CrossEncoderRerankerConf,
     EmbedderRerankerConf,
     IdentityRerankerConf,
-    RerankerConf,
+    RerankersConf,
     RRFHybridRerankerConf,
 )
 
@@ -21,7 +21,7 @@ def bm25_reranker_conf() -> dict:
             "k1": 1.5,
             "b": 0.75,
             "epsilon": 0.25,
-            "tokenize": "default",
+            "tokenizer": "default",
         },
     }
 
@@ -85,14 +85,14 @@ def full_reranker_input(
     rrf_hybrid_reranker_conf,
 ) -> dict:
     return {
-        "reranker": {
+        "rerankers": {
             "my_reranker_id": rrf_hybrid_reranker_conf,
             "id_ranker_id": identity_reranker_conf,
             "bm_ranker_id": bm25_reranker_conf,
             "aws_reranker_id": amazon_bedrock_reranker_conf,
             "cross_encoder_id": cross_encoder_reranker_conf,
             "embedder_id": embedder_reranker_conf,
-        }
+        },
     }
 
 
@@ -102,7 +102,7 @@ def test_valid_bm25_reranker_conf(bm25_reranker_conf):
     assert conf.k1 == 1.5
     assert conf.b == 0.75
     assert conf.epsilon == 0.25
-    assert conf.tokenize == "default"
+    assert conf.tokenizer == "default"
 
 
 def test_valid_identity_reranker_conf(identity_reranker_conf):
@@ -135,7 +135,7 @@ def test_valid_rrf_hybrid_reranker_conf(rrf_hybrid_reranker_conf):
 
 
 def test_full_reranker_conf(full_reranker_input):
-    conf = RerankerConf.parse_reranker_conf(full_reranker_input)
+    conf = RerankersConf.parse(full_reranker_input)
     assert "my_reranker_id" in conf.rrf_hybrid
     hybrid = conf.rrf_hybrid["my_reranker_id"]
     assert hybrid.reranker_ids == ["id_ranker_id", "bm_ranker_id"]

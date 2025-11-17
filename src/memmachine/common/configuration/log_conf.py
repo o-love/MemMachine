@@ -1,7 +1,10 @@
+"""Logging configuration helpers."""
+
 import logging
 import os
 import sys
 from enum import Enum
+from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -10,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class LogLevel(Enum):
+    """Supported logging levels."""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -18,6 +23,7 @@ class LogLevel(Enum):
 
 
 def to_log_level(level_str: str) -> LogLevel:
+    """Parse a string into a `LogLevel` enum, raising on invalid input."""
     try:
         return LogLevel[level_str.upper()]
     except KeyError:
@@ -25,6 +31,8 @@ def to_log_level(level_str: str) -> LogLevel:
 
 
 class LogConf(BaseModel):
+    """Configuration model for application logging."""
+
     level: LogLevel = Field(
         default=LogLevel.INFO,
         description="Logging level",
@@ -40,7 +48,8 @@ class LogConf(BaseModel):
 
     @field_validator("level", mode="before")
     @staticmethod
-    def validate_level(v):
+    def validate_level(v: str | LogLevel) -> LogLevel:
+        """Normalize level input into a LogLevel enum."""
         if isinstance(v, LogLevel):
             return v
         try:
@@ -50,7 +59,8 @@ class LogConf(BaseModel):
 
     @field_validator("format")
     @staticmethod
-    def validate_format(v):
+    def validate_format(v: str) -> str:
+        """Ensure format string contains basic logging tokens."""
         # A minimal sanity check: must include %(levelname)s and %(message)s
         required_tokens = ["%(levelname)s", "%(message)s", "%(asctime)s"]
         for token in required_tokens:
@@ -60,18 +70,20 @@ class LogConf(BaseModel):
 
     @field_validator("path")
     @staticmethod
-    def validate_path(v):
+    def validate_path(v: str | None) -> str | None:
+        """Validate that the log path directory exists and is writable."""
         if v is None or v == "":
             return None
-        # Ensure directory exists and writable
-        dir_name = os.path.dirname(v) or "."
-        if not os.path.exists(dir_name):
-            raise ValueError(f"Log directory does not exist: {dir_name}")
-        if not os.access(dir_name, os.W_OK):
-            raise ValueError(f"Log directory is not writable: {dir_name}")
-        return v
+        path = Path(v).expanduser()
+        dir_path = path.parent if path.is_absolute() else (Path.cwd() / path).parent
+        if not dir_path.exists():
+            raise ValueError(f"Log directory does not exist: {dir_path}")
+        if not os.access(dir_path, os.W_OK):
+            raise ValueError(f"Log directory is not writable: {dir_path}")
+        return str(path)
 
-    def apply(self):
+    def apply(self) -> None:
+        """Apply the logging configuration, honoring env overrides."""
         # Override from environment variables if provided
         env_level = os.getenv("LOG_LEVEL")
         env_format = os.getenv("LOG_FORMAT")
@@ -94,7 +106,7 @@ class LogConf(BaseModel):
             self.path,
         )
 
-        handlers = [logging.StreamHandler(sys.stdout)]
+        handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
         if self.path:
             file_handler = logging.FileHandler(self.path)
             file_handler.setFormatter(logging.Formatter(self.format))
@@ -109,16 +121,21 @@ class LogConf(BaseModel):
 
 
 class RerankerType(Enum):
+    """Enumeration of supported reranker implementations."""
+
     IDENTITY = "identity"
     BM25 = "bm25"
     RRF_HYBRID = "rrf-hybrid"
 
 
 class Configuration:
-    def __init__(self):
-        pass
+    """Placeholder configuration loader for legacy compatibility."""
 
-    def load(self, config_file: str | None = None):
+    def __init__(self) -> None:
+        """Initialize the configuration container."""
+
+    def load(self, config_file: str | None = None) -> None:
+        """Load configuration from environment or provided path."""
         load_dotenv()
         env_conf = os.environ["MEMORY_CONFIG"]
         if config_file is None and env_conf:

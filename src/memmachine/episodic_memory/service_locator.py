@@ -1,3 +1,5 @@
+"""Factory helpers for wiring episodic memory components."""
+
 from pydantic import InstanceOf
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
@@ -14,13 +16,14 @@ from .short_term_memory.service_locator import (
 from .short_term_memory.short_term_memory import ShortTermMemory
 
 
-async def epsiodic_memory_params_from_config(
+async def episodic_memory_params_from_config(
     config: EpisodicMemoryConf,
     resource_manager: InstanceOf[CommonResourceManager],
 ) -> EpisodicMemoryParams:
+    """Create EpisodicMemoryParams from configuration and resource manager."""
     long_term_memory: LongTermMemory | None = None
     if config.long_term_memory and config.long_term_memory_enabled:
-        long_term_memory_params = long_term_memory_params_from_config(
+        long_term_memory_params = await long_term_memory_params_from_config(
             config.long_term_memory,
             resource_manager,
         )

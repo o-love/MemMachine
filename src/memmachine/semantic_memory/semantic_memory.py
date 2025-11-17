@@ -1,4 +1,5 @@
-"""Core module for the Semantic Memory engine.
+"""
+Core module for the Semantic Memory engine.
 
 This module contains the `SemanticMemoryManager` class, which is the central component
 for creating, managing, and searching feature sets based on their
@@ -8,6 +9,7 @@ information extraction and a vector database for semantic search capabilities.
 
 import asyncio
 import logging
+from asyncio import Task
 from typing import Any
 
 import numpy as np
@@ -18,8 +20,7 @@ from memmachine.episode_store.episode_storage import EpisodeStorage
 
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
-from .semantic_tracker import SemanticUpdateTrackerManager
-from .storage.storage_base import SemanticStorageBase
+from .storage.storage_base import SemanticStorage
 
 logger = logging.getLogger(__name__)
 
@@ -36,26 +37,13 @@ class SemanticService:
     class Params(BaseModel):
         """Infrastructure dependencies and background-update configuration."""
 
-        semantic_storage: InstanceOf[SemanticStorageBase]
-        history_storage: InstanceOf[EpisodeStorage]
+        semantic_storage: InstanceOf[SemanticStorage]
+        episode_storage: InstanceOf[EpisodeStorage]
         consolidation_threshold: int = 20
 
         feature_update_interval_sec: float = 2.0
-        """ Interval in seconds for feature updates. This controls how often the
-        background task checks for dirty sets and processes their
-        conversation history to update features.
-        """
 
         feature_update_message_limit: int = 5
-        """ Number of messages after which a feature update is triggered.
-        If a set sends this many messages, their features will be updated.
-        """
-
-        feature_update_time_limit_sec: float = 120.0
-        """ Time in seconds after which a feature update is triggered.
-        If a set has sent messages and this much time has passed since
-        the first message, their features will be updated.
-        """
 
         resource_retriever: InstanceOf[ResourceRetriever]
 
@@ -64,32 +52,30 @@ class SemanticService:
     def __init__(
         self,
         params: Params,
-    ):
+    ) -> None:
+        """Set up semantic memory services and background ingestion tracking."""
         self._semantic_storage = params.semantic_storage
-        self._history_storage = params.history_storage
+        self._episode_storage = params.episode_storage
         self._background_ingestion_interval_sec = params.feature_update_interval_sec
 
         self._resource_retriever: ResourceRetriever = params.resource_retriever
 
         self._consolidation_threshold = params.consolidation_threshold
 
-        self._dirty_sets: SemanticUpdateTrackerManager = SemanticUpdateTrackerManager(
-            message_limit=params.feature_update_message_limit,
-            time_limit_sec=params.feature_update_time_limit_sec,
-        )
+        self._feature_update_message_limit = params.feature_update_message_limit
 
-        self._ingestion_task = None
+        self._ingestion_task: Task | None = None
         self._is_shutting_down = False
         self._debug_fail_loudly = params.debug_fail_loudly
 
-    async def start(self):
+    async def start(self) -> None:
         if self._ingestion_task is not None:
             return
 
         self._is_shutting_down = False
         self._ingestion_task = asyncio.create_task(self._background_ingestion_task())
 
-    async def stop(self):
+    async def stop(self) -> None:
         if self._ingestion_task is None:
             return
 
@@ -114,7 +100,7 @@ class SemanticService:
 
         return await self._semantic_storage.get_feature_set(
             set_ids=set_ids,
-            vector_search_opts=SemanticStorageBase.VectorSearchOpts(
+            vector_search_opts=SemanticStorage.VectorSearchOpts(
                 query_embedding=np.array(query_embedding),
                 min_distance=min_distance,
             ),
@@ -126,11 +112,12 @@ class SemanticService:
         )
 
     @validate_call
-    async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]):
+    async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]) -> None:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
-                    set_id=set_id, history_id=h_id
+                    set_id=set_id,
+                    history_id=h_id,
                 )
                 for h_id in history_ids
             ],
@@ -139,14 +126,17 @@ class SemanticService:
 
         _consolidate_errors_and_raise(res, "Failed to add messages to set")
 
-        await self._dirty_sets.mark_update([set_id])
-
     @validate_call
-    async def add_message_to_sets(self, history_id: EpisodeIdT, set_ids: list[SetIdT]):
+    async def add_message_to_sets(
+        self,
+        history_id: EpisodeIdT,
+        set_ids: list[SetIdT],
+    ) -> None:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
-                    set_id=set_id, history_id=history_id
+                    set_id=set_id,
+                    history_id=history_id,
                 )
                 for set_id in set_ids
             ],
@@ -155,12 +145,11 @@ class SemanticService:
 
         _consolidate_errors_and_raise(res, "Failed to add message to sets")
 
-        await self._dirty_sets.mark_update(set_ids)
-
     @validate_call
     async def number_of_uningested(self, set_ids: list[SetIdT]) -> int:
         return await self._semantic_storage.get_history_messages_count(
-            set_ids=set_ids, is_ingested=False
+            set_ids=set_ids,
+            is_ingested=False,
         )
 
     @validate_call
@@ -195,10 +184,13 @@ class SemanticService:
 
     @validate_call
     async def get_feature(
-        self, feature_id: FeatureIdT, load_citations: bool
+        self,
+        feature_id: FeatureIdT,
+        load_citations: bool,
     ) -> SemanticFeature | None:
         return await self._semantic_storage.get_feature(
-            feature_id, load_citations=load_citations
+            feature_id,
+            load_citations=load_citations,
         )
 
     class FeatureSearchOpts(BaseModel):
@@ -236,14 +228,14 @@ class SemanticService:
         value: str | None = None,
         tag: str | None = None,
         metadata: dict[str, str] | None = None,
-    ):
+    ) -> None:
         if value is not None:
             if set_id is None:
                 original_feature = await self._semantic_storage.get_feature(feature_id)
                 if original_feature is None or original_feature.set_id is None:
                     raise ValueError(
                         "Unable to deduce set_id, the feature_id may be incorrect. "
-                        "set_id is required to update a feature"
+                        "set_id is required to update a feature",
                     )
                 set_id = original_feature.set_id
 
@@ -265,11 +257,11 @@ class SemanticService:
         )
 
     @validate_call
-    async def delete_features(self, feature_ids: list[FeatureIdT]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         await self._semantic_storage.delete_features(feature_ids)
 
     @validate_call
-    async def delete_feature_set(self, opts: FeatureSearchOpts):
+    async def delete_feature_set(self, opts: FeatureSearchOpts) -> None:
         await self._semantic_storage.delete_feature_set(
             set_ids=opts.set_ids,
             category_names=opts.category_names,
@@ -277,17 +269,19 @@ class SemanticService:
             tags=opts.tags,
         )
 
-    async def _background_ingestion_task(self):
+    async def _background_ingestion_task(self) -> None:
         ingestion_service = IngestionService(
             params=IngestionService.Params(
                 semantic_storage=self._semantic_storage,
                 resource_retriever=self._resource_retriever,
-                history_store=self._history_storage,
-            )
+                history_store=self._episode_storage,
+            ),
         )
 
         while not self._is_shutting_down:
-            dirty_sets = await self._dirty_sets.get_sets_to_update()
+            dirty_sets = await self._semantic_storage.get_history_set_ids(
+                min_uningested_messages=self._feature_update_message_limit,
+            )
 
             if len(dirty_sets) == 0:
                 await asyncio.sleep(self._background_ingestion_interval_sec)
@@ -295,8 +289,7 @@ class SemanticService:
 
             try:
                 await ingestion_service.process_set_ids(dirty_sets)
-            except Exception as e:
+            except Exception:
                 if self._debug_fail_loudly:
-                    raise e
-                else:
-                    logger.error(f"background task crashed, restarting: {e}")
+                    raise
+                logger.exception("background task crashed, restarting")

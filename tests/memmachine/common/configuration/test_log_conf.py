@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 
@@ -55,7 +56,7 @@ def test_logconf_format_validation_valid():
     ],
 )
 def test_logconf_format_validation_invalid(badfmt):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="log format must include"):
         LogConf(format=badfmt)
 
 
@@ -106,10 +107,8 @@ def restore_logging():
     # restore
     for h in list(root.handlers):
         root.removeHandler(h)
-        try:
+        with contextlib.suppress(Exception):
             h.close()
-        except Exception:
-            pass
     for h in old_handlers:
         root.addHandler(h)
     root.setLevel(old_level)

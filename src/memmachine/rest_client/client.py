@@ -1,4 +1,7 @@
+"""Client utilities for interacting with the MemMachine HTTP API."""
+
 import logging
+from types import TracebackType
 from typing import Any
 from weakref import WeakSet
 
@@ -42,6 +45,7 @@ class MemMachineClient:
         # Search memories
         results = memory.search("What do I like to eat?")
         ```
+
     """
 
     def __init__(
@@ -50,8 +54,8 @@ class MemMachineClient:
         base_url: str | None = None,
         timeout: int = 30,
         max_retries: int = 3,
-        **kwargs,
-    ):
+        **kwargs: dict[str, Any],
+    ) -> None:
         """
         Initialize the MemMachine client.
 
@@ -65,12 +69,14 @@ class MemMachineClient:
 
         Raises:
             ValueError: If base_url is not provided
+
         """
         self.api_key = api_key
+        self._extra_options = kwargs
         # base_url is required
         if base_url is None:
             raise ValueError(
-                "base_url is required. Please provide it explicitly or set MEMORY_BACKEND_URL environment variable."
+                "base_url is required. Please provide it explicitly or set MEMORY_BACKEND_URL environment variable.",
             )
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -96,7 +102,7 @@ class MemMachineClient:
             {
                 "Content-Type": "application/json",
                 "User-Agent": "MemMachineClient/1.0.0",
-            }
+            },
         )
 
         if api_key:
@@ -108,7 +114,7 @@ class MemMachineClient:
         agent_id: str | list[str] | None = None,
         user_id: str | list[str] | None = None,
         session_id: str | None = None,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> Memory:
         """
         Create a Memory instance for a specific context.
@@ -122,6 +128,7 @@ class MemMachineClient:
 
         Returns:
             Memory instance configured for the specified context
+
         """
         memory = Memory(
             client=self,
@@ -144,18 +151,20 @@ class MemMachineClient:
 
         Raises:
             requests.RequestException: If the health check fails
+
         """
         try:
             response = self._session.get(
-                f"{self.base_url}/health", timeout=self.timeout
+                f"{self.base_url}/health",
+                timeout=self.timeout,
             )
             response.raise_for_status()
             return response.json()
-        except requests.RequestException as e:
-            logger.error(f"Health check failed: {e}")
+        except requests.RequestException:
+            logger.exception("Health check failed")
             raise
 
-    def close(self):
+    def close(self) -> None:
         """Close the client and clean up resources."""
         if self._closed:
             return
@@ -164,7 +173,7 @@ class MemMachineClient:
 
         # Mark all tracked Memory objects as closed
         for memory in self._memory_objects:
-            memory._client_closed = True
+            memory.mark_client_closed()
 
         # Clear the tracking set
         self._memory_objects.clear()
@@ -173,13 +182,24 @@ class MemMachineClient:
         if hasattr(self, "_session"):
             self._session.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "MemMachineClient":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Context manager exit."""
         self.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a developer-friendly string representation."""
         return f"MemMachineClient(base_url='{self.base_url}')"
+
+    @property
+    def session(self) -> requests.Session:
+        """Expose the underlying requests session for advanced usage."""
+        return self._session

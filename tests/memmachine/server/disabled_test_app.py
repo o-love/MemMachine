@@ -1,6 +1,4 @@
-"""
-Test profile memory initialization
-"""
+"""Test profile memory initialization"""
 
 from unittest.mock import MagicMock
 
@@ -39,26 +37,31 @@ def mock_dependencies(monkeypatch):
 
     monkeypatch.setattr("memmachine.server.app.EmbedderBuilder", mock_embedder_builder)
     monkeypatch.setattr(
-        "memmachine.server.app.MetricsFactoryBuilder", mock_metrics_builder
+        "memmachine.server.app.MetricsFactoryBuilder",
+        mock_metrics_builder,
     )
     monkeypatch.setattr("memmachine.server.app.SemanticService", mock_semantic_service)
     monkeypatch.setattr(
-        "memmachine.server.app.SemanticSessionManager", mock_semantic_session_manager
+        "memmachine.server.app.SemanticSessionManager",
+        mock_semantic_session_manager,
     )
     monkeypatch.setattr(
-        "memmachine.server.app.EpisodicMemoryManager", mock_episodic_manager
+        "memmachine.server.app.EpisodicMemoryManager",
+        mock_episodic_manager,
     )
     monkeypatch.setattr("memmachine.server.app.import_module", mock_import_module)
 
     # Mock SQLAlchemy and storage
     mock_sqlalchemy_create_engine = MagicMock(return_value=mock_sqlalchemy_engine)
     monkeypatch.setattr(
-        "memmachine.server.app.create_async_engine", mock_sqlalchemy_create_engine
+        "memmachine.server.app.create_async_engine",
+        mock_sqlalchemy_create_engine,
     )
 
     mock_storage_class = MagicMock(return_value=mock_semantic_storage)
     monkeypatch.setattr(
-        "memmachine.server.app.SqlAlchemyPgVectorSemanticStorage", mock_storage_class
+        "memmachine.server.app.SqlAlchemyPgVectorSemanticStorage",
+        mock_storage_class,
     )
 
     # Mock the create_episodic_memory_manager class method
@@ -106,10 +109,10 @@ def mock_config_file(tmp_path):
         },
         "model": {
             "test_llm": {
-                "model_vendor": "openai",
+                "provider": "openai",
                 "model_name": "gpt-3",
                 "api_key": "TEST_API_KEY_VAR",
-            }
+            },
         },
         "embedder": {
             "test_embedder": {
@@ -118,7 +121,7 @@ def mock_config_file(tmp_path):
                     "model_name": "text-embedding-ada-002",
                     "api_key": "TEST_EMBED_KEY_VAR",
                 },
-            }
+            },
         },
         "storage": {
             "test_db": {
@@ -127,26 +130,26 @@ def mock_config_file(tmp_path):
                 "user": "postgres",
                 "database": "test_db",
                 "password": "TEST_DB_PASS_VAR",
-            }
+            },
         },
     }
 
     config_file = tmp_path / "test_config.yml"
-    with open(config_file, "w", encoding="utf-8") as f:
+    with config_file.open("w", encoding="utf-8") as f:
         yaml.dump(config_content, f)
     return str(config_file)
 
 
 @pytest.mark.asyncio
 async def test_initialize_resource_success(
-    mock_dependencies, mock_config_file, monkeypatch
+    mock_dependencies,
+    mock_config_file,
+    monkeypatch,
 ):
-    """
-    Tests that initialize_resource successfully creates and returns
+    """Tests that initialize_resource successfully creates and returns
     EpisodicMemoryManager, SemanticSessionManager, and SessionIdManager instances
     with correct configurations.
     """
-
     # Call the function under test
     (
         episodic_manager,
@@ -171,7 +174,8 @@ async def test_initialize_resource_success(
 
     # Verify prompt module was imported
     mock_dependencies["import_module"].assert_called_with(
-        ".prompt.test_prompt", "memmachine.server"
+        ".prompt.test_prompt",
+        "memmachine.server",
     )
 
     # Verify LLM builder was called correctly

@@ -22,12 +22,13 @@ dependencies = [
     "openai>=1.104.2",
     "pgvector>=0.4.1",
     "prometheus-client>=0.22.1",
-    "psycopg2-binary>=2.9.11",
     "pydantic>=2.11.7",
     "pyyaml>=6.0.2",
     "rank-bm25>=0.2.2",
     "sqlalchemy>=2.0.43",
     "uvicorn>=0.35.0",
+    "greenlet>=3.2.4",
+    "tzdata>=2024.1 ; sys_platform == 'win32'",
 ]
 requires-python = ">= 3.12"
 authors = [
@@ -75,9 +76,89 @@ enable_error_code = ["deprecated"]
 exclude = ["venv/", ".venv/"]
 plugins = ['pydantic.mypy']
 
+
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP", "TID"]
-ignore = ["E501", "UP015"]
+select = [
+    "A",
+    "ANN",
+    "ARG",
+    "ASYNC",
+    "B",
+    "C4",
+    "C90",
+    "D",
+    "DTZ",
+    "E",
+    "F",
+    "FA",
+    "FAST",
+    "FURB",
+    "G",
+    "I",
+    "ICN",
+    "INP",
+    "INT",
+    "ISC",
+    "LOG",
+    "N",
+    "NPY",
+    "PERF",
+    "PIE",
+    "PLC",
+    "PT",
+    "PTH",
+    "PYI",
+    "Q",
+    "RET",
+    "RSE",
+    "RUF",
+    "SLF",
+    "SIM",
+    "T20",
+    "TID",
+    "TRY",
+    "UP",
+    "W",
+    "YTT",
+]
+ignore = [
+    "E501", "UP015", "TRY002", "PLC0415",
+    "D102", "D212", "D203", "RET504",
+    "TRY003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN", "D", "SLF", "ARG"]
+"tools/**/*.py" = ["SIM", "DTZ", "C9", "ANN", "T201", "PT", "INP", "PTH", "D"]
+"examples/**/*.py" = [
+    "ANN",
+    "ASYNC210",
+    "T201",
+    "D",
+    "ARG",
+    "T201",
+    "TRY401",
+    "C901",
+    "TRY300",
+    "PTH",
+]
+"evaluation/**/*.py" = [
+    "D",
+    "ARG",
+    "T201",
+    "ANN",
+    "PTH123",
+    "PTH120",
+    "PTH110",
+    "PTH100",
+    "ASYNC230",
+    "RUF001",
+    "N806",
+    "B023",
+    "B007",
+    "TRY300",
+    "PERF401",
+]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"
@@ -97,3 +178,8 @@ details = "low"
 color = "auto"
 sort = "desc"
 exclude = []
+
+[[tool.uv.sources.asyncpg]]
+git = "https://github.com/MagicStack/asyncpg.git"
+rev = "9e42642b9110d206706697921b6e697a0972649d"
+marker = "sys_platform == 'win32' and python_version == '3.14'"

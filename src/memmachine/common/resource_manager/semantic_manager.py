@@ -1,3 +1,5 @@
+"""Manager for semantic memory resources and services."""
+
 import asyncio
 
 from pydantic import InstanceOf
@@ -15,24 +17,31 @@ from memmachine.semantic_memory.semantic_session_manager import SemanticSessionM
 from memmachine.semantic_memory.semantic_session_resource import (
     SessionIdManager,
 )
+from memmachine.semantic_memory.storage.neo4j_semantic_storage import (
+    Neo4jSemanticStorage,
+)
 from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
     SqlAlchemyPgVectorSemanticStorage,
 )
+from memmachine.semantic_memory.storage.storage_base import SemanticStorage
 
 
 class SemanticResourceManager:
+    """Build and cache components used by semantic memory."""
+
     def __init__(
         self,
         *,
         semantic_conf: SemanticMemoryConf,
         prompt_conf: PromptConf,
         resource_manager: InstanceOf[CommonResourceManager],
-        history_storage: EpisodeStorage,
-    ):
+        episode_storage: EpisodeStorage,
+    ) -> None:
+        """Store configuration and supporting managers."""
         self._resource_manager = resource_manager
         self._conf = semantic_conf
         self._prompt_conf = prompt_conf
-        self._history_storage = history_storage
+        self._episode_storage = episode_storage
 
         self._simple_semantic_session_id_manager: SessionIdManager | None = None
         self._semantic_session_resource_manager: (
@@ -41,7 +50,8 @@ class SemanticResourceManager:
         self._semantic_service: SemanticService | None = None
         self._semantic_session_manager: SemanticSessionManager | None = None
 
-    async def close(self):
+    async def close(self) -> None:
+        """Stop semantic services if they were started."""
         tasks = []
 
         if self._semantic_service is not None:
@@ -51,6 +61,7 @@ class SemanticResourceManager:
 
     @property
     def simple_semantic_session_id_manager(self) -> SessionIdManager:
+        """Return the basic session id manager used for semantic isolation."""
         if self._simple_semantic_session_id_manager is not None:
             return self._simple_semantic_session_id_manager
 
@@ -60,18 +71,19 @@ class SemanticResourceManager:
     async def get_semantic_session_resource_manager(
         self,
     ) -> InstanceOf[ResourceRetriever]:
+        """Return a resource retriever for semantic sessions."""
         if self._semantic_session_resource_manager is not None:
             return self._semantic_session_resource_manager
 
-        semantic_categories_by_isolation = self._conf.prompt.default_semantic_categories
+        semantic_categories_by_isolation = self._prompt_conf.default_semantic_categories
 
         simple_session_id_manager = self.simple_semantic_session_id_manager
 
         default_embedder = await self._resource_manager.get_embedder(
-            self._conf.embedding_model
+            self._conf.embedding_model,
         )
         default_model = await self._resource_manager.get_language_model(
-            self._conf.llm_model
+            self._conf.llm_model,
         )
 
         class SemanticResourceRetriever:
@@ -89,28 +101,36 @@ class SemanticResourceManager:
         self._semantic_session_resource_manager = SemanticResourceRetriever()
         return self._semantic_session_resource_manager
 
+    async def _get_semantic_storage(self) -> SemanticStorage:
+        database = self._conf.database
+        try:
+            sql_engine = await self._resource_manager.get_sql_engine(database)
+            return SqlAlchemyPgVectorSemanticStorage(sql_engine)
+        except ValueError:
+            # try graph store
+            neo4j_engine = await self._resource_manager.get_neo4j_driver(database)
+            return Neo4jSemanticStorage(neo4j_engine)
+
     async def get_semantic_service(self) -> SemanticService:
+        """Return the semantic service, constructing it if needed."""
         if self._semantic_service is not None:
             return self._semantic_service
 
-        conf = self._conf.semantic_service
-
-        engine = await self._resource_manager.get_sql_engine(conf.database)
-        semantic_storage = SqlAlchemyPgVectorSemanticStorage(engine)
-
-        history_store = self._history_storage
+        semantic_storage = await self._get_semantic_storage()
+        episode_store = self._episode_storage
         resource_retriever = await self.get_semantic_session_resource_manager()
 
         self._semantic_service = SemanticService(
             SemanticService.Params(
                 semantic_storage=semantic_storage,
-                history_storage=history_store,
+                episode_storage=episode_store,
                 resource_retriever=resource_retriever,
-            )
+            ),
         )
         return self._semantic_service
 
-    async def get_semantic_session_manager(self):
+    async def get_semantic_session_manager(self) -> SemanticSessionManager:
+        """Return the semantic session manager, constructing if needed."""
         if self._semantic_session_manager is not None:
             return self._semantic_session_manager
 

@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -23,6 +24,7 @@ from memmachine.semantic_memory.semantic_session_resource import (
     SessionIdManager,
     SessionResourceRetriever,
 )
+from memmachine.server.prompt.profile_prompt import UserProfileSemanticCategory
 
 
 @pytest.fixture
@@ -35,15 +37,29 @@ def llm_model(real_llm_model):
     return real_llm_model
 
 
-@pytest.fixture
-def storage(pgvector_semantic_storage):
+@pytest_asyncio.fixture
+async def storage(pgvector_semantic_storage):
     yield pgvector_semantic_storage
-    pgvector_semantic_storage.delete_all()
+    await pgvector_semantic_storage.delete_all()
 
 
 @pytest.fixture
 def session_id_manager():
     return SessionIdManager()
+
+
+@pytest.fixture
+def session_types():
+    return [
+        UserProfileSemanticCategory,
+    ]
+
+
+@pytest.fixture
+def profile_types():
+    return [
+        UserProfileSemanticCategory,
+    ]
 
 
 @pytest.fixture
@@ -102,13 +118,13 @@ async def semantic_service(
     mem = SemanticService(
         SemanticService.Params(
             semantic_storage=storage,
-            history_storage=episode_storage,
+            episode_storage=episode_storage,
             resource_retriever=resource_retriever,
             feature_update_interval_sec=0.05,
             feature_update_message_limit=10,
             feature_update_time_limit_sec=0.05,
             debug_fail_loudly=True,
-        )
+        ),
     )
     await mem.start()
     yield mem
@@ -134,7 +150,7 @@ class TestLongMemEvalIngestion:
     ):
         for convo in conversation_sessions:
             for turn in convo:
-                h_id = await history_storage.add_history(
+                h_id = await history_storage.add_episode(
                     content=turn["content"],
                     session_key="session_id",
                     producer_id="profile_id",
@@ -142,7 +158,7 @@ class TestLongMemEvalIngestion:
                 )
                 await semantic_memory.add_message(
                     session_data=session_data,
-                    history_ids=[h_id],
+                    episode_ids=[h_id],
                 )
 
     @staticmethod
@@ -174,8 +190,9 @@ class TestLongMemEvalIngestion:
 
     @pytest.fixture
     def long_mem_raw_question(self):
-        with open("tests/data/longmemeval_snippet.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data_path = Path("tests/data/longmemeval_snippet.json")
+        with data_path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
         return data
 
     @pytest.fixture
@@ -210,7 +227,7 @@ class TestLongMemEvalIngestion:
             conversation_sessions=[smoke_convos],
         )
         count = 1
-        for i in range(60):
+        for _i in range(90):
             count = await semantic_memory.number_of_uningested_messages(
                 session_data=basic_session_data,
             )
@@ -247,7 +264,7 @@ class TestLongMemEvalIngestion:
             conversation_sessions=long_mem_convos,
         )
         count = 1
-        for i in range(1200):
+        for _i in range(1200):
             count = await semantic_memory.number_of_uningested_messages(
                 session_data=basic_session_data,
             )

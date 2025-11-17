@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr
 
-from memmachine.common.configuration import EmbedderConf
+from memmachine.common.configuration import EmbeddersConf
 from memmachine.common.configuration.embedder_conf import (
     AmazonBedrockEmbedderConfig,
     OpenAIEmbedderConf,
@@ -13,25 +13,25 @@ from memmachine.common.resource_manager.embedder_manager import EmbedderManager
 
 @pytest.fixture
 def mock_conf():
-    conf = EmbedderConf(
+    conf = EmbeddersConf(
         amazon_bedrock={
             "aws_embedder_id": AmazonBedrockEmbedderConfig(
                 model_id="amazon.embed-v1:0",
                 aws_access_key_id=SecretStr("<AWS_ACCESS_KEY_ID>"),
                 aws_secret_access_key=SecretStr("<AWS_SECRET_ACCESS_KEY>"),
                 region="us-east-1",
-            )
+            ),
         },
         openai={
             "openai_embedder_id": OpenAIEmbedderConf(
                 model="text-embedding-ada-002",
                 api_key=SecretStr("<OPENAI_API_KEY>"),
-            )
+            ),
         },
         sentence_transformer={
             "sentence_transformer_id": SentenceTransformerEmbedderConfig(
                 model="sentence-transformers/all-MiniLM-L6-v2",
-            )
+            ),
         },
     )
     return conf

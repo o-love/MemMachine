@@ -1,34 +1,38 @@
-import os.path
+"""Configuration models and helpers for MemMachine runtime."""
+
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any
+from typing import TypeGuard
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
-from memmachine.common.configuration.embedder_conf import EmbedderConf
+from memmachine.common.configuration.database_conf import DatabasesConf
+from memmachine.common.configuration.embedder_conf import EmbeddersConf
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConfPartial
+from memmachine.common.configuration.language_model_conf import LanguageModelsConf
 from memmachine.common.configuration.log_conf import LogConf
-from memmachine.common.configuration.model_conf import LanguageModelConf
-from memmachine.common.configuration.reranker_conf import RerankerConf
-from memmachine.common.configuration.storage_conf import StorageConf
+from memmachine.common.configuration.reranker_conf import RerankersConf
 from memmachine.semantic_memory.semantic_model import SemanticCategory
 from memmachine.semantic_memory.semantic_session_resource import IsolationType
 from memmachine.server.prompt.default_prompts import PREDEFINED_SEMANTIC_CATEGORIES
 
-from .episodic_config import EpisodicMemoryConfPartial
+YamlValue = dict[str, "YamlValue"] | list["YamlValue"] | str | int | float | bool | None
 
 
-class SessionDBConf(BaseModel):
-    uri: str = Field(
-        default="sqlitetest.db",
-        description="Database URI",
-    )
-    storage_id: str = Field(
+class SessionManagerConf(BaseModel):
+    """Configuration for the session database connection."""
+
+    database: str = Field(
         default="",
-        description="The storage ID to use for session DB",
+        description="The database ID to use for session manager",
     )
 
 
 class SemanticMemoryConf(BaseModel):
+    """Configuration for semantic memory defaults."""
+
     database: str = Field(
         ...,
         description="The database to use for semantic memory",
@@ -44,19 +48,7 @@ class SemanticMemoryConf(BaseModel):
 
 
 def _read_txt(filename: str) -> str:
-    """
-    Reads a text file and returns its contents as a string.
-
-    Behavior:
-      - If `filename` is an absolute path, read it directly.
-      - If `filename` is a relative path, read it from the current working directory.
-
-    Args:
-        filename (str): File name or absolute path. Optional.
-
-    Returns:
-        str: The file's content as a string.
-    """
+    """Read a text file into a string, resolving relative paths from CWD."""
     path = Path(filename)
     if not path.is_absolute():
         path = Path.cwd() / path
@@ -66,6 +58,8 @@ def _read_txt(filename: str) -> str:
 
 
 class PromptConf(BaseModel):
+    """Prompt configuration for semantic memory contexts."""
+
     profile: list[str] = Field(
         default=["profile_prompt", "writing_assistant_prompt"],
         description="The default prompts to use for semantic user memory",
@@ -89,11 +83,13 @@ class PromptConf(BaseModel):
 
     @classmethod
     def prompt_exists(cls, prompt_name: str) -> bool:
+        """Return True if the prompt name is known."""
         return prompt_name in PREDEFINED_SEMANTIC_CATEGORIES
 
     @field_validator("profile", "session", "role", check_fields=True)
     @classmethod
     def validate_profile(cls, v: list[str]) -> list[str]:
+        """Validate that provided prompts exist."""
         for prompt_name in v:
             if not cls.prompt_exists(prompt_name):
                 raise ValueError(f"Prompt {prompt_name} does not exist")
@@ -101,24 +97,27 @@ class PromptConf(BaseModel):
 
     @property
     def episode_summary_system_prompt(self) -> str:
+        """Load the system portion of the episode summary prompt."""
         file_path = self.episode_summary_system_prompt_path
         if not file_path:
-            txt = "dft_episode_summary_system_prompt.txt"
-            file_path = os.path.join(Path(__file__).parent, txt)
+            txt = "default_episode_summary_system_prompt.txt"
+            file_path = str(Path(__file__).parent / txt)
         return _read_txt(file_path)
 
     @property
     def episode_summary_user_prompt(self) -> str:
+        """Load the user portion of the episode summary prompt."""
         file_path = self.episode_summary_user_prompt_path
         if not file_path:
-            txt = "dft_episode_summary_user_prompt.txt"
-            file_path = os.path.join(Path(__file__).parent, txt)
+            txt = "default_episode_summary_user_prompt.txt"
+            file_path = str(Path(__file__).parent / txt)
         return _read_txt(file_path)
 
     @property
     def default_semantic_categories(
         self,
     ) -> dict[IsolationType, list[SemanticCategory]]:
+        """Build the default semantic categories for each isolation type."""
         semantic_categories = PREDEFINED_SEMANTIC_CATEGORIES
 
         return {
@@ -132,38 +131,49 @@ class PromptConf(BaseModel):
         }
 
 
-class Configuration(EpisodicMemoryConfPartial):
-    logging: LogConf
-    sessiondb: SessionDBConf
-    model: LanguageModelConf
-    storage: StorageConf
-    embedder: EmbedderConf
-    reranker: RerankerConf
-    prompt: PromptConf = PromptConf()
-    semantic_memory: SemanticMemoryConf
+class ResourcesConf(BaseModel):
+    """Configuration for MemMachine common resources."""
 
-    def __init__(self, **data):
+    embedders: EmbeddersConf
+    language_models: LanguageModelsConf
+    rerankers: RerankersConf
+    databases: DatabasesConf
+
+    def __init__(self, **data: object) -> None:
+        """Parse nested configuration sections into typed models."""
         data = data.copy()  # avoid mutating caller's dict
         super().__init__(**data)
-        self.model = LanguageModelConf.parse_language_model_conf(data)
-        self.storage = StorageConf.parse_storage_conf(data)
-        self.embedder = EmbedderConf.parse_embedder_conf(data)
-        self.reranker = RerankerConf.parse_reranker_conf(data)
+        self.embedders = EmbeddersConf.parse(data)
+        self.language_models = LanguageModelsConf.parse(data)
+        self.rerankers = RerankersConf.parse(data)
+        self.databases = DatabasesConf.parse(data)
+
+
+class Configuration(BaseModel):
+    """Aggregate configuration for MemMachine services."""
+
+    episodic_memory: EpisodicMemoryConfPartial
+    semantic_memory: SemanticMemoryConf
+    logging: LogConf
+    prompt: PromptConf = PromptConf()
+    session_manager: SessionManagerConf
+    resources: ResourcesConf
 
 
 def load_config_yml_file(config_file: str) -> Configuration:
+    """Load configuration from a YAML file path."""
+    config_path = Path(config_file)
     try:
-        yaml_config = yaml.safe_load(open(config_file, encoding="utf-8"))
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Config file {config_file} not found")
-    except yaml.YAMLError:
-        raise ValueError(f"Config file {config_file} is not valid YAML")
-    except Exception as e:
-        raise e
+        yaml_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as err:
+        raise FileNotFoundError(f"Config file {config_file} not found") from err
+    except yaml.YAMLError as err:
+        raise ValueError(f"Config file {config_file} is not valid YAML") from err
+    except Exception as err:
+        raise RuntimeError(f"Failed to load config file {config_file}") from err
 
-    def config_to_lowercase(data: Any) -> Any:
-        """Recursively converts all dictionary keys in a nested structure
-        to lowercase."""
+    def config_to_lowercase(data: YamlValue) -> YamlValue:
+        """Recursively convert dictionary keys in a nested structure to lowercase."""
         if isinstance(data, dict):
             return {k.lower(): config_to_lowercase(v) for k, v in data.items()}
         if isinstance(data, list):
@@ -171,4 +181,11 @@ def load_config_yml_file(config_file: str) -> Configuration:
         return data
 
     yaml_config = config_to_lowercase(yaml_config)
+
+    def is_mapping(val: YamlValue) -> TypeGuard[dict[str, YamlValue]]:
+        return isinstance(val, dict)
+
+    if not is_mapping(yaml_config):
+        raise TypeError(f"Root of YAML config '{config_path}' must be a mapping")
+
     return Configuration(**yaml_config)

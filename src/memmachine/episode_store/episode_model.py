@@ -1,9 +1,11 @@
+"""Data models for representing episodes and related enumerations."""
+
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 
-from memmachine.common.data_types import JSONValue
+from memmachine.common.data_types import FilterablePropertyValue
 
 EpisodeIdT = str
 
@@ -22,25 +24,21 @@ class EpisodeType(Enum):
     # Other episode types like 'thought', 'action' could be added here.
 
 
-FILTERABLE_VALUE = str | int | float | bool | datetime
-
-
 class Episode(BaseModel):
     """Conversation message stored in history together with persistence metadata."""
 
-    uuid: EpisodeIdT | None = None
+    uid: EpisodeIdT
     content: str
     session_key: str
-    sequence_num: int
     created_at: datetime
 
     producer_id: str
     producer_role: str
     produced_for_id: str | None = None
 
-    sequence_num: int | None = None
+    sequence_num: int = 0
 
-    episode_type: EpisodeType | None = None
-    content_type: ContentType | None = None
-    filterable_metadata: dict[str, FILTERABLE_VALUE] | None = None
-    metadata: dict[str, JSONValue] | None = None
+    episode_type: EpisodeType = EpisodeType.MESSAGE
+    content_type: ContentType = ContentType.STRING
+    filterable_metadata: dict[str, FilterablePropertyValue] | None = None
+    metadata: dict[str, JsonValue] | None = None

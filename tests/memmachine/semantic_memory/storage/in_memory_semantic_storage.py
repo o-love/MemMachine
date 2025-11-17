@@ -14,7 +14,7 @@ from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
-    SemanticStorageBase,
+    SemanticStorage,
 )
 
 
@@ -45,7 +45,7 @@ class _FeatureEntry:
     updated_at: datetime = field(default_factory=_utcnow)
 
 
-class InMemorySemanticStorage(SemanticStorageBase):
+class InMemorySemanticStorage(SemanticStorage):
     """In-memory implementation of :class:`SemanticStorageBase` used for testing."""
 
     def __init__(self):
@@ -166,7 +166,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
         limit: int | None = None,
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
+        vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
@@ -194,7 +194,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         tags: list[str] | None = None,
         thresh: int | None = None,
         limit: int | None = None,
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None = None,
+        vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
     ):
         async with self._lock:
             to_remove = self._filter_features(
@@ -260,6 +260,25 @@ class InMemorySemanticStorage(SemanticStorageBase):
             filtered_rows = self._filter_history_rows(rows, is_ingested)
             return len(filtered_rows)
 
+    async def get_history_set_ids(
+        self,
+        *,
+        min_uningested_messages: int | None = None,
+    ) -> list[str]:
+        async with self._lock:
+            if min_uningested_messages is None or min_uningested_messages <= 0:
+                return list(self._set_history_map.keys())
+
+            set_ids: list[str] = []
+            for set_id, history_map in self._set_history_map.items():
+                uningested_count = sum(
+                    1 for ingested in history_map.values() if not ingested
+                )
+                if uningested_count >= min_uningested_messages:
+                    set_ids.append(set_id)
+
+            return set_ids
+
     def _handle_set_change(
         self,
         entry: _FeatureEntry,
@@ -300,7 +319,10 @@ class InMemorySemanticStorage(SemanticStorageBase):
             entry.metadata = dict(metadata) if metadata else None
 
     def _move_feature_to_set(
-        self, entry: _FeatureEntry, feature_id: FeatureIdT, new_set_id: str
+        self,
+        entry: _FeatureEntry,
+        feature_id: FeatureIdT,
+        new_set_id: str,
     ) -> None:
         if new_set_id == entry.set_id:
             return
@@ -322,7 +344,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 self._feature_ids_by_set.pop(entry.set_id, None)
 
     def _history_rows_for_sets(
-        self, set_ids: list[str] | None
+        self,
+        set_ids: list[str] | None,
     ) -> list[tuple[EpisodeIdT, bool]]:
         rows = [
             (history_id, ingested)
@@ -335,7 +358,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     @staticmethod
     def _filter_history_rows(
-        rows: list[tuple[EpisodeIdT, bool]], is_ingested: bool | None
+        rows: list[tuple[EpisodeIdT, bool]],
+        is_ingested: bool | None,
     ) -> list[tuple[EpisodeIdT, bool]]:
         if is_ingested is None:
             return rows
@@ -412,7 +436,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
         feature_names: list[str] | None,
         tags: list[str] | None,
         k: int | None,
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None,
+        vector_search_opts: SemanticStorage.VectorSearchOpts | None,
         tag_threshold: int | None,
     ) -> list[_FeatureEntry]:
         entries = list(self._features_by_id.values())
@@ -463,7 +487,7 @@ class InMemorySemanticStorage(SemanticStorageBase):
     def _apply_vector_filter(
         self,
         entries: list[_FeatureEntry],
-        vector_search_opts: SemanticStorageBase.VectorSearchOpts | None,
+        vector_search_opts: SemanticStorage.VectorSearchOpts | None,
     ) -> list[_FeatureEntry]:
         if vector_search_opts is None:
             return sorted(entries, key=lambda e: (e.created_at, e.id))
@@ -471,10 +495,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
         scored_entries: list[tuple[float, _FeatureEntry]] = []
         for entry in entries:
             similarity = self._resolve_similarity(
-                entry.embedding, vector_search_opts.query_embedding
+                entry.embedding,
+                vector_search_opts.query_embedding,
             )
             if not self._passes_min_distance(
-                similarity, vector_search_opts.min_distance
+                similarity,
+                vector_search_opts.min_distance,
             ):
                 continue
             scored_entries.append((similarity, entry))
@@ -484,14 +510,16 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     @staticmethod
     def _apply_tag_threshold(
-        entries: list[_FeatureEntry], tag_threshold: int
+        entries: list[_FeatureEntry],
+        tag_threshold: int,
     ) -> list[_FeatureEntry]:
         counts = Counter(entry.tag for entry in entries)
         return [entry for entry in entries if counts[entry.tag] >= tag_threshold]
 
     @staticmethod
     def _resolve_similarity(
-        embedding: np.ndarray, query_embedding: np.ndarray
+        embedding: np.ndarray,
+        query_embedding: np.ndarray,
     ) -> float:
         similarity = _cosine_similarity(embedding, query_embedding)
         return similarity if similarity is not None else float("-inf")

@@ -1,3 +1,5 @@
+"""Core data models for semantic memory features and retrieval."""
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
@@ -47,7 +49,7 @@ class StructuredSemanticPrompt(BaseModel):
     def update_prompt(self) -> str:
         return semantic_prompt_template.build_update_prompt(
             tags=self.tags,
-            description=self.description,
+            description=self.description if self.description else "",
         )
 
     @property
@@ -107,6 +109,8 @@ class SemanticFeature(BaseModel):
 
 @runtime_checkable
 class SemanticPrompt(Protocol):
+    """Protocol describing prompt templates for semantic extraction."""
+
     @property
     def update_prompt(self) -> str:
         raise NotImplementedError

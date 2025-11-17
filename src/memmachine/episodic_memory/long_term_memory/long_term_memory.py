@@ -1,6 +1,8 @@
+"""Long-term declarative memory coordination."""
+
 from collections.abc import Iterable, Mapping
 from typing import cast
-from uuid import UUID
+from uuid import uuid4
 
 from pydantic import BaseModel, Field, InstanceOf
 
@@ -35,6 +37,7 @@ class LongTermMemoryParams(BaseModel):
             Embedder instance for creating embeddings.
         reranker (Reranker):
             Reranker instance for reranking search results.
+
     """
 
     session_id: str = Field(
@@ -56,24 +59,27 @@ class LongTermMemoryParams(BaseModel):
 
 
 class LongTermMemory:
-    def __init__(self, params: LongTermMemoryParams):
+    """High-level facade around the declarative memory store."""
+
+    def __init__(self, params: LongTermMemoryParams) -> None:
+        """Wire up the declarative memory backing store."""
         self._declarative_memory = DeclarativeMemory(
             DeclarativeMemoryParams(
                 session_id=params.session_id,
                 vector_graph_store=params.vector_graph_store,
                 embedder=params.embedder,
                 reranker=params.reranker,
-            )
+            ),
         )
 
-    async def add_episodes(self, episodes: Iterable[Episode]):
+    async def add_episodes(self, episodes: Iterable[Episode]) -> None:
         declarative_memory_episodes = [
             DeclarativeMemoryEpisode(
-                uuid=episode.uuid,
-                timestamp=episode.timestamp,
+                uid=episode.uid or str(uuid4()),
+                timestamp=episode.created_at,
                 source=episode.producer_id,
                 content_type=LongTermMemory._declarative_memory_content_type_from_episode(
-                    episode
+                    episode,
                 ),
                 content=episode.content,
                 filterable_properties={
@@ -88,8 +94,12 @@ class LongTermMemory:
                         "produced_for_id": episode.produced_for_id,
                     }.items()
                     if value is not None
+                }
+                | {
+                    LongTermMemory._mangle_filterable_metadata_key(key): value
+                    for key, value in (episode.filterable_metadata or {}).items()
                 },
-                user_metadata=episode.user_metadata,
+                user_metadata=episode.metadata,
             )
             for episode in episodes
         ]
@@ -100,7 +110,7 @@ class LongTermMemory:
         query: str,
         num_episodes_limit: int,
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
-    ):
+    ) -> list[Episode]:
         declarative_memory_episodes = await self._declarative_memory.search(
             query,
             max_num_episodes=num_episodes_limit,
@@ -108,16 +118,16 @@ class LongTermMemory:
         )
         return [
             LongTermMemory._episode_from_declarative_memory_episode(
-                declarative_memory_episode
+                declarative_memory_episode,
             )
             for declarative_memory_episode in declarative_memory_episodes
         ]
 
-    async def get_episodes(self, uuids: Iterable[UUID]) -> list[Episode]:
-        declarative_memory_episodes = await self._declarative_memory.get_episodes(uuids)
+    async def get_episodes(self, uids: Iterable[str]) -> list[Episode]:
+        declarative_memory_episodes = await self._declarative_memory.get_episodes(uids)
         return [
             LongTermMemory._episode_from_declarative_memory_episode(
-                declarative_memory_episode
+                declarative_memory_episode,
             )
             for declarative_memory_episode in declarative_memory_episodes
         ]
@@ -133,26 +143,26 @@ class LongTermMemory:
         )
         return [
             LongTermMemory._episode_from_declarative_memory_episode(
-                declarative_memory_episode
+                declarative_memory_episode,
             )
             for declarative_memory_episode in declarative_memory_episodes
         ]
 
-    async def delete_episodes(self, uuids: Iterable[UUID]):
-        await self._declarative_memory.delete_episodes(uuids)
+    async def delete_episodes(self, uids: Iterable[str]) -> None:
+        await self._declarative_memory.delete_episodes(uids)
 
     async def delete_matching_episodes(
         self,
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
-    ):
-        self._declarative_memory.delete_episodes(
-            episode.uuid
+    ) -> None:
+        await self._declarative_memory.delete_episodes(
+            episode.uid
             for episode in await self._declarative_memory.get_matching_episodes(
-                property_filter=property_filter
+                property_filter=property_filter,
             )
         )
 
-    async def close(self):
+    async def close(self) -> None:
         # Do nothing.
         pass
 
@@ -179,46 +189,72 @@ class LongTermMemory:
         declarative_memory_episode: DeclarativeMemoryEpisode,
     ) -> Episode:
         return Episode(
-            uuid="declarative-" + str(declarative_memory_episode.uuid),
+            uid=declarative_memory_episode.uid,
             sequence_num=cast(
-                int,
+                "int",
                 declarative_memory_episode.filterable_properties.get("sequence_num", 0),
             ),
             session_key=cast(
-                str,
+                "str",
                 declarative_memory_episode.filterable_properties.get("session_key", ""),
             ),
             episode_type=EpisodeType(
                 cast(
-                    str,
+                    "str",
                     declarative_memory_episode.filterable_properties.get(
-                        "episode_type", ""
+                        "episode_type",
+                        "",
                     ),
-                )
+                ),
             ),
             content_type=ContentType(
                 cast(
-                    str,
+                    "str",
                     declarative_memory_episode.filterable_properties.get(
-                        "content_type", ""
+                        "content_type",
+                        "",
                     ),
-                )
+                ),
             ),
             content=declarative_memory_episode.content,
             created_at=declarative_memory_episode.timestamp,
             producer_id=cast(
-                str,
+                "str",
                 declarative_memory_episode.filterable_properties.get("producer_id", ""),
             ),
             producer_role=cast(
-                str,
+                "str",
                 declarative_memory_episode.filterable_properties.get(
-                    "producer_role", ""
+                    "producer_role",
+                    "",
                 ),
             ),
             produced_for_id=cast(
-                str | None,
+                "str | None",
                 declarative_memory_episode.filterable_properties.get("produced_for_id"),
             ),
+            filterable_metadata={
+                LongTermMemory._demangle_filterable_metadata_key(key): value
+                for key, value in declarative_memory_episode.filterable_properties.items()
+                if LongTermMemory._is_mangled_filterable_metadata_key(key)
+            },
             metadata=declarative_memory_episode.user_metadata,
+        )
+
+    _MANGLE_FILTERABLE_METADATA_KEY_PREFIX = "filterable_"
+
+    @staticmethod
+    def _mangle_filterable_metadata_key(key: str) -> str:
+        return LongTermMemory._MANGLE_FILTERABLE_METADATA_KEY_PREFIX + key
+
+    @staticmethod
+    def _demangle_filterable_metadata_key(mangled_key: str) -> str:
+        return mangled_key.removeprefix(
+            LongTermMemory._MANGLE_FILTERABLE_METADATA_KEY_PREFIX
+        )
+
+    @staticmethod
+    def _is_mangled_filterable_metadata_key(candidate_key: str) -> bool:
+        return candidate_key.startswith(
+            LongTermMemory._MANGLE_FILTERABLE_METADATA_KEY_PREFIX
         )

@@ -25,7 +25,10 @@ class TestMemMachineClient:
     def test_init_custom_values(self):
         """Test client initialization with custom values."""
         client = MemMachineClient(
-            api_key="test_key", base_url="http://test:9000", timeout=60, max_retries=5
+            api_key="test_key",
+            base_url="http://test:9000",
+            timeout=60,
+            max_retries=5,
         )
 
         assert client.api_key == "test_key"

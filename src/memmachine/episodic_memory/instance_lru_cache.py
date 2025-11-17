@@ -1,36 +1,44 @@
-from datetime import datetime
-from typing import Any, cast
+"""LRU cache implementation for managing episodic memory instances."""
+
+import asyncio
+from collections.abc import Coroutine
+from datetime import UTC, datetime
+from typing import cast
 
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 
 
 class Node:
     """
-    Node for the doubly linked list.
+    Represent a node for the doubly linked list.
+
     Each node stores a key-value pair.
     """
 
-    def __init__(self, key: str | None, value: EpisodicMemory | None):
+    def __init__(self, key: str | None, value: EpisodicMemory | None) -> None:
+        """Initialize a node with an optional key/value pair."""
         self.key = key
         self.value = value
         self.ref_count = 1
-        self.last_access = datetime.now()
+        self.last_access = datetime.now(tz=UTC)
         self.prev: Node = self
         self.next: Node = self
 
 
 class MemoryInstanceCache:
     """
-    A Least Recently Used (LRU) Cache implementation that manage memory instances.
+    Implement an LRU cache that manages memory instances.
 
     Attributes:
         capacity (int): The maximum number of items the cache can hold.
         cache (dict): A dictionary mapping keys to Node objects for O(1) lookups.
         head (Node): A sentinel head node for the doubly linked list.
         tail (Node): A sentinel tail node for the doubly linked list.
+
     """
 
-    def __init__(self, capacity: int, max_lifetime: int):
+    def __init__(self, capacity: int, max_lifetime: int) -> None:
+        """Initialize the cache with capacity and lifetime limits."""
         if capacity <= 0:
             raise ValueError("Capacity must be a positive integer")
         self.capacity = capacity
@@ -45,8 +53,9 @@ class MemoryInstanceCache:
         self.head.next = self.tail
         self.tail.prev = self.head
 
-    def _remove_node(self, node: Node) -> None:
-        """Removes a node from the doubly linked list."""
+    @staticmethod
+    def _remove_node(node: Node) -> None:
+        """Remove a node from the doubly linked list."""
         if node.prev and node.next:
             prev_node = node.prev
             next_node = node.next
@@ -54,7 +63,7 @@ class MemoryInstanceCache:
             next_node.prev = prev_node
 
     def _add_to_front(self, node: Node) -> None:
-        """Adds a node to the front of the doubly linked list (right after head)."""
+        """Add a node to the front of the doubly linked list (right after head)."""
         node.prev = self.head
         node.next = self.head.next
         if self.head.next:
@@ -62,23 +71,17 @@ class MemoryInstanceCache:
         self.head.next = node
 
     def clear(self) -> None:
-        """
-        Removes all items from the cache.
-        """
+        """Remove all items from the cache."""
         self.cache.clear()
         self.head.next = self.tail
         self.tail.prev = self.head
 
     def keys(self) -> list[str]:
-        """
-        Returns a list of all keys in the cache.
-        """
+        """Return a list of all keys in the cache."""
         return list(self.cache.keys())
 
     def erase(self, key: str) -> None:
-        """
-        Removes an item from the cache.
-        """
+        """Remove an item from the cache."""
         if key in self.cache:
             node = self.cache[key]
             if node.ref_count > 0:
@@ -88,7 +91,8 @@ class MemoryInstanceCache:
 
     def get(self, key: str) -> EpisodicMemory | None:
         """
-        Retrieves an item from the cache.
+        Retrieve an item from the cache.
+
         Returns the value if the key exists, otherwise -1 (or None/raise KeyError).
         Moves the accessed item to the front (most recently used).
         """
@@ -98,23 +102,33 @@ class MemoryInstanceCache:
             # Move accessed node to the front
             self._remove_node(node)
             self._add_to_front(node)
-            node.last_access = datetime.now()
+            node.last_access = datetime.now(tz=UTC)
             return node.value
         return None
 
-    def get_ref_count(self, key: Any) -> int:
+    def get_ref_count(self, key: str) -> int:
         """
-        Retrieves the reference count of an item in the cache.
+        Retrieve the reference count of an item in the cache.
+
         Returns the reference count if the key exists, otherwise -1.
         """
         if key in self.cache:
             return self.cache[key].ref_count
         return -1
 
-    async def add(self, key: str, value: EpisodicMemory):
-        """
-        Adds a new item to the cache.
-        """
+    async def clear_cache(self) -> None:
+        """Clear all items from the cache."""
+        close_memory_coroutines: list[Coroutine] = []
+        close_memory_coroutines.extend(
+            cast(EpisodicMemory, node.value).close() for node in self.cache.values()
+        )
+        await asyncio.gather(*close_memory_coroutines)
+        self.cache.clear()
+        self.head.next = self.tail
+        self.tail.prev = self.head
+
+    async def add(self, key: str, value: EpisodicMemory) -> None:
+        """Add a new item to the cache."""
         if key in self.cache:
             raise ValueError(f"Key {key} already exists")
 
@@ -122,13 +136,13 @@ class MemoryInstanceCache:
         lru_node = self.tail.prev
         while len(self.cache) >= self.capacity and lru_node != self.head:
             if lru_node.ref_count > 0:
-                lru_node = cast(Node, lru_node.prev)
+                lru_node = cast("Node", lru_node.prev)
                 continue
             tmp = lru_node.prev
             self._remove_node(lru_node)
             if lru_node.value is not None:
                 await lru_node.value.close()
-            del self.cache[cast(str, lru_node.key)]
+            del self.cache[cast("str", lru_node.key)]
             lru_node = tmp
 
         new_node = Node(key, value)
@@ -136,9 +150,7 @@ class MemoryInstanceCache:
         self._add_to_front(new_node)
 
     def put(self, key: str) -> None:
-        """
-        Release the object reference.
-        """
+        """Release the object reference."""
         if key in self.cache:
             # Update existing key's value and move it to the front
             node = self.cache[key]
@@ -148,20 +160,18 @@ class MemoryInstanceCache:
             raise ValueError(f"Key {key} does not exist")
 
     async def clean_old_instance(self) -> None:
-        """
-        Remove unused instance with long lifetime.
-        """
-        now = datetime.now()
+        """Remove unused instance with long lifetime."""
+        now = datetime.now(tz=UTC)
         lru_node = self.tail.prev
         while lru_node != self.head:
             if lru_node.ref_count > 0:
-                lru_node = cast(Node, lru_node.prev)
+                lru_node = cast("Node", lru_node.prev)
                 continue
             tmp = lru_node.prev
             if (now - lru_node.last_access).total_seconds() > self.max_lifetime:
                 self._remove_node(lru_node)
                 if lru_node.value is not None:
                     await lru_node.value.close()
-                del self.cache[cast(str, lru_node.key)]
+                del self.cache[cast("str", lru_node.key)]
                 lru_node = self.tail.prev
             lru_node = tmp

@@ -7,7 +7,7 @@ from memmachine.common.configuration.reranker_conf import (
     AmazonBedrockRerankerConf,
     BM25RerankerConf,
     CrossEncoderRerankerConf,
-    RerankerConf,
+    RerankersConf,
     RRFHybridRerankerConf,
 )
 from memmachine.common.embedder import Embedder
@@ -16,26 +16,26 @@ from memmachine.common.resource_manager.reranker_manager import RerankerManager
 
 @pytest.fixture
 def mock_conf():
-    conf = RerankerConf(
+    conf = RerankersConf(
         rrf_hybrid={
             "my_reranker_id": RRFHybridRerankerConf(
                 reranker_ids=["bm_ranker_id", "ce_ranker_id", "id_ranker_id"],
-            )
+            ),
         },
         identity={"id_ranker_id": {}},
         bm25={"bm_ranker_id": BM25RerankerConf(tokenize="simple")},
         cross_encoder={
             "ce_ranker_id": CrossEncoderRerankerConf(
                 model_name="cross-encoder/qnli-electra-base",
-            )
+            ),
         },
         amazon_bedrock={
             "aws_reranker_id": AmazonBedrockRerankerConf(
                 model_id="amazon.rerank-v1:0",
                 aws_access_key_id=SecretStr("<AWS_ACCESS_KEY_ID>"),
                 aws_secret_access_key=SecretStr("<AWS_SECRET_ACCESS_KEY>"),
-                region="us-east-1",
-            )
+                region="us-west-2",
+            ),
         },
     )
     return conf
@@ -73,7 +73,8 @@ async def test_lazy_initialization(reranker_manager):
 @pytest.mark.asyncio
 async def test_reranker_not_found(reranker_manager):
     with pytest.raises(
-        ValueError, match="Reranker with name unknown_reranker_id not found."
+        ValueError,
+        match=r"Reranker with name unknown_reranker_id not found\.",
     ):
         await reranker_manager.get_reranker("unknown_reranker_id")
 

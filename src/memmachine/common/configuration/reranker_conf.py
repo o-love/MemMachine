@@ -1,31 +1,23 @@
+"""Reranker configuration models."""
+
 from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr
 
 
 class BM25RerankerConf(BaseModel):
-    """
-    Parameters for BM25Reranker.
-
-    Attributes:
-        k1 (float):
-            BM25 k1 parameter (default: 1.5).
-        b (float):
-            BM25 b parameter (default: 0.75).
-        epsilon (float):
-            BM25 epsilon parameter (default: 0.25).
-        tokenizer (str):
-            Tokenizer function to split text into tokens ('default' | 'simple') (default: 'default').
-    """
+    """Parameters for BM25Reranker."""
 
     k1: float = Field(default=1.5, description="BM25 k1 parameter")
     b: float = Field(default=0.75, description="BM25 b parameter")
     epsilon: float = Field(default=0.25, description="BM25 epsilon parameter")
     tokenizer: str = Field(
-        default="default", description="Tokenizer function to split text into tokens"
+        default="default",
+        description="Tokenizer function to split text into tokens",
     )
     language: str = Field(
-        default="english", description="Language for stop words in default tokenizer"
+        default="english",
+        description="Language for stop words in default tokenizer",
     )
 
 
@@ -34,13 +26,20 @@ class AmazonBedrockRerankerConf(BaseModel):
 
     model_id: str = Field(..., description="The Bedrock model ID to use for reranking")
     region: str = Field(
-        default="us-west-2", description="The AWS region of the Bedrock service"
+        ...,
+        description="The AWS region of the Bedrock service",
     )
-    aws_access_key_id: SecretStr = Field(
-        ..., description="The AWS access key ID for Bedrock authentication"
+    aws_access_key_id: SecretStr | None = Field(
+        ...,
+        description="AWS access key ID for authentication.",
     )
-    aws_secret_access_key: SecretStr = Field(
-        ..., description="The AWS secret access key for Bedrock authentication"
+    aws_secret_access_key: SecretStr | None = Field(
+        ...,
+        description="AWS secret access key for authentication.",
+    )
+    aws_session_token: SecretStr | None = Field(
+        default=None,
+        description="AWS session token for authentication.",
     )
     additional_model_request_fields: dict = Field(
         default_factory=dict,
@@ -70,8 +69,6 @@ class EmbedderRerankerConf(BaseModel):
 class IdentityRerankerConf(BaseModel):
     """Parameters for IdentityReranker."""
 
-    pass
-
 
 class RRFHybridRerankerConf(BaseModel):
     """Parameters for RrfHybridReranker."""
@@ -84,7 +81,9 @@ class RRFHybridRerankerConf(BaseModel):
     k: int = Field(default=60, description="The k parameter for RRF scoring")
 
 
-class RerankerConf(BaseModel):
+class RerankersConf(BaseModel):
+    """Top-level configuration for available rerankers."""
+
     bm25: dict[str, BM25RerankerConf] = {}
     amazon_bedrock: dict[str, AmazonBedrockRerankerConf] = {}
     cross_encoder: dict[str, CrossEncoderRerankerConf] = {}
@@ -93,10 +92,9 @@ class RerankerConf(BaseModel):
     rrf_hybrid: dict[str, RRFHybridRerankerConf] = {}
 
     @classmethod
-    def parse_reranker_conf(cls, input_dict: dict) -> Self:
-        reranker = input_dict
-        if "reranker" in input_dict:
-            reranker = input_dict.get("reranker")
+    def parse(cls, input_dict: dict) -> Self:
+        """Parse reranker configuration from a raw mapping."""
+        reranker = input_dict.get("rerankers", {})
 
         bm25_dict = {}
         amazon_bedrock_dict = {}
@@ -104,24 +102,25 @@ class RerankerConf(BaseModel):
         embedder_dict = {}
         identity_dict = {}
         rrf_hybrid_dict = {}
+
         for reranker_id, value in reranker.items():
-            vendor = value.get("provider").lower()
+            provider = value.get("provider")
             conf = value.get("config", {})
-            if vendor == "bm25":
+            if provider == "bm25":
                 bm25_dict[reranker_id] = BM25RerankerConf(**conf)
-            elif vendor == "amazon-bedrock":
+            elif provider == "amazon-bedrock":
                 amazon_bedrock_dict[reranker_id] = AmazonBedrockRerankerConf(**conf)
-            elif vendor == "cross-encoder":
+            elif provider == "cross-encoder":
                 cross_encoder_dict[reranker_id] = CrossEncoderRerankerConf(**conf)
-            elif vendor == "embedder":
+            elif provider == "embedder":
                 embedder_dict[reranker_id] = EmbedderRerankerConf(**conf)
-            elif vendor == "identity":
+            elif provider == "identity":
                 identity_dict[reranker_id] = IdentityRerankerConf()
-            elif vendor == "rrf-hybrid":
+            elif provider == "rrf-hybrid":
                 rrf_hybrid_dict[reranker_id] = RRFHybridRerankerConf(**conf)
             else:
                 raise ValueError(
-                    f"Unknown reranker_type '{vendor}' for reranker id '{reranker_id}'"
+                    f"Unknown reranker_type '{provider}' for reranker id '{reranker_id}'",
                 )
 
         return cls(
