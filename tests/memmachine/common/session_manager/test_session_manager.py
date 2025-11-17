@@ -2,11 +2,11 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
+from memmachine.session_manager import SessionDataManagerImpl
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.metrics_factory import MetricsFactory
 from memmachine.episodic_memory.episodic_memory import EpisodicMemoryParams
-from memmachine.session_manager import SessionDataManagerImpl
 
 
 @pytest.fixture

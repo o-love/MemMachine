@@ -3,19 +3,33 @@ import asyncio
 from memmachine.common.configuration import Configuration
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
+from memmachine.common.metrics_factory import MetricsFactory
+from memmachine.common.metrics_factory.prometheus_metrics_factory import (
+    PrometheusMetricsFactory,
+)
 from memmachine.common.reranker import Reranker
 from memmachine.common.resource_manager.embedder_manager import EmbedderManager
 from memmachine.common.resource_manager.language_model_manager import (
     LanguageModelManager,
 )
 from memmachine.common.resource_manager.reranker_manager import RerankerManager
+from memmachine.common.resource_manager.semantic_manager import SemanticResourceManager
 from memmachine.common.resource_manager.storage_manager import StorageManager
+from memmachine.common.session_manager.session_data_manager import SessionDataManager
+from memmachine.common.session_manager.session_data_manager_sql_impl import (
+    SessionDataManagerSQL,
+)
 from memmachine.common.vector_graph_store import VectorGraphStore
-from memmachine.common.metrics_factory import MetricsFactory, PrometheusMetricsFactory
+from memmachine.episodic_memory.episodic_memory_manager import (
+    EpisodicMemoryManager,
+    EpisodicMemoryManagerParams,
+)
+from memmachine.history_store.history_sqlalchemy_store import SqlAlchemyHistoryStore
+from memmachine.history_store.history_storage import HistoryStorage
+from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 
 
-
-class ResourceManager:
+class ResourceManagerImpl:
     def __init__(self, conf: Configuration):
         self._conf = conf
         self._conf.logging.apply()
@@ -25,7 +39,15 @@ class ResourceManager:
             self._conf.model
         )
         self._reranker_manager: RerankerManager = RerankerManager(self._conf.reranker)
-        self._metric_factory: dict[str, MetricsFactory] = {"prometheus": PrometheusMetricsFactory}
+        self._metric_factory: dict[str, MetricsFactory] = {
+            "prometheus": PrometheusMetricsFactory
+        }
+
+        self._session_data_manager: SessionDataManager | None = None
+        self._episodic_memory_manager: EpisodicMemoryManager | None = None
+
+        self._history_storage: HistoryStorage | None = None
+        self._semantic_manager: SemanticResourceManager | None = None
 
     def build(self):
         self._storage_manager.build_all(validate=True)
@@ -56,3 +78,51 @@ class ResourceManager:
 
     def get_metrics_factory(self, name: str) -> MetricsFactory:
         return self._metric_factory.get(name)
+
+    @property
+    def session_data_manager(self) -> SessionDataManager:
+        if self._session_data_manager is not None:
+            return self._session_data_manager
+        engine = self._storage_manager.get_sql_engine(self._conf.sessiondb.storage_id)
+        self._session_data_manager = SessionDataManagerSQL(engine)
+        return self._session_data_manager
+
+    @property
+    def episodic_memory_manager(self) -> EpisodicMemoryManager:
+        if self._episodic_memory_manager is not None:
+            return self._episodic_memory_manager
+        params = EpisodicMemoryManagerParams(
+            resource_manager=self,
+            session_data_manager=self.session_data_manager,
+        )
+        self._episodic_memory_manager = EpisodicMemoryManager(params)
+        return self._episodic_memory_manager
+
+    @property
+    def history_storage(self) -> HistoryStorage:
+        if self._history_storage is not None:
+            return self._history_storage
+
+        conf = self._conf.history_storage
+        engine = self._storage_manager.get_sql_engine(conf.database)
+
+        self._history_storage = SqlAlchemyHistoryStore(engine)
+
+        return self._history_storage
+
+    @property
+    def semantic_manager(self):
+        if self._semantic_manager is not None:
+            return self._semantic_manager
+
+        self._semantic_manager = SemanticResourceManager(
+            semantic_conf=self._conf.semantic_memory,
+            prompt_conf=self._conf.prompt,
+            resource_manager=self,
+            history_storage=self.history_storage,
+        )
+        return self._semantic_manager
+
+    @property
+    def semantic_session_manager(self) -> SemanticSessionManager:
+        return self.semantic_manager.semantic_session_manager

@@ -1,12 +1,14 @@
+from pydantic import InstanceOf
+
 from memmachine.common.configuration.episodic_config import LongTermMemoryConf
-from memmachine.common.resource_manager import ResourceManager
+from memmachine.common.resource_manager import CommonResourceManager
 
 from .long_term_memory import LongTermMemoryParams
 
 
 def long_term_memory_params_from_config(
     config: LongTermMemoryConf,
-    resource_manager: ResourceManager,
+    resource_manager: InstanceOf[CommonResourceManager],
 ) -> LongTermMemoryParams:
     return LongTermMemoryParams(
         session_id=config.session_id,

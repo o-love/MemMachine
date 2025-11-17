@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.metrics_factory import MetricsFactory
-from memmachine.common.resource_manager import ResourceManager
+from memmachine.common.resource_manager import CommonResourceManager
 from memmachine.common.session_manager.session_data_manager_sql_impl import (
     SessionDataManagerSQL,
 )
@@ -79,7 +79,7 @@ def mock_metrics_factory():
 @pytest.fixture
 def mock_resource_manager(mock_metrics_factory):
     """Fixture for a mocked ResourceManager."""
-    resource_manager = MagicMock(spec=ResourceManager)
+    resource_manager = MagicMock(spec=CommonResourceManager)
     resource_manager.get_language_model.return_value = AsyncMock(spec=LanguageModel)
     resource_manager.get_metrics_factory.return_value = mock_metrics_factory
     return resource_manager

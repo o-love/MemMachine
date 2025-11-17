@@ -28,7 +28,6 @@ from sqlalchemy.orm import (
 )
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
-
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
 
 

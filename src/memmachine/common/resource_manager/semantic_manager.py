@@ -3,11 +3,7 @@ import asyncio
 from pydantic import InstanceOf
 
 from memmachine.common.configuration import PromptConf, SemanticMemoryConf
-from memmachine.common.resource_manager import (
-    EmbedderManager,
-    LanguageModelManager,
-    StorageManager,
-)
+from memmachine.common.resource_manager import CommonResourceManager
 from memmachine.history_store.history_storage import HistoryStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
@@ -27,18 +23,15 @@ from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
 class SemanticResourceManager:
     def __init__(
         self,
+        *,
         semantic_conf: SemanticMemoryConf,
         prompt_conf: PromptConf,
-        storage_manager: StorageManager,
-        embedder_manager: EmbedderManager,
-        model_manager: LanguageModelManager,
+        resource_manager: CommonResourceManager,
         history_storage: HistoryStorage,
     ):
+        self._resource_manager = resource_manager
         self._conf = semantic_conf
         self._prompt_conf = prompt_conf
-        self._storage_manager = storage_manager
-        self._embedder_manager = embedder_manager
-        self._model_manager = model_manager
         self._history_storage = history_storage
 
         self._simple_semantic_session_id_manager: SessionIdManager | None = None
@@ -73,10 +66,10 @@ class SemanticResourceManager:
 
         simple_session_id_manager = self.simple_semantic_session_id_manager
 
-        default_embedder = self._embedder_manager.get_embedder(
+        default_embedder = self._resource_manager.get_embedder(
             self._conf.embedding_model
         )
-        default_model = self._model_manager.get_language_model(self._conf.llm_model)
+        default_model = self._resource_manager.get_language_model(self._conf.llm_model)
 
         class SemanticResourceRetriever:
             def get_resources(self, set_id: SetIdT) -> Resources:
@@ -100,7 +93,7 @@ class SemanticResourceManager:
 
         conf = self._conf.semantic_service
 
-        engine = self._storage_manager.get_sql_engine(conf.database)
+        engine = self._resource_manager.get_sql_engine(conf.database)
         semantic_storage = SqlAlchemyPgVectorSemanticStorage(engine)
 
         history_store = self._history_storage

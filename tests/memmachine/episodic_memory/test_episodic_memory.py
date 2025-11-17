@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, call, create_autospec
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
 
 from memmachine.common.metrics_factory import MetricsFactory
 from memmachine.episodic_memory.episodic_memory import (
