@@ -180,7 +180,9 @@ async def test_get_feature_set_min_cos_vector_search(
 
 
 @pytest.mark.asyncio
-async def test_set_embedding_length_fixed_per_set(semantic_storage: SemanticStorageBase):
+async def test_set_embedding_length_fixed_per_set(
+    semantic_storage: SemanticStorageBase,
+):
     if getattr(semantic_storage, "backend_name", None) != "neo4j":
         pytest.skip("Neo4j-specific validation")
 

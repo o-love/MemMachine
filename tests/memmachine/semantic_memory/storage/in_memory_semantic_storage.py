@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 from pydantic import InstanceOf
@@ -472,7 +473,9 @@ class InMemorySemanticStorage(SemanticStorageBase):
             similarity = self._resolve_similarity(
                 entry.embedding, vector_search_opts.query_embedding
             )
-            if not self._passes_min_distance(similarity, vector_search_opts.min_distance):
+            if not self._passes_min_distance(
+                similarity, vector_search_opts.min_distance
+            ):
                 continue
             scored_entries.append((similarity, entry))
 

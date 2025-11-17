@@ -6,10 +6,10 @@ from unittest.mock import MagicMock
 
 import pytest
 import yaml
+from memmachine.episodic_memory_manager import EpisodicMemoryManager
 
 from memmachine.common.embedder import Embedder
 from memmachine.common.language_model import LanguageModel
-from memmachine.episodic_memory_manager import EpisodicMemoryManager
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,

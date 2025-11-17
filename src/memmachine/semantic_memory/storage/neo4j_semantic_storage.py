@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import re
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -20,7 +20,7 @@ from memmachine.semantic_memory.storage.storage_base import (
 
 
 def _utc_timestamp() -> float:
-    return datetime.now(timezone.utc).timestamp()
+    return datetime.now(UTC).timestamp()
 
 
 @dataclass
@@ -125,12 +125,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             index_name = record_data.get("name")
             if not index_name:
                 continue
-            await self._driver.execute_query(
-                f"DROP INDEX {index_name} IF EXISTS"
-            )
+            await self._driver.execute_query(f"DROP INDEX {index_name} IF EXISTS")
         self._vector_index_by_set.clear()
         self._set_embedding_dimensions.clear()
-
 
     async def add_feature(
         self,
@@ -289,7 +286,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         return assignments, params
 
     @staticmethod
-    def _embedding_param(embedding: InstanceOf[np.ndarray] | None) -> list[float] | None:
+    def _embedding_param(
+        embedding: InstanceOf[np.ndarray] | None,
+    ) -> list[float] | None:
         if embedding is None:
             return None
         return [float(x) for x in np.array(embedding, dtype=float).tolist()]
@@ -918,8 +917,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         if not records:
             return None
         record = dict(records[0])
-        if record.get("embedding_dimensions") is None and record.get(
-            "resolved_dimensions"
-        ) is not None:
+        if (
+            record.get("embedding_dimensions") is None
+            and record.get("resolved_dimensions") is not None
+        ):
             record["embedding_dimensions"] = record["resolved_dimensions"]
         return record

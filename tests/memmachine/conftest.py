@@ -7,7 +7,7 @@ import pytest_asyncio
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import StaticPool
 from sqlalchemy.engine import URL
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from testcontainers.neo4j import Neo4jContainer
 from testcontainers.postgres import PostgresContainer
 

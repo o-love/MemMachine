@@ -8,17 +8,21 @@ from ..configuration.reranker_conf import RerankerConf
 from ..embedder import Embedder
 from ..reranker import Reranker
 
+
 @runtime_checkable
 class EmbedderFactory(Protocol):
     async def get_embedder(self, name: str) -> Embedder:
         raise NotImplementedError
+
 
 class RerankerManager:
     def __init__(self, conf: RerankerConf):
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}
 
-    async def build_all(self, embedder_factory: InstanceOf[EmbedderFactory]) -> dict[str, Reranker]:
+    async def build_all(
+        self, embedder_factory: InstanceOf[EmbedderFactory]
+    ) -> dict[str, Reranker]:
         self._build_bm25_rerankers()
         self._build_cross_encoder_rerankers()
         self._build_amazon_bedrock_rerankers()

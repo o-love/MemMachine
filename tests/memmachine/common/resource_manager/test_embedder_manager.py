@@ -36,6 +36,7 @@ def mock_conf():
     )
     return conf
 
+
 @pytest.mark.asyncio
 async def test_build_amazon_bedrock_embedders(mock_conf):
     builder = EmbedderManager(mock_conf)

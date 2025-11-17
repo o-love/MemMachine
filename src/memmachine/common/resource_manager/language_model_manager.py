@@ -1,6 +1,7 @@
 """
 Builder for LanguageModel instances.
 """
+
 import asyncio
 from asyncio import Lock
 
@@ -45,7 +46,6 @@ class LanguageModelManager:
             self._language_models[name] = llm_model
             return llm_model
 
-
     def _build_language_model(self, name: str) -> LanguageModel:
         if name in self.conf.openai_confs:
             return self._build_openai_model(name)
@@ -57,7 +57,9 @@ class LanguageModelManager:
             raise ValueError(f"Language model with name {name} not found.")
 
     def _build_openai_model(self, name: str) -> LanguageModel:
-        from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
+        from memmachine.common.language_model.openai_language_model import (
+            OpenAILanguageModel,
+        )
 
         conf = self.conf.openai_confs[name]
         return OpenAILanguageModel(conf)

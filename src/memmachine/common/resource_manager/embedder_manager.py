@@ -1,7 +1,6 @@
 import asyncio
 from asyncio import Lock
 
-
 from memmachine.common.configuration.embedder_conf import EmbedderConf
 from memmachine.common.embedder import Embedder
 
@@ -109,17 +108,16 @@ class EmbedderManager:
     def _build_sentence_transformer_embedders(self, name: str) -> Embedder:
         conf = self.conf.sentence_transformer[name]
 
+        from sentence_transformers import SentenceTransformer
+
         from ..embedder.sentence_transformer_embedder import (
             SentenceTransformerEmbedder,
             SentenceTransformerEmbedderParams,
         )
-        from sentence_transformers import SentenceTransformer
 
         model_name = conf.model
 
-        sentence_transformer = SentenceTransformer(
-            model_name
-        )
+        sentence_transformer = SentenceTransformer(model_name)
 
         params = SentenceTransformerEmbedderParams(
             model_name=model_name,

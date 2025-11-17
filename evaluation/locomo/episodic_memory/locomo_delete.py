@@ -4,11 +4,11 @@ import json
 from typing import cast
 
 from dotenv import load_dotenv
+
+from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.episodic_memory_manager import (
     EpisodicMemoryManager,
 )
-
-from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 
 
 async def main():

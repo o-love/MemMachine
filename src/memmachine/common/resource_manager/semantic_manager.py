@@ -57,7 +57,9 @@ class SemanticResourceManager:
         self._simple_semantic_session_id_manager = SessionIdManager()
         return self._simple_semantic_session_id_manager
 
-    async def get_semantic_session_resource_manager(self) -> InstanceOf[ResourceRetriever]:
+    async def get_semantic_session_resource_manager(
+        self,
+    ) -> InstanceOf[ResourceRetriever]:
         if self._semantic_session_resource_manager is not None:
             return self._semantic_session_resource_manager
 
@@ -68,7 +70,9 @@ class SemanticResourceManager:
         default_embedder = await self._resource_manager.get_embedder(
             self._conf.embedding_model
         )
-        default_model = await self._resource_manager.get_language_model(self._conf.llm_model)
+        default_model = await self._resource_manager.get_language_model(
+            self._conf.llm_model
+        )
 
         class SemanticResourceRetriever:
             def get_resources(self, set_id: SetIdT) -> Resources:
@@ -105,7 +109,6 @@ class SemanticResourceManager:
             )
         )
         return self._semantic_service
-
 
     async def get_semantic_session_manager(self):
         if self._semantic_session_manager is not None:
