@@ -36,7 +36,6 @@ def ollama_model_conf() -> dict:
         "model": "llama3",
         "api_key": "EMPTY",
         "base_url": "http://host.docker.internal:11434/v1",
-        "dimensions": 768,
     }
 
 
@@ -72,7 +71,6 @@ def test_valid_openai_compatible_model(ollama_model_conf):
     assert conf.model == "llama3"
     assert conf.api_key == SecretStr("EMPTY")
     assert conf.base_url == "http://host.docker.internal:11434/v1"
-    assert conf.dimensions == 768
     assert conf.max_retry_interval_seconds == 120
 
 
