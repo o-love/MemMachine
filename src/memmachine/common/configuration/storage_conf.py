@@ -50,16 +50,16 @@ class StorageConf(BaseModel):
         neo4j_dict, relational_db_dict = {}, {}
 
         for storage_id, conf in storage.items():
-            vendor = conf.get("provider").lower()
-            if vendor == "neo4j":
+            provider = conf.get("provider").lower()
+            if provider == "neo4j":
                 neo4j_dict[storage_id] = Neo4JConf(**conf)
-            elif vendor == "postgres":
+            elif provider == "postgres":
                 relational_db_dict[storage_id] = SqlAlchemyConf(
                     dialect="postgresql",
                     driver="asyncpg",
                     **conf,
                 )
-            elif vendor == "sqlite":
+            elif provider == "sqlite":
                 relational_db_dict[storage_id] = SqlAlchemyConf(
                     dialect="sqlite",
                     driver="aiosqlite",
@@ -67,7 +67,7 @@ class StorageConf(BaseModel):
                 )
             else:
                 raise ValueError(
-                    f"Unknown provider '{vendor}' for storage_id '{storage_id}'"
+                    f"Unknown provider '{provider}' for storage_id '{storage_id}'"
                 )
 
         return cls(

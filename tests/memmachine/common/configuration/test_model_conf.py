@@ -12,7 +12,7 @@ from memmachine.common.configuration.model_conf import (
 @pytest.fixture
 def openai_model_conf() -> dict:
     return {
-        "model_vendor": "openai",
+        "provider": "openai",
         "model": "gpt-4o-mini",
         "api_key": "open-ai-key",
     }
@@ -21,7 +21,7 @@ def openai_model_conf() -> dict:
 @pytest.fixture
 def aws_model_conf() -> dict:
     return {
-        "model_vendor": "amazon-bedrock",
+        "provider": "amazon-bedrock",
         "region": "us-west-2",
         "aws_access_key_id": "aws-key-id",
         "aws_secret_access_key": "aws-secret-key",
@@ -32,7 +32,7 @@ def aws_model_conf() -> dict:
 @pytest.fixture
 def ollama_model_conf() -> dict:
     return {
-        "model_vendor": "openai-compatible",
+        "provider": "openai-compatible",
         "model": "llama3",
         "api_key": "EMPTY",
         "base_url": "http://host.docker.internal:11434/v1",
@@ -91,7 +91,7 @@ def test_full_language_model_conf(full_model_conf):
 
 
 def test_missing_required_field_openai_model():
-    conf_dict = {"model_vendor": "openai", "model": "gpt-4o-mini"}  # Missing api_key
+    conf_dict = {"provider": "openai", "model": "gpt-4o-mini"}  # Missing api_key
     with pytest.raises(ValidationError) as exc_info:
         OpenAIResponsesLanguageModelConf(**conf_dict)
     assert "field required" in str(exc_info.value).lower()
@@ -99,7 +99,7 @@ def test_missing_required_field_openai_model():
 
 def test_invalid_base_url_in_openai_compatible_model():
     conf_dict = {
-        "model_vendor": "openai-compatible",
+        "provider": "openai-compatible",
         "model": "llama3",
         "api_key": "EMPTY",
         "base_url": "invalid-url",

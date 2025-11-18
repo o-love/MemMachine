@@ -49,7 +49,7 @@ def test_parse_valid_storage_dict():
     assert sqlite_conf.host == "local.db"
 
 
-def test_parse_unknown_vendor_raises():
+def test_parse_unknown_provider_raises():
     input_dict = {
         "storage": {"bad_storage": {"provider": "unknown_db", "host": "localhost"}}
     }

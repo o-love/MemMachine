@@ -106,7 +106,7 @@ def mock_config_file(tmp_path):
         },
         "model": {
             "test_llm": {
-                "model_vendor": "openai",
+                "provider": "openai",
                 "model_name": "gpt-3",
                 "api_key": "TEST_API_KEY_VAR",
             }

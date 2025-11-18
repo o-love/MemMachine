@@ -105,23 +105,23 @@ class RerankerConf(BaseModel):
         identity_dict = {}
         rrf_hybrid_dict = {}
         for reranker_id, value in reranker.items():
-            vendor = value.get("provider").lower()
+            provider = value.get("provider").lower()
             conf = value.get("config", {})
-            if vendor == "bm25":
+            if provider == "bm25":
                 bm25_dict[reranker_id] = BM25RerankerConf(**conf)
-            elif vendor == "amazon-bedrock":
+            elif provider == "amazon-bedrock":
                 amazon_bedrock_dict[reranker_id] = AmazonBedrockRerankerConf(**conf)
-            elif vendor == "cross-encoder":
+            elif provider == "cross-encoder":
                 cross_encoder_dict[reranker_id] = CrossEncoderRerankerConf(**conf)
-            elif vendor == "embedder":
+            elif provider == "embedder":
                 embedder_dict[reranker_id] = EmbedderRerankerConf(**conf)
-            elif vendor == "identity":
+            elif provider == "identity":
                 identity_dict[reranker_id] = IdentityRerankerConf()
-            elif vendor == "rrf-hybrid":
+            elif provider == "rrf-hybrid":
                 rrf_hybrid_dict[reranker_id] = RRFHybridRerankerConf(**conf)
             else:
                 raise ValueError(
-                    f"Unknown reranker_type '{vendor}' for reranker id '{reranker_id}'"
+                    f"Unknown reranker_type '{provider}' for reranker id '{reranker_id}'"
                 )
 
         return cls(
