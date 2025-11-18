@@ -327,6 +327,7 @@ class Memory:
         }
 
     def __repr__(self) -> str:
+        """Return a developer-friendly description of the memory context."""
         return (
             f"Memory(group_id='{self.group_id}', "
             f"user_id='{self.user_id}', "

@@ -109,6 +109,8 @@ class SemanticFeature(BaseModel):
 
 @runtime_checkable
 class SemanticPrompt(Protocol):
+    """Protocol describing prompt templates for semantic extraction."""
+
     @property
     def update_prompt(self) -> str:
         raise NotImplementedError

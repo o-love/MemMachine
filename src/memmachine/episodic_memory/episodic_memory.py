@@ -49,19 +49,25 @@ class EpisodicMemoryParams(BaseModel):
     """
 
     session_key: str = Field(
-        ..., min_length=1, description="The unique identifier for the session",
+        ...,
+        min_length=1,
+        description="The unique identifier for the session",
     )
     metrics_factory: InstanceOf[MetricsFactory] = Field(
-        ..., description="The metrics factory",
+        ...,
+        description="The metrics factory",
     )
     long_term_memory: InstanceOf[LongTermMemory] | None = Field(
-        default=None, description="The long-term memory",
+        default=None,
+        description="The long-term memory",
     )
     short_term_memory: InstanceOf[ShortTermMemory] | None = Field(
-        default=None, description="The short-term memory",
+        default=None,
+        description="The short-term memory",
     )
     enabled: bool = Field(
-        default=True, description="Whether the episodic memory is enabled",
+        default=True,
+        description="Whether the episodic memory is enabled",
     )
 
     @model_validator(mode="after")
@@ -114,16 +120,20 @@ class EpisodicMemory:
         metrics_manager = params.metrics_factory
         # Initialize metrics
         self._ingestion_latency_summary = metrics_manager.get_summary(
-            "Ingestion_latency", "Latency of Episode ingestion in milliseconds",
+            "Ingestion_latency",
+            "Latency of Episode ingestion in milliseconds",
         )
         self._query_latency_summary = metrics_manager.get_summary(
-            "query_latency", "Latency of query processing in milliseconds",
+            "query_latency",
+            "Latency of query processing in milliseconds",
         )
         self._ingestion_counter = metrics_manager.get_counter(
-            "Ingestion_count", "Count of Episode ingestion",
+            "Ingestion_count",
+            "Count of Episode ingestion",
         )
         self._query_counter = metrics_manager.get_counter(
-            "query_count", "Count of query processing",
+            "query_count",
+            "Count of query processing",
         )
 
     @property
@@ -319,7 +329,9 @@ class EpisodicMemory:
         elif self._long_term_memory is None:
             session_result = (
                 await self._short_term_memory.get_short_term_memory_context(
-                    query, limit=search_limit, filter=property_filter,
+                    query,
+                    limit=search_limit,
+                    filter=property_filter,
                 )
             )
             long_episode = []
@@ -328,7 +340,8 @@ class EpisodicMemory:
             # Concurrently search both memory stores
             session_result, long_episode = await asyncio.gather(
                 self._short_term_memory.get_short_term_memory_context(
-                    query, limit=search_limit,
+                    query,
+                    limit=search_limit,
                 ),
                 self._long_term_memory.search(query, search_limit, property_filter),
             )
@@ -372,7 +385,9 @@ class EpisodicMemory:
 
         """
         short_memory, long_memory, summary = await self.query_memory(
-            query, limit, property_filter,
+            query,
+            limit,
+            property_filter,
         )
         episodes = sorted(short_memory + long_memory, key=lambda x: x.created_at)
 

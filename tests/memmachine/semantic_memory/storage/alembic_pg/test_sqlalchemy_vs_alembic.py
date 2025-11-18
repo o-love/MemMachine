@@ -109,7 +109,8 @@ async def _collect_schema(engine: AsyncEngine) -> SchemaSnapshot:
 
 
 def _assert_schema_equivalence(
-    migrated: SchemaSnapshot, metadata: SchemaSnapshot,
+    migrated: SchemaSnapshot,
+    metadata: SchemaSnapshot,
 ) -> None:
     assert "alembic_version" in migrated.tables, (
         "alembic_version table is missing after migrations"
@@ -155,7 +156,8 @@ def _assert_schema_equivalence(
 
 
 def get_table_columns(
-    inspector: Inspector, table_name: str,
+    inspector: Inspector,
+    table_name: str,
 ) -> Mapping[str, dict[str, object]]:
     columns = inspector.get_columns(table_name)
     return {
@@ -168,7 +170,8 @@ def get_table_columns(
 
 
 def get_index_column_sets(
-    inspector: Inspector, table_name: str,
+    inspector: Inspector,
+    table_name: str,
 ) -> set[tuple[str, ...]]:
     indexes = inspector.get_indexes(table_name)
     return {

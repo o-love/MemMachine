@@ -30,7 +30,9 @@ async def main() -> None:
         "locomo_config.yaml",
     )
 
-    async def process_conversation(idx, item, memory_manager: EpisodicMemoryManager) -> None:
+    async def process_conversation(
+        idx, item, memory_manager: EpisodicMemoryManager
+    ) -> None:
         if "conversation" not in item:
             return
 

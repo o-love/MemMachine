@@ -109,7 +109,8 @@ async def process_question(
 
     formatted_context = format_memory(episodes, summary)
     prompt = ANSWER_PROMPT.format(
-        conversation_memories=formatted_context, question=question,
+        conversation_memories=formatted_context,
+        question=question,
     )
 
     llm_start = time.time()
@@ -147,10 +148,14 @@ async def main() -> None:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--data-path", required=True, help="Path to the source data file",
+        "--data-path",
+        required=True,
+        help="Path to the source data file",
     )
     parser.add_argument(
-        "--target-path", required=True, help="Path to the target data file",
+        "--target-path",
+        required=True,
+        help="Path to the target data file",
     )
 
     args = parser.parse_args()

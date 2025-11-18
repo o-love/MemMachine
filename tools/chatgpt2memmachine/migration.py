@@ -33,7 +33,9 @@ class MigrationHack:
             self.user_session = json.load(f)
         self.base_url = base_url
         self.client = MemMachineRestClient(
-            base_url=self.base_url, session=self.user_session, verbose=False,
+            base_url=self.base_url,
+            session=self.user_session,
+            verbose=False,
         )
         self.chat_history_file = chat_history_file
         self.chat_type = chat_type
@@ -59,11 +61,13 @@ class MigrationHack:
             print("-> counting conversations...")
             if self.chat_type == "locomo":
                 conv_count = locomo_count_conversations(
-                    self.chat_history_file, verbose=False,
+                    self.chat_history_file,
+                    verbose=False,
                 )
             elif self.chat_type == "openai":
                 conv_count = openai_count_conversations(
-                    self.chat_history_file, verbose=False,
+                    self.chat_history_file,
+                    verbose=False,
                 )
             else:
                 raise Exception(f"Error: Invalid chat type: {self.chat_type}")
@@ -167,13 +171,18 @@ class MigrationHack:
         # Create a progress bar for this conversation
         pos = conv_id - 1
         msg_pbar = tqdm(
-            messages, desc=f"Conv {conv_id}", unit="msg", position=pos, leave=True,
+            messages,
+            desc=f"Conv {conv_id}",
+            unit="msg",
+            position=pos,
+            leave=True,
         )
         for message in msg_pbar:
             # TODO: insert messages into episodic memory
             if not self.dry_run:
                 self.client.post_episodic_memory(
-                    message, session_id=f"conversation_{conv_id}",
+                    message,
+                    session_id=f"conversation_{conv_id}",
                 )
 
         msg_pbar.close()
@@ -198,7 +207,9 @@ class MigrationHack:
 
             # Create a progress bar for completed conversations
             completed_pbar = tqdm(
-                total=len(contents), desc="Completed conversations", unit="conv",
+                total=len(contents),
+                desc="Completed conversations",
+                unit="conv",
             )
 
             # Process completed tasks
@@ -243,7 +254,10 @@ def get_args():
         help="Chat history file",
     )
     parser.add_argument(
-        "--chat_type", type=str, default="locomo", help="Chat type: locomo or openai",
+        "--chat_type",
+        type=str,
+        default="locomo",
+        help="Chat type: locomo or openai",
     )
     parser.add_argument(
         "--start_time",
@@ -252,13 +266,22 @@ def get_args():
         help="only read messages after this time either YYYY-MM-DDTHH:MM:SS or secs since epoch",
     )
     parser.add_argument(
-        "--max_messages", type=int, default=0, help="only read this many messages",
+        "--max_messages",
+        type=int,
+        default=0,
+        help="only read this many messages",
     )
     parser.add_argument(
-        "--summarize", default=False, action="store_true", help="Summarize messages",
+        "--summarize",
+        default=False,
+        action="store_true",
+        help="Summarize messages",
     )
     parser.add_argument(
-        "--summarize_every", type=int, default=20, help="Summarize every n messages",
+        "--summarize_every",
+        type=int,
+        default=20,
+        help="Summarize every n messages",
     )
     args = parser.parse_args()
     return args

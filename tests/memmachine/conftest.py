@@ -273,7 +273,9 @@ def neo4j_container(pytestconfig):
     username = "neo4j"
     password = "password"
     with Neo4jContainer(
-        image="neo4j:5.23", username=username, password=password,
+        image="neo4j:5.23",
+        username=username,
+        password=password,
     ) as container:
         yield {
             "uri": container.get_connection_url(),

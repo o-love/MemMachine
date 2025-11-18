@@ -397,7 +397,9 @@ class AmazonBedrockLanguageModel(LanguageModel):
             function_calls_arguments,
         )
 
-    def _collect_metrics(self, response: dict[str, Any], start_time: float, end_time: float) -> None:
+    def _collect_metrics(
+        self, response: dict[str, Any], start_time: float, end_time: float
+    ) -> None:
         if self._should_collect_metrics:
             if (response_usage := response.get("usage")) is not None:
                 self._input_tokens_usage_counter.increment(

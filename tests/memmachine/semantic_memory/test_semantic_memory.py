@@ -88,7 +88,9 @@ def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
 
 @pytest.fixture
 def resources(
-    spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticCategory,
+    spy_embedder: SpyEmbedder,
+    mock_llm_model,
+    semantic_type: SemanticCategory,
 ):
     return Resources(
         embedder=spy_embedder,
@@ -294,7 +296,8 @@ async def test_add_messages_tracks_uningested_counts(
 ):
     # Given a stored history message
     history_id = await add_history(
-        history_storage=episode_storage, content="Alpha memory",
+        history_storage=episode_storage,
+        content="Alpha memory",
     )
 
     # When associating the message to a set
@@ -305,7 +308,8 @@ async def test_add_messages_tracks_uningested_counts(
 
     # When the message is marked ingested
     await semantic_storage.mark_messages_ingested(
-        set_id="user-21", history_ids=[history_id],
+        set_id="user-21",
+        history_ids=[history_id],
     )
 
     # Then the uningested count drops to zero
@@ -319,7 +323,8 @@ async def test_add_message_to_sets_supports_multiple_targets(
 ):
     # Given a history entry
     history_id = await add_history(
-        history_storage=episode_storage, content="Alpha shared memory",
+        history_storage=episode_storage,
+        content="Alpha shared memory",
     )
 
     # When linking the message to multiple sets

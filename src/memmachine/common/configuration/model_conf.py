@@ -23,7 +23,8 @@ class OpenAIResponsesLanguageModelConf(WithMetricsFactoryId):
         description="OpenAI Responses API key for authentication",
     )
     base_url: str | None = Field(
-        default=None, description="OpenAI Responses API base URL",
+        default=None,
+        description="OpenAI Responses API base URL",
     )
     max_retry_interval_seconds: int = Field(
         default=120,
@@ -93,13 +94,16 @@ class AmazonBedrockLanguageModelConf(WithMetricsFactoryId):
     """
 
     region: str = Field(
-        default="us-east-1", description="AWS region where Bedrock is hosted.",
+        default="us-east-1",
+        description="AWS region where Bedrock is hosted.",
     )
     aws_access_key_id: SecretStr | None = Field(
-        default=None, description="AWS access key ID for authentication.",
+        default=None,
+        description="AWS access key ID for authentication.",
     )
     aws_secret_access_key: SecretStr | None = Field(
-        default=None, description="AWS secret access key for authentication.",
+        default=None,
+        description="AWS secret access key for authentication.",
     )
     aws_session_token: SecretStr | None = Field(
         default=None,
@@ -132,10 +136,12 @@ class LanguageModelConf(BaseModel):
     """Top-level language model configuration container."""
 
     openai_responses_language_model_confs: dict[
-        str, OpenAIResponsesLanguageModelConf,
+        str,
+        OpenAIResponsesLanguageModelConf,
     ] = {}
     openai_chat_completions_language_model_confs: dict[
-        str, OpenAIChatCompletionsLanguageModelConf,
+        str,
+        OpenAIChatCompletionsLanguageModelConf,
     ] = {}
     amazon_bedrock_language_model_confs: dict[str, AmazonBedrockLanguageModelConf] = {}
 

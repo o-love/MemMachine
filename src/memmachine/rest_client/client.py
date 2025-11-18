@@ -154,7 +154,8 @@ class MemMachineClient:
         """
         try:
             response = self._session.get(
-                f"{self.base_url}/health", timeout=self.timeout,
+                f"{self.base_url}/health",
+                timeout=self.timeout,
             )
             response.raise_for_status()
             return response.json()
@@ -194,4 +195,5 @@ class MemMachineClient:
         self.close()
 
     def __repr__(self) -> str:
+        """Return a developer-friendly string representation."""
         return f"MemMachineClient(base_url='{self.base_url}')"

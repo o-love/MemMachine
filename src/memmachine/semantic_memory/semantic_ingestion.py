@@ -48,6 +48,7 @@ class IngestionService:
         debug_fail_loudly: bool = False
 
     def __init__(self, params: Params) -> None:
+        """Initialize the ingestion service with storage backends and helpers."""
         self._semantic_storage = params.semantic_storage
         self._history_store = params.history_store
         self._resource_retriever = params.resource_retriever
@@ -97,7 +98,8 @@ class IngestionService:
             for message in messages:
                 if message.uuid is None:
                     raise ValueError(
-                        "Message ID is None for message %s", message.model_dump(),
+                        "Message ID is None for message %s",
+                        message.model_dump(),
                     )
 
                 features = await self._semantic_storage.get_feature_set(
@@ -150,7 +152,8 @@ class IngestionService:
         )
 
         await self._consolidate_set_memories_if_applicable(
-            set_id=set_id, resources=resources,
+            set_id=set_id,
+            resources=resources,
         )
 
     async def _apply_commands(
@@ -196,7 +199,9 @@ class IngestionService:
         set_id: SetIdT,
         resources: InstanceOf[Resources],
     ) -> None:
-        async def _consolidate_type(semantic_category: InstanceOf[SemanticCategory]) -> None:
+        async def _consolidate_type(
+            semantic_category: InstanceOf[SemanticCategory],
+        ) -> None:
             features = await self._semantic_storage.get_feature_set(
                 set_ids=[set_id],
                 category_names=[semantic_category.name],

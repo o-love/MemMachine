@@ -68,7 +68,9 @@ def mock_memory_managers(monkeypatch):
     # 5. Apply all patches to the app module.
     monkeypatch.setattr(app_module, "episodic_memory", DummyEpisodicMemoryManager())
     monkeypatch.setattr(
-        app_module, "semantic_session_manager", DummySemanticSessionManager(),
+        app_module,
+        "semantic_session_manager",
+        DummySemanticSessionManager(),
     )
     monkeypatch.setattr(app_module, "session_id_manager", SessionIdManager())
     # This is the crucial fix: patch the name in the module where it's looked
@@ -176,7 +178,8 @@ def test_post_memories_valid_string_content(valid_post_payload):
 
 
 def test_post_memories_with_session_in_header(
-    valid_post_payload_without_session, valid_session_headers,
+    valid_post_payload_without_session,
+    valid_session_headers,
 ):
     response = client.post(
         "/v1/memories",
@@ -187,7 +190,8 @@ def test_post_memories_with_session_in_header(
 
 
 def test_post_memories_with_session_in_alias_header(
-    valid_post_payload_without_session, alias_session_headers,
+    valid_post_payload_without_session,
+    alias_session_headers,
 ):
     response = client.post(
         "/v1/memories",
@@ -205,14 +209,14 @@ def test_post_memories_without_session(valid_post_payload_without_session):
 
 
 def test_post_episodic_memories_valid_string_content(valid_post_payload):
-    """Test episodic memory ingestion.
-    """
+    """Test episodic memory ingestion."""
     response = client.post("/v1/memories/episodic", json=valid_post_payload)
     assert response.status_code in (200, 201, 204)
 
 
 def test_post_episodic_memories_with_session_in_header(
-    valid_post_payload_without_session, valid_session_headers,
+    valid_post_payload_without_session,
+    valid_session_headers,
 ):
     response = client.post(
         "/v1/memories/episodic",
@@ -224,7 +228,8 @@ def test_post_episodic_memories_with_session_in_header(
 
 def test_post_episodic_memories_without_session(valid_post_payload_without_session):
     response = client.post(
-        "/v1/memories/episodic", json=valid_post_payload_without_session,
+        "/v1/memories/episodic",
+        json=valid_post_payload_without_session,
     )
     assert response.status_code == 200
     assert response.headers["session-id"] == "default"
@@ -232,15 +237,15 @@ def test_post_episodic_memories_without_session(valid_post_payload_without_sessi
 
 
 def test_post_profile_memories_valid_string_content(valid_post_payload):
-    """Test profile memory ingestion.
-    """
+    """Test profile memory ingestion."""
     valid_post_payload["episode_type"] = "embedding"
     response = client.post("/v1/memories/profile", json=valid_post_payload)
     assert response.status_code in (200, 201, 204)
 
 
 def test_post_profile_memories_with_session_in_header(
-    valid_post_payload_without_session, valid_session_headers,
+    valid_post_payload_without_session,
+    valid_session_headers,
 ):
     valid_post_payload_without_session["episode_type"] = "embedding"
     response = client.post(
@@ -254,7 +259,8 @@ def test_post_profile_memories_with_session_in_header(
 def test_post_profile_memories_without_session(valid_post_payload_without_session):
     valid_post_payload_without_session["episode_type"] = "embedding"
     response = client.post(
-        "/v1/memories/profile", json=valid_post_payload_without_session,
+        "/v1/memories/profile",
+        json=valid_post_payload_without_session,
     )
     assert response.status_code == 200
     assert response.headers["session-id"] == "default"
@@ -279,10 +285,12 @@ def test_post_memories_missing_required_field(valid_post_payload, missing_field)
 
 
 @pytest.mark.parametrize(
-    "missing_session_field", ["group_id", "agent_id", "user_id", "session_id"],
+    "missing_session_field",
+    ["group_id", "agent_id", "user_id", "session_id"],
 )
 def test_post_memories_missing_nested_session_field(
-    valid_post_payload, missing_session_field,
+    valid_post_payload,
+    missing_session_field,
 ):
     del valid_post_payload["session"][missing_session_field]
     response = client.post("/v1/memories", json=valid_post_payload)
@@ -328,8 +336,7 @@ def test_post_memories_null_metadata(valid_post_payload):
 
 # --- Test memory query /v1/memories/search ---
 def test_memory_search_valid(valid_query_payload):
-    """Test query both episodic and profile memories.
-    """
+    """Test query both episodic and profile memories."""
     response = client.post("/v1/memories/search", json=valid_query_payload)
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
@@ -339,7 +346,8 @@ def test_memory_search_valid(valid_query_payload):
 
 
 def test_memory_search_with_session_in_header(
-    query_payload_without_session, valid_session_headers,
+    query_payload_without_session,
+    valid_session_headers,
 ):
     response = client.post(
         "/v1/memories/search",
@@ -362,8 +370,7 @@ def test_memory_search_without_session(query_payload_without_session):
 
 # --- Test episodic memory query /v1/memories/episodic/search ---
 def test_episodic_memory_search_valid(valid_query_payload):
-    """Test episodic memory query.
-    """
+    """Test episodic memory query."""
     response = client.post("/v1/memories/episodic/search", json=valid_query_payload)
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
@@ -372,7 +379,8 @@ def test_episodic_memory_search_valid(valid_query_payload):
 
 
 def test_episodic_memory_search_with_session_in_header(
-    query_payload_without_session, valid_session_headers,
+    query_payload_without_session,
+    valid_session_headers,
 ):
     response = client.post(
         "/v1/memories/episodic/search",
@@ -387,7 +395,8 @@ def test_episodic_memory_search_with_session_in_header(
 
 def test_episodic_memory_search_without_session(query_payload_without_session):
     response = client.post(
-        "/v1/memories/episodic/search", json=query_payload_without_session,
+        "/v1/memories/episodic/search",
+        json=query_payload_without_session,
     )
     assert response.status_code == 200
     assert response.headers["session-id"] == "default"
@@ -396,8 +405,7 @@ def test_episodic_memory_search_without_session(query_payload_without_session):
 
 # --- Test profile memory query /v1/memories/profile/search ---
 def test_profile_memory_search_valid(valid_query_payload):
-    """Test profile memory query.
-    """
+    """Test profile memory query."""
     response = client.post("/v1/memories/profile/search", json=valid_query_payload)
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
@@ -406,7 +414,8 @@ def test_profile_memory_search_valid(valid_query_payload):
 
 
 def test_profile_memory_search_with_session_in_header(
-    query_payload_without_session, valid_session_headers,
+    query_payload_without_session,
+    valid_session_headers,
 ):
     response = client.post(
         "/v1/memories/profile/search",
@@ -421,7 +430,8 @@ def test_profile_memory_search_with_session_in_header(
 
 def test_profile_memory_search_without_session(query_payload_without_session):
     response = client.post(
-        "/v1/memories/profile/search", json=query_payload_without_session,
+        "/v1/memories/profile/search",
+        json=query_payload_without_session,
     )
     assert response.status_code == 200
     assert response.headers["session-id"] == "default"
@@ -454,10 +464,12 @@ def test_delete_memories_with_session_in_header(valid_session_headers):
 
 
 @pytest.mark.parametrize(
-    "missing_session_field", ["group_id", "agent_id", "user_id", "session_id"],
+    "missing_session_field",
+    ["group_id", "agent_id", "user_id", "session_id"],
 )
 def test_delete_memories_missing_nested_session_field(
-    valid_delete_payload, missing_session_field,
+    valid_delete_payload,
+    missing_session_field,
 ):
     del valid_delete_payload["session"][missing_session_field]
     response = client.request("DELETE", "/v1/memories", json=valid_delete_payload)

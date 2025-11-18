@@ -59,7 +59,10 @@ class LongTermMemoryParams(BaseModel):
 
 
 class LongTermMemory:
+    """High-level facade around the declarative memory store."""
+
     def __init__(self, params: LongTermMemoryParams) -> None:
+        """Wire up the declarative memory backing store."""
         self._declarative_memory = DeclarativeMemory(
             DeclarativeMemoryParams(
                 session_id=params.session_id,
@@ -195,7 +198,8 @@ class LongTermMemory:
                 cast(
                     "str",
                     declarative_memory_episode.filterable_properties.get(
-                        "episode_type", "",
+                        "episode_type",
+                        "",
                     ),
                 ),
             ),
@@ -203,7 +207,8 @@ class LongTermMemory:
                 cast(
                     "str",
                     declarative_memory_episode.filterable_properties.get(
-                        "content_type", "",
+                        "content_type",
+                        "",
                     ),
                 ),
             ),
@@ -216,7 +221,8 @@ class LongTermMemory:
             producer_role=cast(
                 "str",
                 declarative_memory_episode.filterable_properties.get(
-                    "producer_role", "",
+                    "producer_role",
+                    "",
                 ),
             ),
             produced_for_id=cast(

@@ -20,7 +20,8 @@ class SentenceTransformerEmbedderParams(BaseModel):
     """Parameters for SentenceTransformerEmbedder."""
 
     model_name: str = Field(
-        ..., description="The name of the sentence transformer model.",
+        ...,
+        description="The name of the sentence transformer model.",
     )
     sentence_transformer: InstanceOf[SentenceTransformer] = Field(
         ...,

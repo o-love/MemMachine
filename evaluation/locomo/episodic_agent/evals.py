@@ -89,7 +89,8 @@ def main() -> None:
         ]
 
         for future in tqdm(
-            concurrent.futures.as_completed(futures), total=len(futures),
+            concurrent.futures.as_completed(futures),
+            total=len(futures),
         ):
             local_results = future.result()
             with results_lock:

@@ -9,6 +9,7 @@ from typing import ParamSpec, TypeVar
 T = TypeVar("T")
 P = ParamSpec("P")
 
+
 async def async_with[T](
     async_context_manager: AbstractAsyncContextManager[object],
     awaitable: Awaitable[T],

@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Entry point for launching the MCP HTTP server."""
     args = parse_args()
     try:
         asyncio.run(run_mcp_http(args.host, args.port))

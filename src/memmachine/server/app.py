@@ -114,17 +114,31 @@ class AppConst:
 
     EPISODE_META_DOC = "Additional metadata for the episode."
 
-    GROUP_ID_EXAMPLES: ClassVar[list[str]] = ["group-1234", "project-alpha", "team-chat"]
+    GROUP_ID_EXAMPLES: ClassVar[list[str]] = [
+        "group-1234",
+        "project-alpha",
+        "team-chat",
+    ]
     AGENT_ID_EXAMPLES: ClassVar[list[str]] = ["crm", "healthcare", "sales", "agent-007"]
     USER_ID_EXAMPLES: ClassVar[list[str]] = ["user-001", "alice@example.com"]
-    SESSION_ID_EXAMPLES: ClassVar[list[str]] = ["session-5678", "chat-thread-42", "conversation-abc"]
+    SESSION_ID_EXAMPLES: ClassVar[list[str]] = [
+        "session-5678",
+        "chat-thread-42",
+        "conversation-abc",
+    ]
     PRODUCER_EXAMPLES: ClassVar[list[str]] = ["chatbot", "user-1234", "agent-007"]
-    PRODUCER_FOR_EXAMPLES: ClassVar[list[str]] = ["user-1234", "team-alpha", "project-xyz"]
+    PRODUCER_FOR_EXAMPLES: ClassVar[list[str]] = [
+        "user-1234",
+        "team-alpha",
+        "project-xyz",
+    ]
     EPISODE_CONTENT_EXAMPLES: ClassVar[list[str]] = [
         "Met at the coffee shop to discuss project updates.",
     ]
     EPISODE_TYPE_EXAMPLES: ClassVar[list[str]] = ["message"]
-    EPISODE_META_EXAMPLES: ClassVar[list[dict[str, str]]] = [{"mood": "happy", "location": "office"}]
+    EPISODE_META_EXAMPLES: ClassVar[list[dict[str, str]]] = [
+        {"mood": "happy", "location": "office"}
+    ]
 
 
 # Request session data
@@ -478,7 +492,6 @@ class DeleteDataRequest(RequestWithSession):
     """Request model for deleting all data for a session."""
 
 
-
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
 resource_manager: ResourceManagerImpl | None = None
@@ -542,7 +555,8 @@ async def global_memory_lifespan() -> AsyncIterator[None]:
 
 # Context variable to hold the current user for this request
 user_id_context_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "user_id_context", default=None,
+    "user_id_context",
+    default=None,
 )
 
 
@@ -565,7 +579,9 @@ class UserIDContextMiddleware:
     Optionally override `user_id` from header "user-id".
     """
 
-    def __init__(self, app: StarletteWithLifespan, header_name: str = "user-id") -> None:
+    def __init__(
+        self, app: StarletteWithLifespan, header_name: str = "user-id"
+    ) -> None:
         """Store the wrapped app and the name of the header carrying user id."""
         self.app = app
         self.header_name = header_name

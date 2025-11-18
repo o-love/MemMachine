@@ -29,7 +29,9 @@ class RerankerManager:
     """Create and cache configured rerankers."""
 
     def __init__(
-        self, conf: RerankerConf, embedder_factory: InstanceOf[EmbedderFactory],
+        self,
+        conf: RerankerConf,
+        embedder_factory: InstanceOf[EmbedderFactory],
     ) -> None:
         """Store configuration and factories, initializing caches."""
         self.conf = conf

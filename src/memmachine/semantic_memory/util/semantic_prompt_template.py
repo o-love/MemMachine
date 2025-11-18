@@ -1,6 +1,8 @@
 """Prompt templates used by the semantic memory pipeline."""
 
+
 def build_update_prompt(*, tags: dict[str, str], description: str | None = None) -> str:
+    """Create an update prompt for extracting profile changes from a query."""
     return (
         """
         Your job is to handle memory extraction for a memory system, one which takes the form of a profile recording details relevant to the tags below.
@@ -150,6 +152,7 @@ def build_update_prompt(*, tags: dict[str, str], description: str | None = None)
 
 
 def build_consolidation_prompt() -> str:
+    """Create a consolidation prompt for merging overlapping memories."""
     return """
     Your job is to perform memory consolidation for an llm long term memory system.
     Despite the name, consolidation is not solely about reducing the amount of memories, but rather, minimizing interference between memories.

@@ -85,7 +85,8 @@ async def run_async_migrations() -> None:
 
     """
     config.set_main_option(
-        "sqlalchemy.url", pg_server().render_as_string(hide_password=False),
+        "sqlalchemy.url",
+        pg_server().render_as_string(hide_password=False),
     )
 
     connectable = async_engine_from_config(

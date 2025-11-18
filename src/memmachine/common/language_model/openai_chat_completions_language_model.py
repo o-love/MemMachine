@@ -264,7 +264,8 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
                         )
                     else:
                         logger.info(
-                            "Unsupported tool call type: %s", type(tool_call).__name__,
+                            "Unsupported tool call type: %s",
+                            type(tool_call).__name__,
                         )
         except json.JSONDecodeError as e:
             raise ValueError("JSON decode error") from e

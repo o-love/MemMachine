@@ -124,7 +124,9 @@ class SemanticStorageBase(ABC):
 
     @abstractmethod
     async def add_citations(
-        self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT],
+        self,
+        feature_id: FeatureIdT,
+        history_ids: list[EpisodeIdT],
     ) -> None:
         """Associate history ids as citations for a feature."""
         raise NotImplementedError

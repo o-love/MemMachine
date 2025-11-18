@@ -41,16 +41,23 @@ class ShortTermMemoryConf(BaseModel):
 
     session_key: str = Field(..., description="Session identifier", min_length=1)
     llm_model: str = Field(
-        ..., description="ID of the language model to use for summarization",
+        ...,
+        description="ID of the language model to use for summarization",
     )
     summary_prompt_system: str = Field(
-        ..., min_length=1, description="The system prompt for the summarization",
+        ...,
+        min_length=1,
+        description="The system prompt for the summarization",
     )
     summary_prompt_user: str = Field(
-        ..., min_length=1, description="The user prompt for the summarization",
+        ...,
+        min_length=1,
+        description="The user prompt for the summarization",
     )
     message_capacity: int = Field(
-        default=64000, gt=0, description="The maximum length of short-term memory",
+        default=64000,
+        gt=0,
+        description="The maximum length of short-term memory",
     )
 
 
@@ -58,10 +65,13 @@ class ShortTermMemoryConfPartial(BaseModel):
     """Partial configuration for short-term memory."""
 
     session_key: str | None = Field(
-        default=None, description="Session identifier", min_length=1,
+        default=None,
+        description="Session identifier",
+        min_length=1,
     )
     llm_model: str | None = Field(
-        default=None, description="ID of the language model to use for summarization",
+        default=None,
+        description="ID of the language model to use for summarization",
     )
     summary_prompt_system: str | None = Field(
         default=None,
@@ -69,10 +79,14 @@ class ShortTermMemoryConfPartial(BaseModel):
         description="The system prompt for the summarization",
     )
     summary_prompt_user: str | None = Field(
-        default=None, min_length=1, description="The user prompt for the summarization",
+        default=None,
+        min_length=1,
+        description="The user prompt for the summarization",
     )
     message_capacity: int | None = Field(
-        default=None, gt=0, description="The maximum length of short-term memory",
+        default=None,
+        gt=0,
+        description="The maximum length of short-term memory",
     )
 
     def merge(self, other: Self) -> ShortTermMemoryConf:
@@ -130,25 +144,33 @@ class EpisodicMemoryConf(WithMetricsFactoryId):
     """Configuration for episodic memory service."""
 
     session_key: str = Field(
-        ..., min_length=1, description="The unique identifier for the session",
+        ...,
+        min_length=1,
+        description="The unique identifier for the session",
     )
     metrics_factory_id: str = Field(
-        default="prometheus", description="ID of the metrics factory",
+        default="prometheus",
+        description="ID of the metrics factory",
     )
     long_term_memory: LongTermMemoryConf | None = Field(
-        default=None, description="The long-term memory configuration",
+        default=None,
+        description="The long-term memory configuration",
     )
     short_term_memory: ShortTermMemoryConf | None = Field(
-        default=None, description="The short-term memory configuration",
+        default=None,
+        description="The short-term memory configuration",
     )
     long_term_memory_enabled: bool = Field(
-        default=True, description="Whether the long-term memory is enabled",
+        default=True,
+        description="Whether the long-term memory is enabled",
     )
     short_term_memory_enabled: bool = Field(
-        default=True, description="Whether the short-term memory is enabled",
+        default=True,
+        description="Whether the short-term memory is enabled",
     )
     enabled: bool = Field(
-        default=True, description="Whether the episodic memory is enabled",
+        default=True,
+        description="Whether the episodic memory is enabled",
     )
 
 
@@ -161,7 +183,8 @@ class EpisodicMemoryConfPartial(BaseModel):
         description="The unique identifier for the session",
     )
     metrics_factory_id: str | None = Field(
-        default=None, description="ID of the metrics factory",
+        default=None,
+        description="ID of the metrics factory",
     )
     long_term_memory: LongTermMemoryConfPartial | None = Field(
         default=None,
@@ -172,13 +195,16 @@ class EpisodicMemoryConfPartial(BaseModel):
         description="Partial configuration for session memory in episodic memory",
     )
     long_term_memory_enabled: bool | None = Field(
-        default=None, description="Whether the long-term memory is enabled",
+        default=None,
+        description="Whether the long-term memory is enabled",
     )
     short_term_memory_enabled: bool | None = Field(
-        default=None, description="Whether the short-term memory is enabled",
+        default=None,
+        description="Whether the short-term memory is enabled",
     )
     enabled: bool | None = Field(
-        default=True, description="Whether the episodic memory is enabled",
+        default=True,
+        description="Whether the episodic memory is enabled",
     )
 
     def merge(self, other: Self) -> EpisodicMemoryConf:

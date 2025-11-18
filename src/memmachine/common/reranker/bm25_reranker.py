@@ -16,7 +16,8 @@ class BM25RerankerParams(BaseModel):
     b: float = Field(0.75, description="BM25 b parameter")
     epsilon: float = Field(0.25, description="BM25 epsilon parameter")
     tokenize: Callable[[str], list[str]] = Field(
-        ..., description="Tokenizer function to split text into tokens",
+        ...,
+        description="Tokenizer function to split text into tokens",
     )
 
 
@@ -36,7 +37,8 @@ class BM25Reranker(Reranker):
         """Score candidates for a query using BM25."""
         tokenized_query_future = asyncio.to_thread(self._tokenize, query)
         tokenized_candidates_future = asyncio.to_thread(
-            self._tokenize_multiple, candidates,
+            self._tokenize_multiple,
+            candidates,
         )
 
         tokenized_query = await tokenized_query_future

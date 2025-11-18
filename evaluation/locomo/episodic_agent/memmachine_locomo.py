@@ -71,10 +71,14 @@ class MemMachineSearch:
         return result
 
     async def process_data_file(
-        self, file_path, exclude_category=None, base_url="http://localhost:8080",
+        self,
+        file_path,
+        exclude_category=None,
+        base_url="http://localhost:8080",
     ) -> None:
         if exclude_category is None:
             exclude_category = {5}
+
         async def process_item(idx, item) -> None:
             if str(idx) in self.results:
                 print(f"Conversation {idx} has already been processed")
@@ -110,7 +114,11 @@ class MemMachineSearch:
             json.dump(self.results, f, indent=4)
 
     async def process_questions_parallel(
-        self, qa_list, idx, users, base_url="http://localhost:8080",
+        self,
+        qa_list,
+        idx,
+        users,
+        base_url="http://localhost:8080",
     ):
         async def process_single_question(val):
             async with self._semaphore:

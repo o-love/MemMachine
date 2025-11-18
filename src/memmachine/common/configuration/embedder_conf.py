@@ -17,10 +17,12 @@ class AmazonBedrockEmbedderConfig(BaseModel):
         description="AWS region where Bedrock is hosted.",
     )
     aws_access_key_id: SecretStr | None = Field(
-        default=None, description="AWS access key ID for authentication.",
+        default=None,
+        description="AWS access key ID for authentication.",
     )
     aws_secret_access_key: SecretStr | None = Field(
-        default=None, description="AWS secret access key for authentication.",
+        default=None,
+        description="AWS secret access key for authentication.",
     )
     aws_session_token: SecretStr | None = Field(
         default=None,
@@ -31,7 +33,8 @@ class AmazonBedrockEmbedderConfig(BaseModel):
         description="ID of the Bedrock model to use for embedding (e.g. 'amazon.titan-embed-text-v2:0').",
     )
     similarity_metric: SimilarityMetric = Field(
-        default=SimilarityMetric.COSINE, description="Similarity metric to use",
+        default=SimilarityMetric.COSINE,
+        description="Similarity metric to use",
     )
     max_retry_interval_seconds: int = Field(
         default=120,
@@ -83,7 +86,9 @@ class SentenceTransformerEmbedderConfig(WithMetricsFactoryId):
     """Configuration for sentence-transformer based embedders."""
 
     model: str = Field(
-        ..., min_length=1, description="The name of the sentence transformer model.",
+        ...,
+        min_length=1,
+        description="The name of the sentence transformer model.",
     )
 
 

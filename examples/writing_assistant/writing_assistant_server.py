@@ -13,7 +13,8 @@ MEMORY_BACKEND_URL = os.getenv("MEMORY_BACKEND_URL", "http://localhost:8080")
 WRITING_ASSISTANT_PORT = int(os.getenv("WRITING_ASSISTANT_PORT", "8000"))
 
 app = FastAPI(
-    title="Writing Assistant Server", description="Writing Assistant middleware",
+    title="Writing Assistant Server",
+    description="Writing Assistant middleware",
 )
 
 writing_assistant_constructor = WritingAssistantQueryConstructor()
@@ -58,7 +59,9 @@ async def store_data(user_id: str, query: str):
         }
 
         response = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000,
+            f"{MEMORY_BACKEND_URL}/v1/memories",
+            json=episode_data,
+            timeout=1000,
         )
         response.raise_for_status()
 
@@ -106,7 +109,9 @@ async def get_data(query: str, user_id: str, timestamp: str):
         logger.debug(f"Search data: {search_data}")
 
         response = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
+            f"{MEMORY_BACKEND_URL}/v1/memories/search",
+            json=search_data,
+            timeout=1000,
         )
 
         logger.debug(f"Response status: {response.status_code}")
@@ -144,7 +149,9 @@ async def get_data(query: str, user_id: str, timestamp: str):
 
         # Create formatted query using the writing assistant constructor
         formatted_query = writing_assistant_constructor.create_query(
-            profile=profile_str, context=context_str, query=query,
+            profile=profile_str,
+            context=context_str,
+            query=query,
         )
 
         # Check if this is a submission request
@@ -209,7 +216,9 @@ async def store_and_search_data(user_id: str, query: str):
         }
 
         resp = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000,
+            f"{MEMORY_BACKEND_URL}/v1/memories",
+            json=episode_data,
+            timeout=1000,
         )
 
         logger.debug(f"Store-and-search response status: {resp.status_code}")
@@ -229,7 +238,9 @@ async def store_and_search_data(user_id: str, query: str):
         }
 
         search_resp = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
+            f"{MEMORY_BACKEND_URL}/v1/memories/search",
+            json=search_data,
+            timeout=1000,
         )
 
         logger.debug(f"Store-and-search response status: {search_resp.status_code}")
@@ -267,7 +278,9 @@ async def store_and_search_data(user_id: str, query: str):
 
         # Create formatted query using the writing assistant constructor
         formatted_response = writing_assistant_constructor.create_query(
-            profile=profile_str, context=context_str, query=query,
+            profile=profile_str,
+            context=context_str,
+            query=query,
         )
 
         # Create response message
@@ -324,7 +337,9 @@ async def analyze_writing_style(user_id: str, query: str):
         }
 
         search_resp = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
+            f"{MEMORY_BACKEND_URL}/v1/memories/search",
+            json=search_data,
+            timeout=1000,
         )
 
         if search_resp.status_code != 200:
@@ -350,7 +365,9 @@ async def analyze_writing_style(user_id: str, query: str):
 
         # Create specialized analysis prompt
         analysis_prompt = writing_assistant_constructor.create_submission_query(
-            profile=profile_str, context="", submit_info=submit_info,
+            profile=profile_str,
+            context="",
+            submit_info=submit_info,
         )
 
         return {
@@ -392,7 +409,9 @@ async def get_user_writing_styles(user_id: str):
         }
 
         search_resp = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
+            f"{MEMORY_BACKEND_URL}/v1/memories/search",
+            json=search_data,
+            timeout=1000,
         )
 
         if search_resp.status_code != 200:

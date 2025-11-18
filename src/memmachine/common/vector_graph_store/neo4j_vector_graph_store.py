@@ -77,10 +77,12 @@ class Neo4jVectorGraphStoreParams(BaseModel):
     """
 
     driver: InstanceOf[AsyncDriver] = Field(
-        ..., description="Async Neo4j driver instance",
+        ...,
+        description="Async Neo4j driver instance",
     )
     force_exact_similarity_search: bool = Field(
-        False, description="Whether to force exact similarity search",
+        False,
+        description="Whether to force exact similarity search",
     )
     filtered_similarity_search_fudge_factor: int = Field(
         4,
@@ -926,7 +928,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         )
 
         await self._await_create_index_if_not_exists(
-            unique_constraint_name, create_constraint_task,
+            unique_constraint_name,
+            create_constraint_task,
         )
 
     async def _create_range_index_if_not_exists(
@@ -946,7 +949,9 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         await self._populate_index_state_cache()
 
         range_index_name = Neo4jVectorGraphStore._index_name(
-            entity_type, sanitized_collection_or_relation, sanitized_property_names,
+            entity_type,
+            sanitized_collection_or_relation,
+            sanitized_property_names,
         )
 
         cached_index_state = self._index_state_cache.get(range_index_name)
@@ -988,7 +993,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         )
 
         await self._await_create_index_if_not_exists(
-            range_index_name, create_index_task,
+            range_index_name,
+            create_index_task,
         )
 
     async def _create_vector_index_if_not_exists(
@@ -1063,12 +1069,15 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         )
 
         await self._await_create_index_if_not_exists(
-            vector_index_name, create_index_task,
+            vector_index_name,
+            create_index_task,
         )
 
     @async_locked
     async def _await_create_index_if_not_exists(
-        self, index_name: str, create_index_task: Awaitable[None],
+        self,
+        index_name: str,
+        create_index_task: Awaitable[None],
     ) -> None:
         """Await index creation and mark it online in the cache."""
         await create_index_task

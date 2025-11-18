@@ -41,7 +41,6 @@ class BaseSemanticStorage(DeclarativeBase):
     """Declarative base for semantic memory SQLAlchemy models."""
 
 
-
 citation_association_table = Table(
     "citations",
     BaseSemanticStorage.metadata,
@@ -167,6 +166,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
     """Concrete SemanticStorageBase backed by PostgreSQL with pgvector."""
 
     def __init__(self, sqlalchemy_engine: AsyncEngine) -> None:
+        """Initialize the storage with an async SQLAlchemy engine."""
         self._engine = sqlalchemy_engine
         self._session_factory = async_sessionmaker(
             bind=self._engine,
@@ -362,7 +362,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call()
     async def add_citations(
-        self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT],
+        self,
+        feature_id: FeatureIdT,
+        history_ids: list[EpisodeIdT],
     ) -> None:
         rows = [
             {"feature_id": int(feature_id), "history_id": str(hid)}
@@ -423,7 +425,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def mark_messages_ingested(
-        self, set_id: str, history_ids: list[EpisodeIdT],
+        self,
+        set_id: str,
+        history_ids: list[EpisodeIdT],
     ) -> None:
         if len(history_ids) == 0:
             raise ValueError("No ids provided")

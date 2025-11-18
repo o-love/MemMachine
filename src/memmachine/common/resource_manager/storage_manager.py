@@ -39,7 +39,8 @@ class StorageManager:
             )
             if validate:
                 await asyncio.gather(
-                    self._validate_neo4j(), self._validate_sql_engines(),
+                    self._validate_neo4j(),
+                    self._validate_sql_engines(),
                 )
         return self
 
@@ -82,7 +83,8 @@ class StorageManager:
                 neo4j_uri = f"bolt://{neo4j_host}:{neo4j_port}"
 
             driver = AsyncGraphDatabase.driver(
-                neo4j_uri, auth=(conf.user, conf.password),
+                neo4j_uri,
+                auth=(conf.user, conf.password),
             )
             params = Neo4jVectorGraphStoreParams(
                 driver=driver,

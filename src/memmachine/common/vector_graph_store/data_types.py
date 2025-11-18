@@ -26,12 +26,16 @@ OrderedPropertyValue = int | float | str | datetime
 
 
 class EntityType(Enum):
+    """Supported graph entity types."""
+
     NODE = "node"
     EDGE = "edge"
 
 
 @dataclass(kw_only=True)
 class Node:
+    """Graph node representation with properties and embeddings."""
+
     uuid: UUID
     properties: dict[str, PropertyValue] = field(default_factory=dict)
     embeddings: dict[str, tuple[list[float], SimilarityMetric]] = field(
@@ -39,6 +43,7 @@ class Node:
     )
 
     def __eq__(self, other: object) -> bool:
+        """Compare nodes by uuid, properties, and embeddings."""
         if not isinstance(other, Node):
             return False
         return (
@@ -48,11 +53,14 @@ class Node:
         )
 
     def __hash__(self) -> int:
+        """Hash a node by its UUID."""
         return hash(self.uuid)
 
 
 @dataclass(kw_only=True)
 class Edge:
+    """Graph edge representation with properties and embeddings."""
+
     uuid: UUID
     source_uuid: UUID
     target_uuid: UUID
@@ -62,6 +70,7 @@ class Edge:
     )
 
     def __eq__(self, other: object) -> bool:
+        """Compare edges by uuid, properties, and embeddings."""
         if not isinstance(other, Edge):
             return False
         return (
@@ -71,6 +80,7 @@ class Edge:
         )
 
     def __hash__(self) -> int:
+        """Hash an edge by its UUID."""
         return hash(self.uuid)
 
 

@@ -16,6 +16,8 @@ class ContentType(Enum):
 
 @dataclass(kw_only=True)
 class Episode:
+    """A single episodic memory entry."""
+
     uuid: UUID
     timestamp: datetime
     source: str
@@ -27,16 +29,20 @@ class Episode:
     user_metadata: JSONValue = None
 
     def __eq__(self, other: object) -> bool:
+        """Compare episodes by UUID."""
         if not isinstance(other, Episode):
             return False
         return self.uuid == other.uuid
 
     def __hash__(self) -> int:
+        """Hash an episode by its UUID."""
         return hash(self.uuid)
 
 
 @dataclass(kw_only=True)
 class Derivative:
+    """A derived episodic memory linked to a source episode."""
+
     uuid: UUID
     timestamp: datetime
     source: str
@@ -47,11 +53,13 @@ class Derivative:
     )
 
     def __eq__(self, other: object) -> bool:
+        """Compare derivatives by UUID."""
         if not isinstance(other, Derivative):
             return False
         return self.uuid == other.uuid
 
     def __hash__(self) -> int:
+        """Hash a derivative by its UUID."""
         return hash(self.uuid)
 
 

@@ -300,7 +300,10 @@ class InMemorySemanticStorage(SemanticStorageBase):
             entry.metadata = dict(metadata) if metadata else None
 
     def _move_feature_to_set(
-        self, entry: _FeatureEntry, feature_id: FeatureIdT, new_set_id: str,
+        self,
+        entry: _FeatureEntry,
+        feature_id: FeatureIdT,
+        new_set_id: str,
     ) -> None:
         if new_set_id == entry.set_id:
             return
@@ -322,7 +325,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
                 self._feature_ids_by_set.pop(entry.set_id, None)
 
     def _history_rows_for_sets(
-        self, set_ids: list[str] | None,
+        self,
+        set_ids: list[str] | None,
     ) -> list[tuple[EpisodeIdT, bool]]:
         rows = [
             (history_id, ingested)
@@ -335,7 +339,8 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     @staticmethod
     def _filter_history_rows(
-        rows: list[tuple[EpisodeIdT, bool]], is_ingested: bool | None,
+        rows: list[tuple[EpisodeIdT, bool]],
+        is_ingested: bool | None,
     ) -> list[tuple[EpisodeIdT, bool]]:
         if is_ingested is None:
             return rows
@@ -471,10 +476,12 @@ class InMemorySemanticStorage(SemanticStorageBase):
         scored_entries: list[tuple[float, _FeatureEntry]] = []
         for entry in entries:
             similarity = self._resolve_similarity(
-                entry.embedding, vector_search_opts.query_embedding,
+                entry.embedding,
+                vector_search_opts.query_embedding,
             )
             if not self._passes_min_distance(
-                similarity, vector_search_opts.min_distance,
+                similarity,
+                vector_search_opts.min_distance,
             ):
                 continue
             scored_entries.append((similarity, entry))
@@ -484,14 +491,16 @@ class InMemorySemanticStorage(SemanticStorageBase):
 
     @staticmethod
     def _apply_tag_threshold(
-        entries: list[_FeatureEntry], tag_threshold: int,
+        entries: list[_FeatureEntry],
+        tag_threshold: int,
     ) -> list[_FeatureEntry]:
         counts = Counter(entry.tag for entry in entries)
         return [entry for entry in entries if counts[entry.tag] >= tag_threshold]
 
     @staticmethod
     def _resolve_similarity(
-        embedding: np.ndarray, query_embedding: np.ndarray,
+        embedding: np.ndarray,
+        query_embedding: np.ndarray,
     ) -> float:
         similarity = _cosine_similarity(embedding, query_embedding)
         return similarity if similarity is not None else float("-inf")

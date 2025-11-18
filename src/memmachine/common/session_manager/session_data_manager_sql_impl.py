@@ -61,7 +61,8 @@ class SessionDataManagerSQL(SessionDataManager):
         user_metadata: Mapped[JSONColumn]
         __table_args__ = (PrimaryKeyConstraint("session_key"),)
         short_term_memory_data = relationship(
-            "ShortTermMemoryData", cascade="all, delete-orphan",
+            "ShortTermMemoryData",
+            cascade="all, delete-orphan",
         )
 
     class ShortTermMemoryData(Base):  # pylint: disable=too-few-public-methods
@@ -82,7 +83,8 @@ class SessionDataManagerSQL(SessionDataManager):
         """Initialize with an async engine and optional schema."""
         self._engine = engine
         self._async_session = async_sessionmaker(
-            bind=self._engine, expire_on_commit=False,
+            bind=self._engine,
+            expire_on_commit=False,
         )
         if schema:
             for table in Base.metadata.tables.values():
@@ -148,7 +150,8 @@ class SessionDataManagerSQL(SessionDataManager):
             return
 
     async def get_session_info(
-        self, session_key: str,
+        self,
+        session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """Retrieve a session's configuration, metadata, and params."""
         async with self._async_session() as dbsession:
@@ -171,7 +174,9 @@ class SessionDataManagerSQL(SessionDataManager):
             )
 
     def _json_contains(
-        self, column: ColumnElement[object], filter: dict[str, object],
+        self,
+        column: ColumnElement[object],
+        filter: dict[str, object],
     ) -> ColumnElement[object]:
         if self._engine.dialect.name == "mysql":
             return func.json_contains(column, func.json_quote(func.json(filter)))
@@ -205,7 +210,11 @@ class SessionDataManagerSQL(SessionDataManager):
             return list(sessions.scalars().all())
 
     async def save_short_term_memory(
-        self, session_key: str, summary: str, last_seq: int, episode_num: int,
+        self,
+        session_key: str,
+        summary: str,
+        last_seq: int,
+        episode_num: int,
     ) -> None:
         """Save or update short-term memory data for a session."""
         async with self._async_session() as dbsession:

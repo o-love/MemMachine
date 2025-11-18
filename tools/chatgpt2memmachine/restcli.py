@@ -120,7 +120,11 @@ class MemMachineRestClient:
         # Trace the request
         if self.verbose:
             self._trace_request(
-                "POST", episodic_memory_endpoint, payload, response, latency_ms,
+                "POST",
+                episodic_memory_endpoint,
+                payload,
+                response,
+                latency_ms,
             )
         else:
             self.statistic_fp.write(
@@ -160,14 +164,20 @@ class MemMachineRestClient:
 
         start_time = time.time()
         response = requests.post(
-            search_episodic_memory_endpoint, json=query, timeout=300,
+            search_episodic_memory_endpoint,
+            json=query,
+            timeout=300,
         )
         end_time = time.time()
         latency_ms = round((end_time - start_time) * 1000, 2)
 
         if self.verbose:
             self._trace_request(
-                "POST", search_episodic_memory_endpoint, query, response, latency_ms,
+                "POST",
+                search_episodic_memory_endpoint,
+                query,
+                response,
+                latency_ms,
             )
         else:
             self.statistic_fp.write(

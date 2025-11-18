@@ -63,7 +63,9 @@ def upgrade() -> None:
         )
         b.add_column(
             sa.Column(
-                "semantic_type_id", sa.String(), server_default=sa.text("'default'"),
+                "semantic_type_id",
+                sa.String(),
+                server_default=sa.text("'default'"),
             ),
         )
         b.drop_column("isolations")
@@ -95,7 +97,9 @@ def upgrade() -> None:
     op.execute("DROP INDEX IF EXISTS prof_user_idx")
     op.create_index("idx_feature_set_id", "feature", ["set_id"])
     op.create_index(
-        "idx_feature_set_id_semantic_type", "feature", ["set_id", "semantic_type_id"],
+        "idx_feature_set_id_semantic_type",
+        "feature",
+        ["set_id", "semantic_type_id"],
     )
     op.create_index(
         "idx_feature_set_semantic_type_tag",
@@ -136,10 +140,16 @@ def upgrade() -> None:
         sa.Column("set_id", sa.String(), nullable=False),
         sa.Column("history_id", sa.Integer(), nullable=False),
         sa.Column(
-            "ingested", sa.Boolean(), server_default=sa.text("false"), nullable=True,
+            "ingested",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=True,
         ),
         sa.ForeignKeyConstraint(
-            ["history_id"], ["history.id"], ondelete="CASCADE", onupdate="CASCADE",
+            ["history_id"],
+            ["history.id"],
+            ondelete="CASCADE",
+            onupdate="CASCADE",
         ),
         sa.PrimaryKeyConstraint("set_id", "history_id"),
     )
@@ -167,11 +177,15 @@ def upgrade() -> None:
         # rename legacy columns if present
         with contextlib.suppress(Exception):
             b.alter_column(
-                "profile_id", new_column_name="feature_id", existing_type=sa.Integer,
+                "profile_id",
+                new_column_name="feature_id",
+                existing_type=sa.Integer,
             )
         with contextlib.suppress(Exception):
             b.alter_column(
-                "content_id", new_column_name="history_id", existing_type=sa.Integer,
+                "content_id",
+                new_column_name="history_id",
+                existing_type=sa.Integer,
             )
 
     # Drop existing FKs (unknown names) and recreate with explicit names
@@ -221,11 +235,15 @@ def downgrade() -> None:
     with op.batch_alter_table("citations", schema=None) as b:
         with contextlib.suppress(Exception):
             b.alter_column(
-                "history_id", new_column_name="content_id", existing_type=sa.Integer,
+                "history_id",
+                new_column_name="content_id",
+                existing_type=sa.Integer,
             )
         with contextlib.suppress(Exception):
             b.alter_column(
-                "feature_id", new_column_name="profile_id", existing_type=sa.Integer,
+                "feature_id",
+                new_column_name="profile_id",
+                existing_type=sa.Integer,
             )
 
     # history: add back legacy cols & data

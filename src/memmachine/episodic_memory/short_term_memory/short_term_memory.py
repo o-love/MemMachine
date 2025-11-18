@@ -41,19 +41,27 @@ class ShortTermMemoryParams(BaseModel):
 
     session_key: str = Field(..., description="Session identifier", min_length=1)
     llm_model: InstanceOf[LanguageModel] = Field(
-        ..., description="The language model to use for summarization",
+        ...,
+        description="The language model to use for summarization",
     )
     data_manager: InstanceOf[SessionDataManager] | None = Field(
-        default=None, description="The session data manager",
+        default=None,
+        description="The session data manager",
     )
     summary_prompt_system: str = Field(
-        ..., min_length=1, description="The system prompt for the summarization",
+        ...,
+        min_length=1,
+        description="The system prompt for the summarization",
     )
     summary_prompt_user: str = Field(
-        ..., min_length=1, description="The user prompt for the summarization",
+        ...,
+        min_length=1,
+        description="The user prompt for the summarization",
     )
     message_capacity: int = Field(
-        default=64000, gt=0, description="The maximum length of short-term memory",
+        default=64000,
+        gt=0,
+        description="The maximum length of short-term memory",
     )
 
     @field_validator("summary_prompt_user")
@@ -266,7 +274,8 @@ class ShortTermMemory:
                 max_length=self._max_message_len / 2,
             )
             result = await self._model.generate_response(
-                system_prompt=self._summary_system_prompt, user_prompt=msg,
+                system_prompt=self._summary_system_prompt,
+                user_prompt=msg,
             )
             self._summary = result[0]
             if self._data_manager is not None:

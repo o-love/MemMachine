@@ -25,6 +25,7 @@ class SemanticSessionManager:
         self,
         semantic_service: SemanticService,
     ) -> None:
+        """Initialize the manager with the underlying semantic service."""
         self._semantic_service: SemanticService = semantic_service
 
     async def add_message(
@@ -122,10 +123,13 @@ class SemanticSessionManager:
         )
 
     async def get_feature(
-        self, feature_id: FeatureIdT, load_citations: bool = False,
+        self,
+        feature_id: FeatureIdT,
+        load_citations: bool = False,
     ) -> SemanticFeature | None:
         return await self._semantic_service.get_feature(
-            feature_id, load_citations=load_citations,
+            feature_id,
+            load_citations=load_citations,
         )
 
     async def update_feature(

@@ -120,8 +120,7 @@ async def search_memories(group_id, session_id, user_ids, agent_ids, context, qu
 
 
 async def locomo_response(group_id: int, query: str, users: list[str], model: str):
-    """Answer a locomo benchmark question using an OpenAI Agents SDK agent.
-    """
+    """Answer a locomo benchmark question using an OpenAI Agents SDK agent."""
     search_result = await search_memories(
         f"group_{group_id}",
         f"group_{group_id}",
@@ -139,13 +138,16 @@ async def locomo_response(group_id: int, query: str, users: list[str], model: st
 
     class LocomoPrefetches(AgentHooks):
         async def on_start(
-            self, wrapper: RunContextWrapper[Memory], agent: Agent[Memory],
+            self,
+            wrapper: RunContextWrapper[Memory],
+            agent: Agent[Memory],
         ) -> None:
             wrapper.context.memory = search_result
             wrapper.context.turn += 1
 
     def executor_instructions(
-        wrapped_memory: RunContextWrapper[Memory], agent: Agent[Memory],
+        wrapped_memory: RunContextWrapper[Memory],
+        agent: Agent[Memory],
     ) -> str:
         turns = wrapped_memory.context.turn
         return f"""{LOCOMO_EXECUTOR_INSTRUCTIONS.format(turns=turns)}

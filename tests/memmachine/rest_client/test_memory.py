@@ -166,7 +166,9 @@ class TestMemory:
         mock_client._session.post.return_value = mock_response
 
         memory = Memory(
-            client=mock_client, agent_id=["agent1", "agent2"], user_id="user1",
+            client=mock_client,
+            agent_id=["agent1", "agent2"],
+            user_id="user1",
         )
 
         # Producer can be an agent
@@ -183,7 +185,9 @@ class TestMemory:
         mock_client._session.post.return_value = mock_response
 
         memory = Memory(
-            client=mock_client, agent_id="agent1", user_id=["user1", "user2"],
+            client=mock_client,
+            agent_id="agent1",
+            user_id=["user1", "user2"],
         )
 
         # produced_for can be a user

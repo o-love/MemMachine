@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class SlackService:
-    """Thin async wrapper around Slack Web API for the operations we need.
-    """
+    """Thin async wrapper around Slack Web API for the operations we need."""
 
     def __init__(self, token: str | None = None) -> None:
         self.token = token or os.getenv("SLACK_BOT_TOKEN")
@@ -39,13 +38,18 @@ class SlackService:
             return user_id
 
     async def post_message(
-        self, channel: str, text: str, thread_ts: str | None = None,
+        self,
+        channel: str,
+        text: str,
+        thread_ts: str | None = None,
     ) -> str | None:
-        """Post a message to a channel (optionally in a thread). Returns ts if successful.
-        """
+        """Post a message to a channel (optionally in a thread). Returns ts if successful."""
         try:
             resp = await self.client.chat_postMessage(
-                channel=channel, text=text, thread_ts=thread_ts, mrkdwn=True,
+                channel=channel,
+                text=text,
+                thread_ts=thread_ts,
+                mrkdwn=True,
             )
             return resp.get("ts")
         except SlackApiError as e:
@@ -58,7 +62,9 @@ class SlackService:
             return None
 
     async def get_channel_history(
-        self, channel: str, limit: int = 1000,
+        self,
+        channel: str,
+        limit: int = 1000,
     ) -> list[dict[str, Any]]:
         """Fetch historical messages from a Slack channel.
         Returns list of message objects with metadata.
@@ -69,7 +75,9 @@ class SlackService:
 
             while True:
                 resp = await self.client.conversations_history(
-                    channel=channel, limit=min(limit, 200), cursor=cursor,
+                    channel=channel,
+                    limit=min(limit, 200),
+                    cursor=cursor,
                 )
 
                 batch_messages = resp.get("messages", [])
@@ -103,15 +111,16 @@ class SlackService:
             return []
 
     async def get_all_channels(self) -> list[dict[str, Any]]:
-        """Get list of all channels the bot has access to.
-        """
+        """Get list of all channels the bot has access to."""
         try:
             channels = []
             cursor = None
 
             while True:
                 resp = await self.client.conversations_list(
-                    types="public_channel,private_channel", cursor=cursor, limit=200,
+                    types="public_channel,private_channel",
+                    cursor=cursor,
+                    limit=200,
                 )
 
                 batch_channels = resp.get("channels", [])

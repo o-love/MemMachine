@@ -328,7 +328,8 @@ async def test_deduplicate_features_merges_and_relabels(
         await semantic_storage.get_feature(drop_feature_id, load_citations=True) is None
     )
     kept_feature = await semantic_storage.get_feature(
-        keep_feature_id, load_citations=True,
+        keep_feature_id,
+        load_citations=True,
     )
     assert kept_feature is not None
     assert kept_feature.value == "original pizza"

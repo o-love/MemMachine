@@ -12,7 +12,9 @@ class RRFHybridRerankerParams(BaseModel):
     """Parameters for RRFHybridReranker."""
 
     rerankers: list[InstanceOf[Reranker]] = Field(
-        ..., description="List of rerankers to combine", min_length=1,
+        ...,
+        description="List of rerankers to combine",
+        min_length=1,
     )
     k: int = Field(60, description="The k parameter for Reciprocal Rank Fusion", ge=0)
 

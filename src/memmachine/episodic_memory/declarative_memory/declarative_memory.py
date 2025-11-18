@@ -101,7 +101,8 @@ class DeclarativeMemory:
 
         """
         episodes = sorted(
-            episodes, key=lambda episode: (episode.timestamp, episode.uuid),
+            episodes,
+            key=lambda episode: (episode.timestamp, episode.uuid),
         )
         episode_nodes = [
             Node(
@@ -159,7 +160,9 @@ class DeclarativeMemory:
                     ): (embedding, self._embedder.similarity_metric),
                 },
             )
-            for derivative, embedding in zip(derivatives, derivative_embeddings, strict=False)
+            for derivative, embedding in zip(
+                derivatives, derivative_embeddings, strict=False
+            )
         ]
 
         derivative_episode_edges = [
@@ -168,7 +171,9 @@ class DeclarativeMemory:
                 source_uuid=derivative.uuid,
                 target_uuid=episode.uuid,
             )
-            for episode, episode_derivatives in zip(episodes, episodes_derivatives, strict=False)
+            for episode, episode_derivatives in zip(
+                episodes, episodes_derivatives, strict=False
+            )
             for derivative in episode_derivatives
         ]
 
@@ -339,7 +344,8 @@ class DeclarativeMemory:
 
         # Rerank episode contexts.
         episode_context_scores = await self._score_episode_contexts(
-            query, episode_contexts,
+            query,
+            episode_contexts,
         )
 
         reranked_anchored_episode_contexts = [
@@ -348,7 +354,8 @@ class DeclarativeMemory:
                 zip(
                     episode_context_scores,
                     nuclear_episodes,
-                    episode_contexts, strict=False,
+                    episode_contexts,
+                    strict=False,
                 ),
                 key=lambda triple: triple[0],
                 reverse=True,
@@ -421,7 +428,9 @@ class DeclarativeMemory:
         return context
 
     async def _score_episode_contexts(
-        self, query: str, episode_contexts: Iterable[Iterable[Episode]],
+        self,
+        query: str,
+        episode_contexts: Iterable[Iterable[Episode]],
     ) -> list[float]:
         """
         Score episode node contexts based on their relevance to the query.
@@ -605,7 +614,8 @@ class DeclarativeMemory:
             content=episode_node.properties["content"],
             filterable_properties={
                 demangle_filterable_property_key(key): cast(
-                    "FilterablePropertyValue", value,
+                    "FilterablePropertyValue",
+                    value,
                 )
                 for key, value in episode_node.properties.items()
                 if is_mangled_filterable_property_key(key)

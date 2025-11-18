@@ -14,6 +14,7 @@ class Node:
     """
 
     def __init__(self, key: str | None, value: EpisodicMemory | None) -> None:
+        """Initialize a node with an optional key/value pair."""
         self.key = key
         self.value = value
         self.ref_count = 1
@@ -35,6 +36,7 @@ class MemoryInstanceCache:
     """
 
     def __init__(self, capacity: int, max_lifetime: int) -> None:
+        """Initialize the cache with capacity and lifetime limits."""
         if capacity <= 0:
             raise ValueError("Capacity must be a positive integer")
         self.capacity = capacity

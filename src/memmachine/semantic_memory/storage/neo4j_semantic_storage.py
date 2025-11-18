@@ -74,7 +74,10 @@ class Neo4jSemanticStorage(SemanticStorageBase):
     _DEFAULT_VECTOR_QUERY_CANDIDATES = 100
     _SET_LABEL_PREFIX = "FeatureSet_"
 
-    def __init__(self, driver: InstanceOf[AsyncDriver], owns_driver: bool = False) -> None:
+    def __init__(
+        self, driver: InstanceOf[AsyncDriver], owns_driver: bool = False
+    ) -> None:
+        """Initialize the storage with a Neo4j driver."""
         self._driver = driver
         self._owns_driver = owns_driver
         # Exposed for fixtures to know which backend is in use
@@ -198,7 +201,8 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         existing_set_id = record["set_id"]
         target_set_id = set_id or existing_set_id
         target_dimensions = self._target_dimensions(
-            record.get("embedding_dimensions"), embedding,
+            record.get("embedding_dimensions"),
+            embedding,
         )
         if target_set_id is None or target_dimensions is None:
             raise ValueError("Unable to resolve embedding dimensions for feature")
@@ -293,7 +297,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         return [float(x) for x in np.array(embedding, dtype=float).tolist()]
 
     def _build_label_updates(
-        self, existing_set_id: str | None, new_set_id: str | None,
+        self,
+        existing_set_id: str | None,
+        new_set_id: str | None,
     ) -> list[str]:
         if new_set_id is None or new_set_id == existing_set_id:
             return []
@@ -657,7 +663,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         return "\n".join(query_parts)
 
     def _matching_set_ids(
-        self, requested_set_ids: list[str] | None, expected_dims: int,
+        self,
+        requested_set_ids: list[str] | None,
+        expected_dims: int,
     ) -> list[str]:
         candidate_ids = self._deduplicated_set_ids(requested_set_ids)
         return [
@@ -834,7 +842,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         for set_id in list(self._set_embedding_dimensions.keys()):
             await self._ensure_set_label_applied(set_id)
 
-    async def _ensure_set_embedding_dimensions(self, set_id: str, dimensions: int) -> None:
+    async def _ensure_set_embedding_dimensions(
+        self, set_id: str, dimensions: int
+    ) -> None:
         cached = self._set_embedding_dimensions.get(set_id)
         if cached is not None:
             if cached != dimensions:
@@ -901,7 +911,9 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             f"OR ({alias}.id IS NOT NULL AND toString({alias}.id) IN ${param}))"
         )
 
-    async def _get_feature_dimensions(self, feature_id: FeatureIdT) -> dict[str, Any] | None:
+    async def _get_feature_dimensions(
+        self, feature_id: FeatureIdT
+    ) -> dict[str, Any] | None:
         records, _, _ = await self._driver.execute_query(
             f"""
             MATCH (f:Feature)

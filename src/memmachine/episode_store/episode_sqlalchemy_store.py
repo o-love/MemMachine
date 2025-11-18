@@ -32,7 +32,6 @@ class BaseHistoryStore(DeclarativeBase):
     """Base class for SQLAlchemy history store."""
 
 
-
 JSON_AUTO = JSON().with_variant(JSONB, "postgresql")
 
 
@@ -50,7 +49,8 @@ class History(BaseHistoryStore):
 
     produced_for_id = mapped_column(String, nullable=True)
     episode_type = mapped_column(
-        SAEnum(EpisodeType, name="episode_type"), nullable=True,
+        SAEnum(EpisodeType, name="episode_type"),
+        nullable=True,
     )
 
     json_metadata = mapped_column(
@@ -102,6 +102,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
     """SQLAlchemy episode store implementation."""
 
     def __init__(self, engine: AsyncEngine) -> None:
+        """Initialize the store with an async SQLAlchemy engine."""
         self._engine: AsyncEngine = engine
         self._session_factory = async_sessionmaker(
             self._engine,

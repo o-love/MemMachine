@@ -229,7 +229,10 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
     ]
 
     await vector_graph_store.add_edges(
-        "RELATED_TO", "Entity", "Entity", related_to_edges,
+        "RELATED_TO",
+        "Entity",
+        "Entity",
+        related_to_edges,
     )
     await vector_graph_store.add_edges("IS", "Entity", "Entity", is_edges)
 
@@ -510,7 +513,10 @@ async def test_search_related_nodes(vector_graph_store):
 
     await vector_graph_store.add_nodes("Entity", nodes)
     await vector_graph_store.add_edges(
-        "RELATED_TO", "Entity", "Entity", related_to_edges,
+        "RELATED_TO",
+        "Entity",
+        "Entity",
+        related_to_edges,
     )
     await vector_graph_store.add_edges("RELATED_TO", "Entity", "Entity", is_edges)
 
@@ -711,7 +717,8 @@ async def test_search_directional_nodes(vector_graph_store):
 
 @pytest.mark.asyncio
 async def test_search_directional_nodes_multiple_by_properties(
-    neo4j_driver, vector_graph_store,
+    neo4j_driver,
+    vector_graph_store,
 ):
     time = datetime.now(tz=UTC)
     delta = timedelta(days=1)
@@ -1105,7 +1112,8 @@ async def test_get_nodes(vector_graph_store):
     await vector_graph_store.add_nodes("Entity", nodes)
 
     fetched_nodes = await vector_graph_store.get_nodes(
-        "Entity", [node.uuid for node in nodes],
+        "Entity",
+        [node.uuid for node in nodes],
     )
     assert len(fetched_nodes) == 3
 
@@ -1113,7 +1121,8 @@ async def test_get_nodes(vector_graph_store):
         assert fetched_node.uuid in {node.uuid for node in nodes}
 
     fetched_nodes = await vector_graph_store.get_nodes(
-        "Entity", [nodes[0].uuid, uuid4()],
+        "Entity",
+        [nodes[0].uuid, uuid4()],
     )
     assert len(fetched_nodes) == 1
     assert fetched_nodes[0] == nodes[0]
@@ -1204,7 +1213,8 @@ def vector_graph_store_indexing(neo4j_driver):
 
 @pytest.mark.asyncio
 async def test__create_unique_constraint_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing,
+    neo4j_driver,
+    vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
         "SHOW CONSTRAINTS YIELD name RETURN name",
@@ -1279,7 +1289,8 @@ async def test__create_unique_constraint_if_not_exists(
 
 @pytest.mark.asyncio
 async def test__create_range_index_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing,
+    neo4j_driver,
+    vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
         "SHOW RANGE INDEXES YIELD name RETURN name",
@@ -1386,7 +1397,8 @@ async def test__create_range_index_if_not_exists(
 
 @pytest.mark.asyncio
 async def test__create_vector_index_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing,
+    neo4j_driver,
+    vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
         "SHOW VECTOR INDEXES YIELD name RETURN name",

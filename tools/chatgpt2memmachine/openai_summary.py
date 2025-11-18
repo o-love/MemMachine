@@ -26,7 +26,8 @@ class OpenAISummary:
 
     def list_models(self):
         response = requests.get(
-            "https://api.openai.com/v1/models", headers=self.headers,
+            "https://api.openai.com/v1/models",
+            headers=self.headers,
         )
         return response.json()
 

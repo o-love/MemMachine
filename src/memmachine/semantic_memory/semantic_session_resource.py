@@ -43,7 +43,7 @@ class SessionIdManager:
     """Generates namespaced set_ids and reports which isolation scope they belong to."""
 
     def __init__(self) -> None:
-        pass
+        """Initialize the session id manager."""
 
     _SESSION_ID_PREFIX: Final[str] = "mem_session_"
     _USER_ID_PREFIX: Final[str] = "mem_user_"
@@ -66,6 +66,7 @@ class SessionIdManager:
                 _role_profile_id: str | None,
                 _session_id: str | None,
             ) -> None:
+                """Capture the identifiers used to scope memory resources."""
                 self._user_id: str | None = _user_profile_id
                 self._role_id: str | None = _role_profile_id
                 self._session_id: str | None = _session_id

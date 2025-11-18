@@ -15,6 +15,7 @@ class SemanticUpdateTracker:
     """
 
     def __init__(self, set_id: str, message_limit: int, time_limit_sec: float) -> None:
+        """Initialize counters for a particular feature set."""
         self._set_id = set_id
         self._message_limit: int = message_limit
         self._time_limit: float = time_limit_sec
@@ -76,6 +77,7 @@ class SemanticUpdateTrackerManager:
     """Manages SemanticUpdateTracker instances for multiple feature sets."""
 
     def __init__(self, message_limit: int, time_limit_sec: float) -> None:
+        """Create a tracker manager with shared thresholds."""
         self._trackers: dict[str, SemanticUpdateTracker] = {}
         self._trackers_lock = asyncio.Lock()
         self._message_limit = message_limit

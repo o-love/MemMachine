@@ -44,7 +44,8 @@ class SessionDataManager(ABC):
 
     @abstractmethod
     async def get_session_info(
-        self, session_key: str,
+        self,
+        session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """Get configuration, description, metadata, and params for a session."""
         raise NotImplementedError
@@ -56,7 +57,11 @@ class SessionDataManager(ABC):
 
     @abstractmethod
     async def save_short_term_memory(
-        self, session_key: str, summary: str, last_seq: int, episode_num: int,
+        self,
+        session_key: str,
+        summary: str,
+        last_seq: int,
+        episode_num: int,
     ) -> None:
         """Save or update short-term memory data for a session."""
         raise NotImplementedError

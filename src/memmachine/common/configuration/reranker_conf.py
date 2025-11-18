@@ -12,10 +12,12 @@ class BM25RerankerConf(BaseModel):
     b: float = Field(default=0.75, description="BM25 b parameter")
     epsilon: float = Field(default=0.25, description="BM25 epsilon parameter")
     tokenizer: str = Field(
-        default="default", description="Tokenizer function to split text into tokens",
+        default="default",
+        description="Tokenizer function to split text into tokens",
     )
     language: str = Field(
-        default="english", description="Language for stop words in default tokenizer",
+        default="english",
+        description="Language for stop words in default tokenizer",
     )
 
 
@@ -24,13 +26,16 @@ class AmazonBedrockRerankerConf(BaseModel):
 
     model_id: str = Field(..., description="The Bedrock model ID to use for reranking")
     region: str = Field(
-        default="us-west-2", description="The AWS region of the Bedrock service",
+        default="us-west-2",
+        description="The AWS region of the Bedrock service",
     )
     aws_access_key_id: SecretStr = Field(
-        ..., description="The AWS access key ID for Bedrock authentication",
+        ...,
+        description="The AWS access key ID for Bedrock authentication",
     )
     aws_secret_access_key: SecretStr = Field(
-        ..., description="The AWS secret access key for Bedrock authentication",
+        ...,
+        description="The AWS secret access key for Bedrock authentication",
     )
     additional_model_request_fields: dict = Field(
         default_factory=dict,
@@ -59,7 +64,6 @@ class EmbedderRerankerConf(BaseModel):
 
 class IdentityRerankerConf(BaseModel):
     """Parameters for IdentityReranker."""
-
 
 
 class RRFHybridRerankerConf(BaseModel):

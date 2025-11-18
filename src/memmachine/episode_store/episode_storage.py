@@ -9,6 +9,8 @@ from memmachine.episode_store.episode_model import Episode, EpisodeIdT, EpisodeT
 
 
 class EpisodeStorage(ABC):
+    """Abstract interface for persisting and retrieving episodic history."""
+
     @abstractmethod
     async def add_history(
         self,

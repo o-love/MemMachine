@@ -66,6 +66,7 @@ class SemanticService:
         self,
         params: Params,
     ) -> None:
+        """Set up semantic memory services and background ingestion tracking."""
         self._semantic_storage = params.semantic_storage
         self._history_storage = params.history_storage
         self._background_ingestion_interval_sec = params.feature_update_interval_sec
@@ -131,7 +132,8 @@ class SemanticService:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
-                    set_id=set_id, history_id=h_id,
+                    set_id=set_id,
+                    history_id=h_id,
                 )
                 for h_id in history_ids
             ],
@@ -143,11 +145,14 @@ class SemanticService:
         await self._dirty_sets.mark_update([set_id])
 
     @validate_call
-    async def add_message_to_sets(self, history_id: EpisodeIdT, set_ids: list[SetIdT]) -> None:
+    async def add_message_to_sets(
+        self, history_id: EpisodeIdT, set_ids: list[SetIdT]
+    ) -> None:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
-                    set_id=set_id, history_id=history_id,
+                    set_id=set_id,
+                    history_id=history_id,
                 )
                 for set_id in set_ids
             ],
@@ -161,7 +166,8 @@ class SemanticService:
     @validate_call
     async def number_of_uningested(self, set_ids: list[SetIdT]) -> int:
         return await self._semantic_storage.get_history_messages_count(
-            set_ids=set_ids, is_ingested=False,
+            set_ids=set_ids,
+            is_ingested=False,
         )
 
     @validate_call
@@ -196,10 +202,13 @@ class SemanticService:
 
     @validate_call
     async def get_feature(
-        self, feature_id: FeatureIdT, load_citations: bool,
+        self,
+        feature_id: FeatureIdT,
+        load_citations: bool,
     ) -> SemanticFeature | None:
         return await self._semantic_storage.get_feature(
-            feature_id, load_citations=load_citations,
+            feature_id,
+            load_citations=load_citations,
         )
 
     class FeatureSearchOpts(BaseModel):

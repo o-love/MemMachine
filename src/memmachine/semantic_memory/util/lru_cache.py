@@ -5,6 +5,7 @@ from typing import TypeVar
 K = TypeVar("K")
 V = TypeVar("V")
 
+
 class Node[K, V]:
     """
     Represent a node for the doubly linked list.
@@ -13,6 +14,7 @@ class Node[K, V]:
     """
 
     def __init__(self, key: K | None, value: V | None) -> None:
+        """Initialize a node with optional key/value."""
         self.key = key
         self.value = value
         self.prev: Node | None = None
@@ -32,6 +34,7 @@ class LRUCache[K, V]:
     """
 
     def __init__(self, capacity: int) -> None:
+        """Initialize the cache with a fixed capacity."""
         if capacity <= 0:
             raise ValueError("Capacity must be a positive integer")
         self.capacity = capacity
