@@ -13,7 +13,7 @@ from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.configuration.model_conf import (
     AmazonBedrockLanguageModelConf,
-    OpenAIModelConf,
+    OpenAIResponsesLanguageModelConf,
 )
 from memmachine.common.embedder.openai_embedder import (
     OpenAIEmbedder,
@@ -107,7 +107,7 @@ def openai_embedder(openai_client, openai_integration_config):
 @pytest.fixture(scope="session")
 def openai_llm_model(openai_integration_config):
     return OpenAIResponsesLanguageModel(
-        OpenAIModelConf(
+        OpenAIResponsesLanguageModelConf(
             api_key=openai_integration_config["api_key"],
             model=openai_integration_config["llm_model"],
         ),

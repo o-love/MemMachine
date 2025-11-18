@@ -4,8 +4,8 @@ from pydantic import SecretStr
 from memmachine.common.configuration.model_conf import (
     AmazonBedrockLanguageModelConf,
     LanguageModelConf,
-    OpenAICompatibleModelConf,
-    OpenAIModelConf,
+    OpenAIChatCompletionsLanguageModelConf,
+    OpenAIResponsesLanguageModelConf,
 )
 from memmachine.common.resource_manager.language_model_manager import (
     LanguageModelManager,
@@ -17,11 +17,11 @@ def mock_conf():
     """Mock LanguageModelConf with dummy configurations."""
     conf = LanguageModelConf(
         openai_confs={
-            "openai_4o_mini": OpenAIModelConf(
+            "openai_4o_mini": OpenAIResponsesLanguageModelConf(
                 model="gpt-4o-mini",
                 api_key=SecretStr("DUMMY_OPENAI_API_KEY_1"),
             ),
-            "openai_3_5_turbo": OpenAIModelConf(
+            "openai_3_5_turbo": OpenAIResponsesLanguageModelConf(
                 model="gpt-3.5-turbo",
                 api_key=SecretStr("DUMMY_OPENAI_API_KEY_2"),
             ),
@@ -36,7 +36,7 @@ def mock_conf():
             ),
         },
         openai_compatible_confs={
-            "ollama_model": OpenAICompatibleModelConf(
+            "ollama_model": OpenAIChatCompletionsLanguageModelConf(
                 model="llama3",
                 api_key=SecretStr("DUMMY_OLLAMA_API_KEY"),
                 base_url="http://localhost:11434/v1",

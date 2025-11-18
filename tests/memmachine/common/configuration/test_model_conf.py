@@ -4,8 +4,8 @@ from pydantic import SecretStr, ValidationError
 from memmachine.common.configuration.model_conf import (
     AmazonBedrockLanguageModelConf,
     LanguageModelConf,
-    OpenAICompatibleModelConf,
-    OpenAIModelConf,
+    OpenAIChatCompletionsLanguageModelConf,
+    OpenAIResponsesLanguageModelConf,
 )
 
 
@@ -52,7 +52,7 @@ def full_model_conf(openai_model_conf, aws_model_conf, ollama_model_conf) -> dic
 
 
 def test_valid_openai_model(openai_model_conf):
-    conf = OpenAIModelConf(**openai_model_conf)
+    conf = OpenAIResponsesLanguageModelConf(**openai_model_conf)
     assert conf.model == "gpt-4o-mini"
     assert conf.api_key == SecretStr("open-ai-key")
     assert conf.max_retry_interval_seconds == 120
@@ -68,7 +68,7 @@ def test_valid_aws_model(aws_model_conf):
 
 
 def test_valid_openai_compatible_model(ollama_model_conf):
-    conf = OpenAICompatibleModelConf(**ollama_model_conf)
+    conf = OpenAIChatCompletionsLanguageModelConf(**ollama_model_conf)
     assert conf.model == "llama3"
     assert conf.api_key == SecretStr("EMPTY")
     assert conf.base_url == "http://host.docker.internal:11434/v1"
@@ -95,7 +95,7 @@ def test_full_language_model_conf(full_model_conf):
 def test_missing_required_field_openai_model():
     conf_dict = {"model_vendor": "openai", "model": "gpt-4o-mini"}  # Missing api_key
     with pytest.raises(ValidationError) as exc_info:
-        OpenAIModelConf(**conf_dict)
+        OpenAIResponsesLanguageModelConf(**conf_dict)
     assert "field required" in str(exc_info.value).lower()
 
 
@@ -107,5 +107,5 @@ def test_invalid_base_url_in_openai_compatible_model():
         "base_url": "invalid-url",
     }
     with pytest.raises(ValidationError) as exc_info:
-        OpenAICompatibleModelConf(**conf_dict)
+        OpenAIChatCompletionsLanguageModelConf(**conf_dict)
     assert "invalid base url" in str(exc_info.value).lower()
