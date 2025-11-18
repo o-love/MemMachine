@@ -11,21 +11,21 @@ def test_parse_valid_storage_dict():
     input_dict = {
         "storage": {
             "my_neo4j": {
-                "vendor_name": "neo4j",
+                "provider": "neo4j",
                 "host": "localhost",
                 "port": 7687,
                 "user": "neo4j",
                 "password": "secret",
             },
             "main_postgres": {
-                "vendor_name": "postgres",
+                "provider": "postgres",
                 "host": "db.example.com",
                 "port": 5432,
                 "user": "admin",
                 "db_name": "test_db",
                 "password": "pwd",
             },
-            "local_sqlite": {"vendor_name": "sqlite", "host": "local.db"},
+            "local_sqlite": {"provider": "sqlite", "host": "local.db"},
         }
     }
 
@@ -51,9 +51,9 @@ def test_parse_valid_storage_dict():
 
 def test_parse_unknown_vendor_raises():
     input_dict = {
-        "storage": {"bad_storage": {"vendor_name": "unknown_db", "host": "localhost"}}
+        "storage": {"bad_storage": {"provider": "unknown_db", "host": "localhost"}}
     }
-    with pytest.raises(ValueError, match="Unknown vendor_name 'unknown_db'"):
+    with pytest.raises(ValueError, match="Unknown provider 'unknown_db'"):
         StorageConf.parse_storage_conf(input_dict)
 
 

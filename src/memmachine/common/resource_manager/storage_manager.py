@@ -85,7 +85,6 @@ class StorageManager:
             )
             params = Neo4jVectorGraphStoreParams(
                 driver=driver,
-                max_concurrent_transactions=conf.max_concurrent_transactions,
                 force_exact_similarity_search=conf.force_exact_similarity_search,
             )
             self.graph_stores[name] = Neo4jVectorGraphStore(params)

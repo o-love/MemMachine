@@ -11,9 +11,6 @@ class Neo4JConf(BaseModel):
     password: SecretStr = Field(
         default=SecretStr("neo4j_password"), description="neo4j database password"
     )
-    max_concurrent_transactions: int = Field(
-        default=100, description="Maximum number of concurrent transactions", gt=0
-    )
     force_exact_similarity_search: bool = Field(
         default=False, description="Whether to force exact similarity search"
     )
@@ -53,7 +50,7 @@ class StorageConf(BaseModel):
         neo4j_dict, relational_db_dict = {}, {}
 
         for storage_id, conf in storage.items():
-            vendor = conf.get("vendor_name").lower()
+            vendor = conf.get("provider").lower()
             if vendor == "neo4j":
                 neo4j_dict[storage_id] = Neo4JConf(**conf)
             elif vendor == "postgres":
@@ -70,7 +67,7 @@ class StorageConf(BaseModel):
                 )
             else:
                 raise ValueError(
-                    f"Unknown vendor_name '{vendor}' for storage_id '{storage_id}'"
+                    f"Unknown provider '{vendor}' for storage_id '{storage_id}'"
                 )
 
         return cls(
