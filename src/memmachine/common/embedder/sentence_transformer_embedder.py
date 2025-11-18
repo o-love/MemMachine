@@ -110,8 +110,8 @@ class SentenceTransformerEmbedder(Embedder):
                 "Giving up creating embeddings "
                 f"due to assumed non-retryable {type(e).__name__}"
             )
-            logger.error(error_message)
-            raise ExternalServiceAPIError(error_message)
+            logger.exception(error_message)
+            raise ExternalServiceAPIError(error_message) from e
 
         end_time = time.monotonic()
         logger.debug(

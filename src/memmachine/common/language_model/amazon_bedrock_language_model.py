@@ -157,10 +157,7 @@ class AmazonBedrockLanguageModelParams(BaseModel):
 
 
 class AmazonBedrockLanguageModel(LanguageModel):
-    """
-    Language model that uses Amazon Bedrock models
-    to generate responses based on prompts and tools.
-    """
+    """Language model that uses Amazon Bedrock models to generate responses."""
 
     def __init__(self, params: AmazonBedrockLanguageModelParams) -> None:
         """
@@ -169,8 +166,7 @@ class AmazonBedrockLanguageModel(LanguageModel):
         See https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html.
 
         Args:
-            params (AmazonBedrockLanguageModelParams):
-                Parameters for the language model.
+            params (AmazonBedrockLanguageModelParams): Parameters for the language model.
 
         """
         super().__init__()
@@ -343,8 +339,8 @@ class AmazonBedrockLanguageModel(LanguageModel):
                         f"due to assumed retryable {type(e).__name__}: "
                         f"max attempts {max_attempts} reached"
                     )
-                    logger.error(error_message)
-                    raise ExternalServiceAPIError(error_message)
+                    logger.exception(error_message)
+                    raise ExternalServiceAPIError(error_message) from e
 
                 logger.info(
                     "[call uuid: %s] "

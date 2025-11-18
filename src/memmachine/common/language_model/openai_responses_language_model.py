@@ -67,10 +67,7 @@ class OpenAIResponsesLanguageModelParams(BaseModel):
 
 
 class OpenAIResponsesLanguageModel(LanguageModel):
-    """
-    Language model that uses OpenAI's models
-    to generate responses based on prompts and tools.
-    """
+    """Language model that uses OpenAI's responses API."""
 
     def __init__(self, params: OpenAIResponsesLanguageModelParams) -> None:
         """
@@ -165,8 +162,8 @@ class OpenAIResponsesLanguageModel(LanguageModel):
                 "Giving up generating response "
                 f"due to non-retryable {type(e).__name__}"
             )
-            logger.error(error_message)
-            raise ExternalServiceAPIError(error_message)
+            logger.exception(error_message)
+            raise ExternalServiceAPIError(error_message) from e
 
         end_time = time.monotonic()
 
@@ -232,8 +229,8 @@ class OpenAIResponsesLanguageModel(LanguageModel):
                         f"due to retryable {type(e).__name__}: "
                         f"max attempts {max_attempts} reached"
                     )
-                    logger.error(error_message)
-                    raise ExternalServiceAPIError(error_message)
+                    logger.exception(error_message)
+                    raise ExternalServiceAPIError(error_message) from e
 
                 logger.info(
                     "[call uuid: %s] "
@@ -255,8 +252,8 @@ class OpenAIResponsesLanguageModel(LanguageModel):
                     f"after failed attempt {attempt} "
                     f"due to non-retryable {type(e).__name__}"
                 )
-                logger.error(error_message)
-                raise ExternalServiceAPIError(error_message)
+                logger.exception(error_message)
+                raise ExternalServiceAPIError(error_message) from e
 
         end_time = time.monotonic()
         logger.debug(

@@ -121,7 +121,7 @@ class OpenAIEmbedder(Embedder):
         if max_attempts <= 0:
             raise ValueError("max_attempts must be a positive integer")
 
-        inputs = [input.replace("\n", " ") if input else "\n" for input in inputs]
+        inputs = [item.replace("\n", " ") if item else "\n" for item in inputs]
 
         embed_call_uuid = uuid4()
 
@@ -154,32 +154,35 @@ class OpenAIEmbedder(Embedder):
                             model=self._model,
                         )
                     )
-                except openai.BadRequestError as e:
-                    if "dimension" in str(e).lower() and self._use_dimensions_parameter:
+                except openai.BadRequestError as err:
+                    if (
+                        "dimension" in str(err).lower()
+                        and self._use_dimensions_parameter
+                    ):
                         response = await self._client.embeddings.create(
                             input=inputs,
                             model=self._model,
                         )
                         self._use_dimensions_parameter = False
                         break
-                    raise e
+                    raise
                 break
             except (
                 openai.RateLimitError,
                 openai.APITimeoutError,
                 openai.APIConnectionError,
-            ) as e:
+            ) as err:
                 # Exception may be retried.
                 if attempt >= max_attempts:
                     error_message = (
                         f"[call uuid: {embed_call_uuid}] "
                         "Giving up creating embeddings "
                         f"after failed attempt {attempt} "
-                        f"due to retryable {type(e).__name__}: "
+                        f"due to retryable {type(err).__name__}: "
                         f"max attempts {max_attempts} reached"
                     )
-                    logger.error(error_message)
-                    raise ExternalServiceAPIError(error_message)
+                    logger.exception(error_message)
+                    raise ExternalServiceAPIError(error_message) from err
 
                 logger.info(
                     "[call uuid: %s] "
@@ -188,22 +191,22 @@ class OpenAIEmbedder(Embedder):
                     embed_call_uuid,
                     sleep_seconds,
                     attempt,
-                    type(e).__name__,
+                    type(err).__name__,
                 )
                 await asyncio.sleep(
                     min(sleep_seconds, self._max_retry_interval_seconds),
                 )
                 sleep_seconds *= 2
                 continue
-            except (openai.APIError, openai.OpenAIError) as e:
+            except (openai.APIError, openai.OpenAIError) as err:
                 error_message = (
                     f"[call uuid: {embed_call_uuid}] "
                     "Giving up creating embeddings "
                     f"after failed attempt {attempt} "
-                    f"due to non-retryable {type(e).__name__}"
+                    f"due to non-retryable {type(err).__name__}"
                 )
-                logger.error(error_message)
-                raise ExternalServiceAPIError(error_message)
+                logger.exception(error_message)
+                raise ExternalServiceAPIError(error_message) from err
 
         end_time = time.monotonic()
         logger.debug(
@@ -218,7 +221,7 @@ class OpenAIEmbedder(Embedder):
                 f"Received embedding dimensionality {len(response.data[0].embedding)} "
                 f"does not match expected dimensionality {self._dimensions}"
             )
-            logger.error(error_message)
+            logger.exception(error_message)
             raise ExternalServiceAPIError(error_message)
 
         if self._collect_metrics:

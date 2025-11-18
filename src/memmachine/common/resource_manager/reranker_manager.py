@@ -1,3 +1,5 @@
+"""Manager for constructing and caching reranker instances."""
+
 import asyncio
 import re
 from asyncio import Lock
@@ -16,14 +18,20 @@ from memmachine.common.reranker import Reranker
 
 @runtime_checkable
 class EmbedderFactory(Protocol):
+    """Protocol for retrieving embedder instances."""
+
     async def get_embedder(self, name: str) -> Embedder:
+        """Return an embedder by name."""
         raise NotImplementedError
 
 
 class RerankerManager:
+    """Create and cache configured rerankers."""
+
     def __init__(
         self, conf: RerankerConf, embedder_factory: InstanceOf[EmbedderFactory],
     ) -> None:
+        """Store configuration and factories, initializing caches."""
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}
 
@@ -32,9 +40,10 @@ class RerankerManager:
         self._rerankers_lock = defaultdict(Lock)
 
     async def build_all(self) -> dict[str, Reranker]:
+        """Build all configured rerankers and return the cache."""
         names = [
             name
-            for d in [
+            for reranker_conf in [
                 self.conf.bm25,
                 self.conf.cross_encoder,
                 self.conf.amazon_bedrock,
@@ -42,13 +51,14 @@ class RerankerManager:
                 self.conf.identity,
                 self.conf.rrf_hybrid,
             ]
-            for name in d.keys()
+            for name in reranker_conf
         ]
         tasks = [self.get_reranker(name) for name in names]
         await asyncio.gather(*tasks)
         return self.rerankers
 
     async def get_reranker(self, name: str) -> Reranker:
+        """Return a named reranker, building it on first access."""
         if name in self.rerankers:
             return self.rerankers[name]
 
@@ -65,6 +75,7 @@ class RerankerManager:
             return reranker
 
     async def _build_reranker(self, name: str) -> Reranker:
+        """Create a reranker based on provider-specific configuration."""
         if name in self.conf.bm25:
             return await self._build_bm25_reranker(name)
         if name in self.conf.cross_encoder:
@@ -93,20 +104,7 @@ class RerankerManager:
                 stop_words = stopwords.words(language)
 
                 def _default_tokenize(text: str) -> list[str]:
-                    """
-                    Preprocess the input text
-                    by removing non-alphanumeric characters,
-                    converting to lowercase,
-                    word-tokenizing,
-                    and removing stop words.
-
-                    Args:
-                        text (str): The input text to preprocess.
-
-                    Returns:
-                        list[str]: A list of tokens for use in BM25 scoring.
-
-                    """
+                    """Tokenize text by normalizing and filtering stop words."""
                     alphanumeric_text = re.sub(r"\W+", " ", text)
                     lower_text = alphanumeric_text.lower()
                     words = word_tokenize(lower_text, language)
@@ -187,11 +185,7 @@ class RerankerManager:
         return self.rerankers[name]
 
     async def _build_rrf_hybrid_reranker(self, name: str) -> Reranker:
-        """
-        Build RRF hybrid rerankers by combining existing rerankers.
-
-        This method must be called after all individual rerankers have been built,
-        """
+        """Build an RRF hybrid reranker by combining existing rerankers."""
         from memmachine.common.reranker.rrf_hybrid_reranker import (
             RRFHybridReranker,
             RRFHybridRerankerParams,

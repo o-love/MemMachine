@@ -24,7 +24,7 @@ def merge_partial_configs(
     """
     data = {}
 
-    for field in full_cls.model_fields.keys():
+    for field in full_cls.model_fields:
         v1 = getattr(primary, field, None)
         v2 = getattr(fallback, field, None)
 

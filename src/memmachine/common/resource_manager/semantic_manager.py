@@ -1,3 +1,5 @@
+"""Manager for semantic memory resources and services."""
+
 import asyncio
 
 from pydantic import InstanceOf
@@ -21,6 +23,8 @@ from memmachine.semantic_memory.storage.sqlalchemy_pgvector_semantic import (
 
 
 class SemanticResourceManager:
+    """Build and cache components used by semantic memory."""
+
     def __init__(
         self,
         *,
@@ -29,6 +33,7 @@ class SemanticResourceManager:
         resource_manager: InstanceOf[CommonResourceManager],
         history_storage: EpisodeStorage,
     ) -> None:
+        """Store configuration and supporting managers."""
         self._resource_manager = resource_manager
         self._conf = semantic_conf
         self._prompt_conf = prompt_conf
@@ -42,6 +47,7 @@ class SemanticResourceManager:
         self._semantic_session_manager: SemanticSessionManager | None = None
 
     async def close(self) -> None:
+        """Stop semantic services if they were started."""
         tasks = []
 
         if self._semantic_service is not None:
@@ -51,6 +57,7 @@ class SemanticResourceManager:
 
     @property
     def simple_semantic_session_id_manager(self) -> SessionIdManager:
+        """Return the basic session id manager used for semantic isolation."""
         if self._simple_semantic_session_id_manager is not None:
             return self._simple_semantic_session_id_manager
 
@@ -60,6 +67,7 @@ class SemanticResourceManager:
     async def get_semantic_session_resource_manager(
         self,
     ) -> InstanceOf[ResourceRetriever]:
+        """Return a resource retriever for semantic sessions."""
         if self._semantic_session_resource_manager is not None:
             return self._semantic_session_resource_manager
 
@@ -90,6 +98,7 @@ class SemanticResourceManager:
         return self._semantic_session_resource_manager
 
     async def get_semantic_service(self) -> SemanticService:
+        """Return the semantic service, constructing it if needed."""
         if self._semantic_service is not None:
             return self._semantic_service
 
@@ -111,6 +120,7 @@ class SemanticResourceManager:
         return self._semantic_service
 
     async def get_semantic_session_manager(self) -> SemanticSessionManager:
+        """Return the semantic session manager, constructing if needed."""
         if self._semantic_session_manager is not None:
             return self._semantic_session_manager
 

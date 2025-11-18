@@ -334,8 +334,8 @@ def test_memory_search_valid(valid_query_payload):
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
     assert len(rsp) == 2
-    assert "episodic_memory" in rsp.keys()
-    assert "profile_memory" in rsp.keys()
+    assert "episodic_memory" in rsp
+    assert "profile_memory" in rsp
 
 
 def test_memory_search_with_session_in_header(
@@ -349,8 +349,8 @@ def test_memory_search_with_session_in_header(
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
     assert len(rsp) == 2
-    assert "episodic_memory" in rsp.keys()
-    assert "profile_memory" in rsp.keys()
+    assert "episodic_memory" in rsp
+    assert "profile_memory" in rsp
 
 
 def test_memory_search_without_session(query_payload_without_session):
@@ -368,7 +368,7 @@ def test_episodic_memory_search_valid(valid_query_payload):
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
     assert len(rsp) == 1
-    assert "episodic_memory" in rsp.keys()
+    assert "episodic_memory" in rsp
 
 
 def test_episodic_memory_search_with_session_in_header(
@@ -382,7 +382,7 @@ def test_episodic_memory_search_with_session_in_header(
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
     assert len(rsp) == 1
-    assert "episodic_memory" in rsp.keys()
+    assert "episodic_memory" in rsp
 
 
 def test_episodic_memory_search_without_session(query_payload_without_session):
@@ -402,7 +402,7 @@ def test_profile_memory_search_valid(valid_query_payload):
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
     assert len(rsp) == 1
-    assert "profile_memory" in rsp.keys()
+    assert "profile_memory" in rsp
 
 
 def test_profile_memory_search_with_session_in_header(
@@ -416,7 +416,7 @@ def test_profile_memory_search_with_session_in_header(
     assert response.status_code in (200, 201, 204)
     rsp = response.json()["content"]
     assert len(rsp) == 1
-    assert "profile_memory" in rsp.keys()
+    assert "profile_memory" in rsp
 
 
 def test_profile_memory_search_without_session(query_payload_without_session):

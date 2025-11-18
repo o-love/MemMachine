@@ -16,24 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class AmazonBedrockRerankerParams(BaseModel):
-    """
-    Parameters for AmazonBedrockReranker.
-
-    Attributes:
-        client (Any):
-            Boto3 Agents for Amazon Bedrock Runtime client
-            to use for making API calls.
-        region (str):
-            AWS region where the Bedrock model is hosted.
-        model_id (str):
-            ID of the Bedrock model to use for reranking
-            (e.g. 'amazon.rerank-v1:0', 'cohere.rerank-v3-5:0').
-        additional_model_request_fields (dict[str, Any], optional):
-            Keys are request fields for the model
-            and values are values for those fields
-            (default: {}).
-
-    """
+    """Parameters for AmazonBedrockReranker."""
 
     client: Any = Field(
         ...,
@@ -62,15 +45,12 @@ class AmazonBedrockRerankerParams(BaseModel):
 
 
 class AmazonBedrockReranker(Reranker):
-    """
-    Reranker that uses Amazon Bedrock models
-    to score relevance of candidates to a query.
-    """
+    """Reranker that uses Amazon Bedrock models to score candidate relevance."""
 
     def __init__(self, params: AmazonBedrockRerankerParams) -> None:
         """
-        Initialize an AmazonBedrockReranker
-        with the provided parameters.
+        Initialize the Bedrock reranker with client parameters.
+
         See https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_Rerank.html.
 
         Args:
@@ -95,6 +75,7 @@ class AmazonBedrockReranker(Reranker):
         }
 
     async def score(self, query: str, candidates: list[str]) -> list[float]:
+        """Score candidates for a query using the Bedrock reranker."""
         rerank_kwargs = {
             "queries": [
                 {
@@ -160,8 +141,8 @@ class AmazonBedrockReranker(Reranker):
                         "Failed to retrieve next batch of scoring results "
                         f"due to {type(e).__name__}"
                     )
-                logger.error(error_message)
-                raise ExternalServiceAPIError(error_message)
+                logger.exception(error_message)
+                raise ExternalServiceAPIError(error_message) from e
 
             next_token = response.get("nextToken")
             rerank_kwargs["nextToken"] = next_token
@@ -180,7 +161,7 @@ class AmazonBedrockReranker(Reranker):
             error_message = (
                 f"Expected {len(candidates)} total scores, but got {len(results)}"
             )
-            logger.error(error_message)
+            logger.exception(error_message)
             raise ExternalServiceAPIError(error_message)
 
         end_time = time.monotonic()

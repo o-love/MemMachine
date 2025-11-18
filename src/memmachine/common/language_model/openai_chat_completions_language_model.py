@@ -67,10 +67,7 @@ class OpenAIChatCompletionsLanguageModelParams(BaseModel):
 
 
 class OpenAIChatCompletionsLanguageModel(LanguageModel):
-    """
-    Language model that uses OpenAI's completions API
-    to generate responses based on prompts and tools.
-    """
+    """Language model that uses OpenAI's chat completions API."""
 
     def __init__(self, params: OpenAIChatCompletionsLanguageModelParams) -> None:
         """
@@ -152,8 +149,8 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
                 "Giving up generating response "
                 f"due to non-retryable {type(e).__name__}"
             )
-            logger.error(error_message)
-            raise ExternalServiceAPIError(error_message)
+            logger.exception(error_message)
+            raise ExternalServiceAPIError(error_message) from e
 
         end_time = time.monotonic()
 
@@ -212,8 +209,8 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
                         f"due to retryable {type(e).__name__}: "
                         f"max attempts {max_attempts} reached"
                     )
-                    logger.error(error_message)
-                    raise ExternalServiceAPIError(error_message)
+                    logger.exception(error_message)
+                    raise ExternalServiceAPIError(error_message) from e
 
                 logger.info(
                     "[call uuid: %s] "
@@ -235,8 +232,8 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
                     f"after failed attempt {attempt} "
                     f"due to non-retryable {type(e).__name__}"
                 )
-                logger.error(error_message)
-                raise ExternalServiceAPIError(error_message)
+                logger.exception(error_message)
+                raise ExternalServiceAPIError(error_message) from e
 
         end_time = time.monotonic()
 

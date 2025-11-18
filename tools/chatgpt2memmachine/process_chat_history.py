@@ -191,7 +191,7 @@ def openai_count_conversations(infile, verbose=False):
         data = json.load(fp)
     # loop to load every chat
     chat_count = 0
-    for chat in data:
+    for _ in data:
         chat_count += 1
     return chat_count
 
@@ -249,7 +249,7 @@ def load_openai(
         if verbose:
             print(f"lo: loading chat title={chat_title_actual}", file=sys.stderr)
         chat_data = []
-        for id, chat_map in chat["mapping"].items():
+        for chat_map in chat["mapping"].values():
             # validate
             if "message" not in chat_map:
                 continue

@@ -82,8 +82,7 @@ class MigrationHack:
                 print(f"== Extract file {extract_file} already cached, load from file")
                 messages = []
                 with open(extract_file, "r") as f:
-                    for line in f:
-                        messages.append(line.strip())
+                    messages.extend(line.strip() for line in f)
                 self.messages[conv_id] = messages
             else:
                 print(f"---> loading messages from conversation {conv_id}...")

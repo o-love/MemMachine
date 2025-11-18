@@ -60,8 +60,8 @@ class AmazonBedrockEmbedder(Embedder):
         try:
             response = self._client.embed_documents(["."])
             self._dimensions = len(response[0])
-        except ClientError as e:
-            logger.error(f"Failed to get embedding dimensions: {e}")
+        except ClientError:
+            logger.exception("Failed to get embedding dimensions")
 
     @property
     def embeddings(self) -> BedrockEmbeddings:
@@ -146,8 +146,8 @@ class AmazonBedrockEmbedder(Embedder):
                         f"due to assumed retryable {type(e).__name__}: "
                         f"max attempts {max_attempts} reached"
                     )
-                    logger.error(error_message)
-                    raise ExternalServiceAPIError(error_message)
+                    logger.exception(error_message)
+                    raise ExternalServiceAPIError(error_message) from e
 
                 logger.info(
                     "[call uuid: %s] "

@@ -1,3 +1,5 @@
+"""Resource manager wiring together storage, embedders, and models."""
+
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -32,7 +34,10 @@ from memmachine.semantic_memory.semantic_session_manager import SemanticSessionM
 
 
 class ResourceManagerImpl:
+    """Concrete resource manager for MemMachine services."""
+
     def __init__(self, conf: Configuration) -> None:
+        """Initialize managers from configuration."""
         self._conf = conf
         self._conf.logging.apply()
         self._storage_manager: StorageManager = StorageManager(self._conf.storage)
@@ -54,6 +59,7 @@ class ResourceManagerImpl:
         self._semantic_manager: SemanticResourceManager | None = None
 
     async def build(self) -> None:
+        """Build all configured resources in parallel."""
         tasks = [
             self._storage_manager.build_all(validate=True),
             self._embedder_manager.build_all(),
@@ -64,6 +70,7 @@ class ResourceManagerImpl:
         await asyncio.gather(*tasks)
 
     async def close(self) -> None:
+        """Close resources and clean up state."""
         tasks = []
         if self._semantic_manager is not None:
             tasks.append(self._semantic_manager.close())
@@ -73,25 +80,32 @@ class ResourceManagerImpl:
         await asyncio.gather(*tasks)
 
     async def get_sql_engine(self, name: str) -> AsyncEngine:
+        """Return a SQL engine by name."""
         return self._storage_manager.get_sql_engine(name)
 
     async def get_vector_graph_store(self, name: str) -> VectorGraphStore:
+        """Return a vector graph store by name."""
         return self._storage_manager.get_vector_graph_store(name)
 
     async def get_embedder(self, name: str) -> Embedder:
+        """Return an embedder by name."""
         return await self._embedder_manager.get_embedder(name)
 
     async def get_language_model(self, name: str) -> LanguageModel:
+        """Return a language model by name."""
         return await self._model_manager.get_language_model(name)
 
     async def get_reranker(self, name: str) -> Reranker:
+        """Return a reranker by name."""
         return await self._reranker_manager.get_reranker(name)
 
     async def get_metrics_factory(self, name: str) -> MetricsFactory | None:
+        """Return a metrics factory by name, if available."""
         return self._metric_factory.get(name)
 
     @property
     def session_data_manager(self) -> SessionDataManager:
+        """Lazy-load the session data manager."""
         if self._session_data_manager is not None:
             return self._session_data_manager
         engine = self._storage_manager.get_sql_engine(self._conf.sessiondb.storage_id)
@@ -100,6 +114,7 @@ class ResourceManagerImpl:
 
     @property
     def episodic_memory_manager(self) -> EpisodicMemoryManager:
+        """Lazy-load the episodic memory manager."""
         if self._episodic_memory_manager is not None:
             return self._episodic_memory_manager
         params = EpisodicMemoryManagerParams(
@@ -111,6 +126,7 @@ class ResourceManagerImpl:
 
     @property
     def history_storage(self) -> EpisodeStorage:
+        """Lazy-load the episode history storage."""
         if self._history_storage is not None:
             return self._history_storage
 
@@ -122,6 +138,7 @@ class ResourceManagerImpl:
         return self._history_storage
 
     async def get_semantic_manager(self) -> SemanticResourceManager:
+        """Return the semantic resource manager, constructing if needed."""
         if self._semantic_manager is not None:
             return self._semantic_manager
 
@@ -134,5 +151,6 @@ class ResourceManagerImpl:
         return self._semantic_manager
 
     async def get_semantic_session_manager(self) -> SemanticSessionManager:
+        """Return the semantic session manager."""
         semantic_manager = await self.get_semantic_manager()
         return await semantic_manager.get_semantic_session_manager()

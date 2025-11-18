@@ -47,13 +47,10 @@ BinaryColumn = Annotated[bytes, mapped_column(LargeBinary)]
 
 
 class SessionDataManagerSQL(SessionDataManager):
-    """Handle's the session related data persistency."""
+    """Handle the session-related data persistency."""
 
     class SessionConfig(Base):  # pylint: disable=too-few-public-methods
-        """
-        ORM model for a session configuration.
-        session_key is the primary key.
-        """
+        """ORM model for a session configuration (session_key is the primary key)."""
 
         __tablename__ = "sessions"
         session_key: Mapped[StringKeyColumn]
@@ -68,10 +65,7 @@ class SessionDataManagerSQL(SessionDataManager):
         )
 
     class ShortTermMemoryData(Base):  # pylint: disable=too-few-public-methods
-        """
-        ORM model for short term memory data.
-        session_key is the primary key.
-        """
+        """ORM model for short term memory data (session_key is the primary key)."""
 
         __tablename__ = "short_term_memory_data"
         session_key: Mapped[StringKeyColumn]
@@ -85,14 +79,7 @@ class SessionDataManagerSQL(SessionDataManager):
         )
 
     def __init__(self, engine: AsyncEngine, schema: str | None = None) -> None:
-        """
-        Initializes the SessionDataManagerImpl.
-
-        Args:
-            engine: The SQLAlchemy async engine to use for database connections.
-            schema: The database schema to use for the tables.
-
-        """
+        """Initialize with an async engine and optional schema."""
         self._engine = engine
         self._async_session = async_sessionmaker(
             bind=self._engine, expire_on_commit=False,
@@ -102,22 +89,17 @@ class SessionDataManagerSQL(SessionDataManager):
                 table.schema = schema
 
     async def create_tables(self) -> None:
-        """
-        Creates the necessary tables in the database.
-
-        This method connects to the database and creates all tables defined in the
-        Base metadata if they don't already exist.
-        """
+        """Create the necessary tables in the database."""
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
     async def drop_tables(self) -> None:
-        """Drops all tables from the database."""
+        """Drop all tables from the database."""
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
 
     async def close(self) -> None:
-        pass
+        """Close any underlying connections."""
 
     async def create_new_session(
         self,
@@ -127,20 +109,7 @@ class SessionDataManagerSQL(SessionDataManager):
         description: str,
         metadata: dict[str, object],
     ) -> None:
-        """
-        Creates a new session entry in the database.
-
-        Args:
-            session_key: The unique identifier for the session.
-            configuration: A dictionary containing the session's configuration.
-            description: A brief description of the session.
-            metadata: A dictionary for user-defined metadata.
-            param: The episodic memory parameters.
-
-        Raises:
-            ValueError: If a session with the given session_key already exists.
-
-        """
+        """Create a new session entry in the database."""
         buffer = io.BytesIO()
         pickle.dump(param, buffer)
         buffer.seek(0)
@@ -168,13 +137,7 @@ class SessionDataManagerSQL(SessionDataManager):
             await dbsession.commit()
 
     async def delete_session(self, session_key: str) -> None:
-        """
-        Deletes a session and its related data from the database.
-
-        Args:
-            session_key: The unique identifier of the session to delete.
-
-        """
+        """Delete a session and its related data from the database."""
         async with self._async_session() as dbsession:
             # Query for an existing session with the same ID
             row = await dbsession.get(self.SessionConfig, session_key)
@@ -187,20 +150,7 @@ class SessionDataManagerSQL(SessionDataManager):
     async def get_session_info(
         self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
-        """
-        Retrieves a session's data from the database.
-
-        Args:
-            session_key: The unique identifier of the session to retrieve.
-
-        Returns:
-            A tuple containing the configuration dictionary, description string,
-            user metadata dictionary, and the EpisodicMemoryConf object.
-
-        Raises:
-            ValueError: If the session with the given session_key does not exist.
-
-        """
+        """Retrieve a session's configuration, metadata, and params."""
         async with self._async_session() as dbsession:
             sessions = await dbsession.execute(
                 select(self.SessionConfig).where(
@@ -243,13 +193,7 @@ class SessionDataManagerSQL(SessionDataManager):
         )
 
     async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
-        """
-        Retrieves a list of all session keys from the database.
-
-        Returns:
-            A list of session keys.
-
-        """
+        """Retrieve session keys, optionally filtered by metadata."""
         if filter is None:
             stmt = select(self.SessionConfig.session_key)
         else:
@@ -263,16 +207,7 @@ class SessionDataManagerSQL(SessionDataManager):
     async def save_short_term_memory(
         self, session_key: str, summary: str, last_seq: int, episode_num: int,
     ) -> None:
-        """
-        Saves or updates the short-term memory data for a session.
-
-        Args:
-            session_key: The unique identifier for the session.
-            summary: The summary of the short-term memory.
-            last_seq: The last sequence number of the episodes in the short-term memory.
-            episode_num: The number of episodes in the short-term memory.
-
-        """
+        """Save or update short-term memory data for a session."""
         async with self._async_session() as dbsession:
             # Query for an existing session with the same ID
             sessions = await dbsession.execute(
@@ -313,19 +248,7 @@ class SessionDataManagerSQL(SessionDataManager):
             await dbsession.commit()
 
     async def get_short_term_memory(self, session_key: str) -> tuple[str, int, int]:
-        """
-        Retrieves the short-term memory data for a session.
-
-        Args:
-            session_key: The unique identifier for the session.
-
-        Returns:
-            A tuple containing the summary string, the number of episodes, and the last sequence number.
-
-        Raises:
-            ValueError: If no short-term memory data exists for the given session_key.
-
-        """
+        """Retrieve the short-term memory data for a session."""
         async with self._async_session() as dbsession:
             short_term_data = (
                 (

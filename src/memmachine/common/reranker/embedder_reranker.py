@@ -10,14 +10,7 @@ from .reranker import Reranker
 
 
 class EmbedderRerankerParams(BaseModel):
-    """
-    Parameters for EmbedderReranker.
-
-    Attributes:
-        embedder (Embedder):
-            Embedder instance.
-
-    """
+    """Parameters for EmbedderReranker."""
 
     embedder: InstanceOf[Embedder] = Field(
         ..., description="An instance of an Embedder to use for generating embeddings",
@@ -25,25 +18,16 @@ class EmbedderRerankerParams(BaseModel):
 
 
 class EmbedderReranker(Reranker):
-    """
-    Reranker that uses an embedder
-    to score relevance of candidates to a query.
-    """
+    """Reranker that uses an embedder to score candidate relevance."""
 
     def __init__(self, params: EmbedderRerankerParams) -> None:
-        """
-        Initialize an EmbedderReranker with the provided configuration.
-
-        Args:
-            params (EmbedderRerankerParams):
-                Parameters for the EmbedderReranker.
-
-        """
+        """Initialize an EmbedderReranker with the provided configuration."""
         super().__init__()
 
         self._embedder = params.embedder
 
     async def score(self, query: str, candidates: list[str]) -> list[float]:
+        """Score candidates for a query using embedder similarity."""
         if len(candidates) == 0:
             return []
 

@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from enum import Enum
+from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -73,13 +74,13 @@ class LogConf(BaseModel):
         """Validate that the log path directory exists and is writable."""
         if v is None or v == "":
             return None
-        # Ensure directory exists and writable
-        dir_name = os.path.dirname(v) or "."
-        if not os.path.exists(dir_name):
-            raise ValueError(f"Log directory does not exist: {dir_name}")
-        if not os.access(dir_name, os.W_OK):
-            raise ValueError(f"Log directory is not writable: {dir_name}")
-        return v
+        path = Path(v).expanduser()
+        dir_path = path.parent if path.is_absolute() else (Path.cwd() / path).parent
+        if not dir_path.exists():
+            raise ValueError(f"Log directory does not exist: {dir_path}")
+        if not os.access(dir_path, os.W_OK):
+            raise ValueError(f"Log directory is not writable: {dir_path}")
+        return str(path)
 
     def apply(self) -> None:
         """Apply the logging configuration, honoring env overrides."""

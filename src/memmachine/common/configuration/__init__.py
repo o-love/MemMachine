@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import os.path
 from pathlib import Path
-from typing import TypeAlias
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
 from memmachine.common.configuration.embedder_conf import EmbedderConf
+from memmachine.common.configuration.episodic_config import EpisodicMemoryConfPartial
 from memmachine.common.configuration.log_conf import LogConf
 from memmachine.common.configuration.model_conf import LanguageModelConf
 from memmachine.common.configuration.reranker_conf import RerankerConf
@@ -18,9 +17,7 @@ from memmachine.semantic_memory.semantic_model import SemanticCategory
 from memmachine.semantic_memory.semantic_session_resource import IsolationType
 from memmachine.server.prompt.default_prompts import PREDEFINED_SEMANTIC_CATEGORIES
 
-from .episodic_config import EpisodicMemoryConfPartial
-
-YamlValue: TypeAlias = dict[str, "YamlValue"] | list["YamlValue"] | str | int | float | bool | None
+YamlValue = dict[str, "YamlValue"] | list["YamlValue"] | str | int | float | bool | None
 
 
 class SessionDBConf(BaseModel):
@@ -107,7 +104,7 @@ class PromptConf(BaseModel):
         file_path = self.episode_summary_system_prompt_path
         if not file_path:
             txt = "dft_episode_summary_system_prompt.txt"
-            file_path = os.path.join(Path(__file__).parent, txt)
+            file_path = Path(__file__).parent / txt
         return _read_txt(file_path)
 
     @property
@@ -116,7 +113,7 @@ class PromptConf(BaseModel):
         file_path = self.episode_summary_user_prompt_path
         if not file_path:
             txt = "dft_episode_summary_user_prompt.txt"
-            file_path = os.path.join(Path(__file__).parent, txt)
+            file_path = Path(__file__).parent / txt
         return _read_txt(file_path)
 
     @property
@@ -161,14 +158,15 @@ class Configuration(EpisodicMemoryConfPartial):
 
 def load_config_yml_file(config_file: str) -> Configuration:
     """Load configuration from a YAML file path."""
+    config_path = Path(config_file)
     try:
-        yaml_config = yaml.safe_load(open(config_file, encoding="utf-8"))
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Config file {config_file} not found")
-    except yaml.YAMLError:
-        raise ValueError(f"Config file {config_file} is not valid YAML")
-    except Exception as e:
-        raise e
+        yaml_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as err:
+        raise FileNotFoundError(f"Config file {config_file} not found") from err
+    except yaml.YAMLError as err:
+        raise ValueError(f"Config file {config_file} is not valid YAML") from err
+    except Exception as err:
+        raise RuntimeError(f"Failed to load config file {config_file}") from err
 
     def config_to_lowercase(data: YamlValue) -> YamlValue:
         """Recursively convert dictionary keys in a nested structure to lowercase."""

@@ -10,7 +10,10 @@ from memmachine.common.language_model.language_model import LanguageModel
 
 
 class LanguageModelManager:
+    """Create and cache configured language model instances."""
+
     def __init__(self, conf: LanguageModelConf) -> None:
+        """Store configuration and initialize caches."""
         self._lock = Lock()
         self._language_models_lock: dict[str, Lock] = {}
 
@@ -18,6 +21,7 @@ class LanguageModelManager:
         self._language_models: dict[str, LanguageModel] = {}
 
     async def build_all(self) -> dict[str, LanguageModel]:
+        """Build all configured language models and return the cache."""
         names = set()
         for name in self.conf.openai_responses_language_model_confs:
             names.add(name)
@@ -31,6 +35,7 @@ class LanguageModelManager:
         return self._language_models
 
     async def get_language_model(self, name: str) -> LanguageModel:
+        """Return a named language model, building it on first access."""
         if name in self._language_models:
             return self._language_models[name]
 
@@ -47,6 +52,7 @@ class LanguageModelManager:
             return llm_model
 
     def _build_language_model(self, name: str) -> LanguageModel:
+        """Construct a language model based on provider."""
         if name in self.conf.openai_responses_language_model_confs:
             return self._build_openai_responses_language_model(name)
         if name in self.conf.openai_chat_completions_language_model_confs:

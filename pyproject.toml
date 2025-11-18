@@ -116,7 +116,6 @@ select = [
     "SLF",
     "SIM",
     "T20",
-    "TC",
     "TID",
     "TRY",
     "UP",
@@ -132,8 +131,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ASYNC251", "ANN", "D", "SLF", "ARG"]
 "tools/**/*.py" = ["SIM", "DTZ", "C9", "ANN", "T201", "PT", "INP", "PTH", "D"]
-"examples/**/*.py" = ["ASYNC210", "T201", "D", "ARG"]
-"evaluation/**/*.py" = ["D", "ARG"]
+"examples/**/*.py" = ["ASYNC210", "T201", "D", "ARG", "T201"]
+"evaluation/**/*.py" = ["D", "ARG", "T201"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

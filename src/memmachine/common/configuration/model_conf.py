@@ -81,31 +81,14 @@ class AmazonBedrockLanguageModelConf(WithMetricsFactoryId):
     Configuration for AmazonBedrockLanguageModel.
 
     Attributes:
-        region (str):
-            AWS region where Bedrock is hosted
-            (default: 'us-east-1').
-        aws_access_key_id (SecretStr | None):
-            AWS access key ID for authentication
-            (default: None).
-        aws_secret_access_key (SecretStr | None):
-            AWS secret access key for authentication
-            (default: None).
-        aws_session_token (SecretStr | None):
-            AWS session token for authentication
-            (default: None).
-        model_id (str):
-            ID of the Bedrock model to use for generation
-            (e.g. 'openai.gpt-oss-20b-1:0').
-        inference_config (AmazonBedrockConverseInferenceConfig | None, optional):
-            Inference configuration for the Bedrock Converse API
-            (default: None).
-        additional_model_request_fields (dict[str, Any] | None, optional):
-            Keys are request fields for the model
-            and values are values for those fields
-            (default: None).
-        max_retry_interval_seconds (int, optional):
-            Maximal retry interval in seconds when retrying API calls
-            (default: 120).
+        region (str): AWS region where Bedrock is hosted (default: 'us-east-1').
+        aws_access_key_id (SecretStr | None): AWS access key ID.
+        aws_secret_access_key (SecretStr | None): AWS secret access key.
+        aws_session_token (SecretStr | None): AWS session token.
+        model_id (str): ID of the Bedrock model to use for generation.
+        inference_config (AmazonBedrockConverseInferenceConfig | None): Inference config.
+        additional_model_request_fields (dict[str, Any] | None): Extra request fields.
+        max_retry_interval_seconds (int): Max retry interval when retrying API calls.
 
     """
 

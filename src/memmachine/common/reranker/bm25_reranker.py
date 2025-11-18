@@ -10,20 +10,7 @@ from .reranker import Reranker
 
 
 class BM25RerankerParams(BaseModel):
-    """
-    Parameters for BM25Reranker.
-
-    Attributes:
-        k1 (float):
-            BM25 k1 parameter (default: 1.5).
-        b (float):
-            BM25 b parameter (default: 0.75).
-        epsilon (float):
-            BM25 epsilon parameter (default: 0.25).
-        tokenize (Callable[[str], list[str]]):
-            Tokenizer function to split text into tokens.
-
-    """
+    """Parameters for BM25Reranker."""
 
     k1: float = Field(1.5, description="BM25 k1 parameter")
     b: float = Field(0.75, description="BM25 b parameter")
@@ -34,20 +21,10 @@ class BM25RerankerParams(BaseModel):
 
 
 class BM25Reranker(Reranker):
-    """
-    Reranker that uses the BM25 algorithm to score candidates
-    based on their relevance to the query.
-    """
+    """Reranker that uses the BM25 algorithm to score candidates."""
 
     def __init__(self, params: BM25RerankerParams) -> None:
-        """
-        Initialize a BM25Reranker with the provided parameters.
-
-        Args:
-            params (BM25RerankerParams):
-                Parameters for the BM25Reranker.
-
-        """
+        """Initialize a BM25Reranker with the provided parameters."""
         super().__init__()
 
         self._k1 = params.k1
@@ -56,6 +33,7 @@ class BM25Reranker(Reranker):
         self._tokenize = params.tokenize
 
     async def score(self, query: str, candidates: list[str]) -> list[float]:
+        """Score candidates for a query using BM25."""
         tokenized_query_future = asyncio.to_thread(self._tokenize, query)
         tokenized_candidates_future = asyncio.to_thread(
             self._tokenize_multiple, candidates,

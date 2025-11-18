@@ -1,27 +1,28 @@
+"""Session data manager abstraction."""
+
+"""Session data manager abstraction."""
+
 from abc import ABC, abstractmethod
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 
 
 class SessionDataManager(ABC):
-    """
-    Interface for managing session data, including session configurations and
-    short-term memory.
-    """
+    """Interface for managing session data and short-term memory."""
 
     @classmethod
     async def close(self) -> None:
-        """Closes the database connection."""
+        """Close the database connection."""
         raise NotImplementedError
 
     @abstractmethod
     async def create_tables(self) -> None:
-        """Creates the necessary tables in the database."""
+        """Create the necessary tables in the database."""
         raise NotImplementedError
 
     @abstractmethod
     async def drop_tables(self) -> None:
-        """Drops all created tables from the database."""
+        """Drop all created tables from the database."""
         raise NotImplementedError
 
     @abstractmethod
@@ -33,92 +34,34 @@ class SessionDataManager(ABC):
         description: str,
         metadata: dict[str, object],
     ) -> None:
-        """
-        Creates a new session entry in the database.
-
-        Args:
-            session_key: The unique identifier for the session.
-            configuration: A dictionary containing the session's configuration.
-            param: params for the episodic memory.
-            description: A brief description of the session.
-            metadata: A dictionary for user-defined metadata.
-
-        Raises:
-            ValueError: If a session with the given session_key already exists.
-
-        """
+        """Create a new session entry in the database."""
         raise NotImplementedError
 
     @abstractmethod
     async def delete_session(self, session_key: str) -> None:
-        """
-        Deletes a session entry from the database.
-
-        Args:
-            session_key: The unique identifier of the session to delete.
-
-        """
+        """Delete a session entry from the database."""
         raise NotImplementedError
 
     @abstractmethod
     async def get_session_info(
         self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
-        """
-        Retrieves the configuration, description, and metadata for a given
-        session.
-
-        Args:
-            session_key: The unique identifier of the session.
-
-        Returns:
-            A tuple containing the configuration dictionary, description string,
-            metadata dictionary and the EpisodicMemoryParams.
-
-        Raises:
-            ValueError: If the session with the given session_key does not exist.
-
-        """
+        """Get configuration, description, metadata, and params for a session."""
         raise NotImplementedError
 
     @abstractmethod
     async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
-        """
-        Retrieves a list of all session keys from the database.
-
-        Returns:
-            A list of session keys.
-
-        """
+        """Return a list of all session keys (optionally filtered)."""
         raise NotImplementedError
 
     @abstractmethod
     async def save_short_term_memory(
         self, session_key: str, summary: str, last_seq: int, episode_num: int,
     ) -> None:
-        """
-        Saves or updates the short-term memory data for a session.
-
-        Args:
-            session_key: The unique identifier for the session.
-            summary: The summary of the short-term memory.
-            episode_num: The number of episodes in the short-term memory.
-
-        Raises:
-            ValueError: If the session with the given session_key does not exist.
-
-        """
+        """Save or update short-term memory data for a session."""
         raise NotImplementedError
 
     @abstractmethod
     async def get_short_term_memory(self, session_key: str) -> tuple[str, int, int]:
-        """
-        Retrieves the short-term memory data for a session.
-
-        Args:
-            session_key: The unique identifier for the session
-        Returns:
-            A tuple containing the summary string and the number of episodes and the last sequence number.
-
-        """
+        """Retrieve short-term memory data for a session."""
         raise NotImplementedError
