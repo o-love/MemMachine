@@ -77,7 +77,7 @@ exclude = ["venv/", ".venv/"]
 plugins = ['pydantic.mypy']
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP", "TID"]
+select = ["E", "F", "I", "W", "UP", "TID", "C90"]
 ignore = ["E501", "UP015"]
 
 [tool.pytest.ini_options]
