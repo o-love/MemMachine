@@ -64,7 +64,7 @@ class LanguageModelManager:
             OpenAIResponsesLanguageModelParams,
         )
 
-        conf = self.conf.openai_language_model_confs[name]
+        conf = self.conf.openai_responses_language_model_confs[name]
 
         return OpenAIResponsesLanguageModel(
             OpenAIResponsesLanguageModelParams(
@@ -89,7 +89,7 @@ class LanguageModelManager:
             OpenAIChatCompletionsLanguageModelParams,
         )
 
-        conf = self.conf.openai_compatible_language_model_confs[name]
+        conf = self.conf.openai_chat_completions_language_model_confs[name]
 
         return OpenAIChatCompletionsLanguageModel(
             OpenAIChatCompletionsLanguageModelParams(

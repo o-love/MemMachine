@@ -3,8 +3,10 @@ import json
 
 import pytest
 import pytest_asyncio
-from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 
+from memmachine.common.language_model.openai_responses_language_model import (
+    OpenAIResponsesLanguageModel,
+)
 from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import (
     SemanticService,
@@ -148,7 +150,7 @@ class TestLongMemEvalIngestion:
         session_data: SessionData,
         semantic_memory: SemanticSessionManager,
         question_str: str,
-        llm_model: OpenAILanguageModel,
+        llm_model: OpenAIResponsesLanguageModel,
     ):
         semantic_search_resp = await semantic_memory.search(
             message=question_str,

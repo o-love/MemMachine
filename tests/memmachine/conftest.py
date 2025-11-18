@@ -4,10 +4,6 @@ from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
-from memmachine.common.language_model.openai_compatible_language_model import (
-    OpenAICompatibleLanguageModel,
-)
-from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import StaticPool
 from sqlalchemy.engine import URL
@@ -26,6 +22,12 @@ from memmachine.common.embedder.openai_embedder import (
 from memmachine.common.language_model import LanguageModel
 from memmachine.common.language_model.amazon_bedrock_language_model import (
     AmazonBedrockLanguageModel,
+)
+from memmachine.common.language_model.openai_chat_completions_language_model import (
+    OpenAIChatCompletionsLanguageModel,
+)
+from memmachine.common.language_model.openai_responses_language_model import (
+    OpenAIResponsesLanguageModel,
 )
 from memmachine.episode_store.episode_sqlalchemy_store import (
     BaseHistoryStore,
@@ -104,7 +106,7 @@ def openai_embedder(openai_client, openai_integration_config):
 
 @pytest.fixture(scope="session")
 def openai_llm_model(openai_integration_config):
-    return OpenAILanguageModel(
+    return OpenAIResponsesLanguageModel(
         OpenAIModelConf(
             api_key=openai_integration_config["api_key"],
             model=openai_integration_config["llm_model"],
@@ -127,7 +129,7 @@ def openai_compatible_llm_config():
 
 @pytest.fixture(scope="session")
 def openai_compatible_llm_model(openai_compatible_llm_config):
-    return OpenAICompatibleLanguageModel(
+    return OpenAIChatCompletionsLanguageModel(
         {
             "base_url": openai_compatible_llm_config["api_url"],
             "model": openai_compatible_llm_config["model"],
