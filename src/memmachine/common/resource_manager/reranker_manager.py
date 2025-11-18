@@ -1,4 +1,5 @@
 import asyncio
+import re
 from asyncio import Lock
 from collections import defaultdict
 from collections.abc import Callable
@@ -169,7 +170,7 @@ class RerankerManager:
         return self.rerankers[name]
 
     async def _build_embedder_reranker(self, name: str) -> Reranker:
-        from ..reranker.embedder_reranker import (
+        from memmachine.common.reranker.embedder_reranker import (
             EmbedderReranker,
             EmbedderRerankerParams,
         )
@@ -181,7 +182,7 @@ class RerankerManager:
         return self.rerankers[name]
 
     async def _build_identity_reranker(self, name: str) -> Reranker:
-        from ..reranker.identity_reranker import IdentityReranker
+        from memmachine.common.reranker.identity_reranker import IdentityReranker
 
         self.rerankers[name] = IdentityReranker()
         return self.rerankers[name]
@@ -191,7 +192,7 @@ class RerankerManager:
 
         This method must be called after all individual rerankers have been built,
         """
-        from ..reranker.rrf_hybrid_reranker import (
+        from memmachine.common.reranker.rrf_hybrid_reranker import (
             RRFHybridReranker,
             RRFHybridRerankerParams,
         )

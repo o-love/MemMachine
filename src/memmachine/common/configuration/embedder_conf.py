@@ -1,4 +1,5 @@
 from typing import Self
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 

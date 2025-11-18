@@ -19,7 +19,7 @@ from neo4j.time import DateTime as Neo4jDateTime
 from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.data_types import SimilarityMetric
-from memmachine.common.utils import async_locked, async_with
+from memmachine.common.utils import async_locked
 
 from .data_types import (
     Edge,

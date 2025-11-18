@@ -15,7 +15,6 @@ from memmachine.common.vector_graph_store.neo4j_vector_graph_store import (
     Neo4jVectorGraphStoreParams,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

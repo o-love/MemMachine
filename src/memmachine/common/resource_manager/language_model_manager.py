@@ -81,9 +81,7 @@ class LanguageModelManager:
             )
         )
 
-    def _build_openai_chat_completions_language_model(
-        self, name: str
-    ) -> LanguageModel:
+    def _build_openai_chat_completions_language_model(self, name: str) -> LanguageModel:
         import openai
 
         from memmachine.common.language_model.openai_chat_completions_language_model import (
@@ -117,7 +115,7 @@ class LanguageModelManager:
 
         conf = self.conf.amazon_bedrock_language_model_confs[name]
 
-        def _get_secret_value(secret: SecretStr | None) -> str| None:
+        def _get_secret_value(secret: SecretStr | None) -> str | None:
             if secret is None:
                 return None
             return secret.get_secret_value()

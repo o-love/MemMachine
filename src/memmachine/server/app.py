@@ -16,7 +16,7 @@ import contextvars
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Self, cast
+from typing import Any, Self
 
 import uvicorn
 from dotenv import load_dotenv
@@ -32,16 +32,9 @@ from starlette.applications import Starlette
 from starlette.types import Lifespan, Receive, Scope, Send
 
 from memmachine.common.configuration import load_config_yml_file
-from memmachine.common.resource_manager import ResourceManager
-from memmachine.episode_store.episode_model import ContentType
-from memmachine.episodic_memory import episodic_memory
+from memmachine.common.resource_manager.resource_manager import ResourceManagerImpl
 from memmachine.episodic_memory.episodic_memory import (
     EpisodicMemory,
-)
-from memmachine.episodic_memory_manager import EpisodicMemoryManager
-from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
-from memmachine.semantic_memory.semantic_session_resource import (
-    SessionIdManager,
 )
 
 logger = logging.getLogger(__name__)
@@ -475,13 +468,13 @@ class DeleteDataRequest(RequestWithSession):
 
 # === Globals ===
 # Global instances for memory managers, initialized during app startup.
-resource_manager: ResourceManager | None = None
+resource_manager: ResourceManagerImpl | None = None
 
 
 # === Lifespan Management ===
 
 
-async def initialize_resource(config_file: str) -> ResourceManager:
+async def initialize_resource(config_file: str) -> ResourceManagerImpl:
     """
     This is a temporary solution to unify the ProfileMemory and Episodic Memory
     configuration.
@@ -496,8 +489,11 @@ async def initialize_resource(config_file: str) -> ResourceManager:
     """
 
     config = load_config_yml_file(config_file)
-    ret = ResourceManager(config)
-    await resource_manager.profile_memory.startup()
+    ret = ResourceManagerImpl(config)
+    semantic_service = await (
+        await resource_manager.get_semantic_manager()
+    ).get_semantic_service()
+    await semantic_service.start()
     return ret
 
 
@@ -509,7 +505,7 @@ async def init_global_memory():
 
 async def shutdown_global_memory():
     global resource_manager
-    resource_manager.close()
+    await resource_manager.close()
 
 
 @asynccontextmanager
@@ -889,24 +885,24 @@ async def _add_memory(episode: NewEpisode):
     )
     if inst is None:
         raise episode.new_404_not_found_error("unable to find episodic memory")
-    async with AsyncEpisodicMemory(inst) as inst:
-        success = await inst.add_memory_episode(
-            producer=episode.producer,
-            produced_for=episode.produced_for,
-            episode_content=episode.episode_content,
-            episode_type=episode.episode_type,
-            content_type=ContentType.STRING,
-            metadata=episode.metadata,
-        )
-        if not success:
-            raise HTTPException(
-                status_code=400,
-                detail=f"""either {episode.producer} or {episode.produced_for}
-                        is not in {session.user_id}
-                        or {session.agent_id}""",
-            )
+    # async with AsyncEpisodicMemory(inst) as inst:
+    #     success = await inst.add_memory_episode(
+    #         producer=episode.producer,
+    #         produced_for=episode.produced_for,
+    #         episode_content=episode.episode_content,
+    #         episode_type=episode.episode_type,
+    #         content_type=ContentType.STRING,
+    #         metadata=episode.metadata,
+    #     )
+    #     if not success:
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail=f"""either {episode.producer} or {episode.produced_for}
+    #                     is not in {session.user_id}
+    #                     or {session.agent_id}""",
+    #         )
 
-        # Add to semantic memory using session manager
+    # Add to semantic memory using session manager
     await _add_semantic_memory(episode)
 
 
@@ -956,22 +952,22 @@ async def _add_episodic_memory(episode: NewEpisode):
     )
     if inst is None:
         raise episode.new_404_not_found_error("unable to find episodic memory")
-    async with AsyncEpisodicMemory(inst) as inst:
-        success = await inst.add_memory_episode(
-            producer=episode.producer,
-            produced_for=episode.produced_for,
-            episode_content=episode.episode_content,
-            episode_type=episode.episode_type,
-            content_type=ContentType.STRING,
-            metadata=episode.metadata,
-        )
-        if not success:
-            raise HTTPException(
-                status_code=400,
-                detail=f"""either {episode.producer} or {episode.produced_for}
-                        is not in {session.user_id}
-                        or {session.agent_id}""",
-            )
+    # async with AsyncEpisodicMemory(inst) as inst:
+    #     success = await inst.add_memory_episode(
+    #         producer=episode.producer,
+    #         produced_for=episode.produced_for,
+    #         episode_content=episode.episode_content,
+    #         episode_type=episode.episode_type,
+    #         content_type=ContentType.STRING,
+    #         metadata=episode.metadata,
+    #     )
+    #     if not success:
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail=f"""either {episode.producer} or {episode.produced_for}
+    #                     is not in {session.user_id}
+    #                     or {session.agent_id}""",
+    #         )
 
 
 @app.post("/v1/memories/profile")
@@ -1008,19 +1004,19 @@ async def _add_semantic_memory(episode: NewEpisode):
 
     See the docstring for add_profile_memory() for details.
     """
-    session = episode.get_session()
-
-    semantic_session_data = cast(
-        SessionIdManager, session_id_manager
-    ).generate_session_data(
-        user_id=episode.producer,
-        session_id=session.session_id,
-    )
-
-    await cast(SemanticSessionManager, semantic_session_manager).add_message(
-        message=str(episode.episode_content),
-        session_data=semantic_session_data,
-    )
+    # session = episode.get_session()
+    #
+    # semantic_session_data = cast(
+    #     SessionIdManager, session_id_manager
+    # ).generate_session_data(
+    #     user_id=episode.producer,
+    #     session_id=session.session_id,
+    # )
+    #
+    # await cast(SemanticSessionManager, semantic_session_manager).add_message(
+    #     message=str(episode.episode_content),
+    #     session_data=semantic_session_data,
+    # )
 
 
 @app.post("/v1/memories/search")
@@ -1055,26 +1051,26 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
     """Searches for memories across both episodic and profile memory.
     Internal function.  Shared by both REST API and MCP API
     See the docstring for search_memory() for details."""
-    session = q.get_session()
-    inst: EpisodicMemory | None = await cast(
-        EpisodicMemoryManager, episodic_memory
-    ).get_episodic_memory_instance(
-        group_id=session.group_id,
-        agent_id=session.agent_id,
-        user_id=session.user_id,
-        session_id=session.session_id,
-    )
-    if inst is None:
-        raise q.new_404_not_found_error("unable to find episodic memory")
-    async with AsyncEpisodicMemory(inst) as inst:
-        # Search semantic memory using session manager
-
-        res = await asyncio.gather(
-            inst.query_memory(q.query, q.limit, q.filter), _search_semantic_memory(q)
-        )
-        return SearchResult(
-            content={"episodic_memory": res[0], "profile_memory": res[1]}
-        )
+    # session = q.get_session()
+    # inst: EpisodicMemory | None = await cast(
+    #     EpisodicMemoryManager, episodic_memory
+    # ).get_episodic_memory_instance(
+    #     group_id=session.group_id,
+    #     agent_id=session.agent_id,
+    #     user_id=session.user_id,
+    #     session_id=session.session_id,
+    # )
+    # if inst is None:
+    #     raise q.new_404_not_found_error("unable to find episodic memory")
+    # async with AsyncEpisodicMemory(inst) as inst:
+    #     # Search semantic memory using session manager
+    #
+    #     res = await asyncio.gather(
+    #         inst.query_memory(q.query, q.limit, q.filter), _search_semantic_memory(q)
+    #     )
+    #     return SearchResult(
+    #         content={"episodic_memory": res[0], "profile_memory": res[1]}
+    #     )
 
 
 @app.post("/v1/memories/episodic/search")
@@ -1106,21 +1102,21 @@ async def _search_episodic_memory(q: SearchQuery) -> SearchResult:
     Internal function.  Shared by both REST API and MCP API
     See the docstring for search_episodic_memory() for details.
     """
-    session = q.get_session()
-    group_id = session.group_id if session.group_id is not None else ""
-    inst: EpisodicMemory | None = await cast(
-        EpisodicMemoryManager, episodic_memory
-    ).get_episodic_memory_instance(
-        group_id=group_id,
-        agent_id=session.agent_id,
-        user_id=session.user_id,
-        session_id=session.session_id,
-    )
-    if inst is None:
-        raise q.new_404_not_found_error("unable to find episodic memory")
-    async with AsyncEpisodicMemory(inst) as inst:
-        res = await inst.query_memory(q.query, q.limit, q.filter)
-        return SearchResult(content={"episodic_memory": res})
+    # session = q.get_session()
+    # group_id = session.group_id if session.group_id is not None else ""
+    # inst: EpisodicMemory | None = await cast(
+    #     EpisodicMemoryManager, episodic_memory
+    # ).get_episodic_memory_instance(
+    #     group_id=group_id,
+    #     agent_id=session.agent_id,
+    #     user_id=session.user_id,
+    #     session_id=session.session_id,
+    # )
+    # if inst is None:
+    #     raise q.new_404_not_found_error("unable to find episodic memory")
+    # async with AsyncEpisodicMemory(inst) as inst:
+    #     res = await inst.query_memory(q.query, q.limit, q.filter)
+    #     return SearchResult(content={"episodic_memory": res})
 
 
 @app.post("/v1/memories/profile/search")
@@ -1152,21 +1148,22 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
     Internal function.  Shared by both REST API and MCP API
     See the docstring for search_profile_memory() for details.
     """
-    session = q.get_session()
-
-    # Search semantic memory using session manager
-    semantic_session_data = cast(
-        SessionIdManager, session_id_manager
-    ).generate_session_data(
-        user_id=session.first_user_id(),
-        session_id=session.session_id,
-    )
-    res = await cast(SemanticSessionManager, semantic_session_manager).search(
-        message=q.query,
-        session_data=semantic_session_data,
-        limit=q.limit if q.limit is not None else 5,
-    )
-    return SearchResult(content={"profile_memory": res})
+    # session = q.get_session()
+    #
+    # # Search semantic memory using session manager
+    # semantic_session_data = cast(
+    #     SessionIdManager, session_id_manager
+    # ).generate_session_data(
+    #     user_id=session.first_user_id(),
+    #     session_id=session.session_id,
+    # )
+    # res = await cast(SemanticSessionManager, semantic_session_manager).search(
+    #     message=q.query,
+    #     session_data=semantic_session_data,
+    #     limit=q.limit if q.limit is not None else 5,
+    # )
+    # return SearchResult(content={"profile_memory": res})
+    #
 
 
 @app.delete("/v1/memories")
@@ -1192,19 +1189,20 @@ async def _delete_session_data(delete_req: DeleteDataRequest):
     Internal function.  Shared by both REST API and MCP API
     See the docstring for delete_session_data() for details.
     """
-    session = delete_req.get_session()
-    inst: EpisodicMemory | None = await cast(
-        EpisodicMemoryManager, episodic_memory
-    ).get_episodic_memory_instance(
-        group_id=session.group_id,
-        agent_id=session.agent_id,
-        user_id=session.user_id,
-        session_id=session.session_id,
-    )
-    if inst is None:
-        raise delete_req.new_404_not_found_error("unable to find episodic memory")
-    async with AsyncEpisodicMemory(inst) as inst:
-        await inst.delete_data()
+    # session = delete_req.get_session()
+    # inst: EpisodicMemory | None = await cast(
+    #     EpisodicMemoryManager, episodic_memory
+    # ).get_episodic_memory_instance(
+    #     group_id=session.group_id,
+    #     agent_id=session.agent_id,
+    #     user_id=session.user_id,
+    #     session_id=session.session_id,
+    # )
+    # if inst is None:
+    #     raise delete_req.new_404_not_found_error("unable to find episodic memory")
+    # async with AsyncEpisodicMemory(inst) as inst:
+    #     await inst.delete_data()
+    #
 
 
 @app.get("/metrics")
@@ -1217,18 +1215,18 @@ async def get_all_sessions() -> AllSessionsResponse:
     """
     Get all sessions
     """
-    sessions = cast(EpisodicMemoryManager, episodic_memory).get_all_sessions()
-    return AllSessionsResponse(
-        sessions=[
-            MemorySession(
-                group_id=s.group_id,
-                session_id=s.session_id,
-                user_ids=s.user_ids,
-                agent_ids=s.agent_ids,
-            )
-            for s in sessions
-        ]
-    )
+    # sessions = cast(EpisodicMemoryManager, episodic_memory).get_all_sessions()
+    # return AllSessionsResponse(
+    #     sessions=[
+    #         MemorySession(
+    #             group_id=s.group_id,
+    #             session_id=s.session_id,
+    #             user_ids=s.user_ids,
+    #             agent_ids=s.agent_ids,
+    #         )
+    #         for s in sessions
+    #     ]
+    # )
 
 
 @app.get("/v1/users/{user_id}/sessions")
@@ -1236,18 +1234,18 @@ async def get_sessions_for_user(user_id: str) -> AllSessionsResponse:
     """
     Get all sessions for a particular user
     """
-    sessions = cast(EpisodicMemoryManager, episodic_memory).get_user_sessions(user_id)
-    return AllSessionsResponse(
-        sessions=[
-            MemorySession(
-                group_id=s.group_id,
-                session_id=s.session_id,
-                user_ids=s.user_ids,
-                agent_ids=s.agent_ids,
-            )
-            for s in sessions
-        ]
-    )
+    # sessions = cast(EpisodicMemoryManager, episodic_memory).get_user_sessions(user_id)
+    # return AllSessionsResponse(
+    #     sessions=[
+    #         MemorySession(
+    #             group_id=s.group_id,
+    #             session_id=s.session_id,
+    #             user_ids=s.user_ids,
+    #             agent_ids=s.agent_ids,
+    #         )
+    #         for s in sessions
+    #     ]
+    # )
 
 
 @app.get("/v1/groups/{group_id}/sessions")
@@ -1255,18 +1253,18 @@ async def get_sessions_for_group(group_id: str) -> AllSessionsResponse:
     """
     Get all sessions for a particular group
     """
-    sessions = cast(EpisodicMemoryManager, episodic_memory).get_group_sessions(group_id)
-    return AllSessionsResponse(
-        sessions=[
-            MemorySession(
-                group_id=s.group_id,
-                session_id=s.session_id,
-                user_ids=s.user_ids,
-                agent_ids=s.agent_ids,
-            )
-            for s in sessions
-        ]
-    )
+    # sessions = cast(EpisodicMemoryManager, episodic_memory).get_group_sessions(group_id)
+    # return AllSessionsResponse(
+    #     sessions=[
+    #         MemorySession(
+    #             group_id=s.group_id,
+    #             session_id=s.session_id,
+    #             user_ids=s.user_ids,
+    #             agent_ids=s.agent_ids,
+    #         )
+    #         for s in sessions
+    #     ]
+    # )
 
 
 @app.get("/v1/agents/{agent_id}/sessions")
@@ -1274,43 +1272,43 @@ async def get_sessions_for_agent(agent_id: str) -> AllSessionsResponse:
     """
     Get all sessions for a particular agent
     """
-    sessions = cast(EpisodicMemoryManager, episodic_memory).get_agent_sessions(agent_id)
-    return AllSessionsResponse(
-        sessions=[
-            MemorySession(
-                group_id=s.group_id,
-                session_id=s.session_id,
-                user_ids=s.user_ids,
-                agent_ids=s.agent_ids,
-            )
-            for s in sessions
-        ]
-    )
+    # sessions = cast(EpisodicMemoryManager, episodic_memory).get_agent_sessions(agent_id)
+    # return AllSessionsResponse(
+    #     sessions=[
+    #         MemorySession(
+    #             group_id=s.group_id,
+    #             session_id=s.session_id,
+    #             user_ids=s.user_ids,
+    #             agent_ids=s.agent_ids,
+    #         )
+    #         for s in sessions
+    #     ]
+    # )
 
 
 # === Health Check Endpoint ===
 @app.get("/health")
 async def health_check():
     """Health check endpoint for container orchestration."""
-    try:
-        # Check if memory managers are initialized
-        if semantic_session_manager is None or episodic_memory is None:
-            raise HTTPException(
-                status_code=503, detail="Memory managers not initialized"
-            )
-
-        # Basic health check - could be extended to check database connectivity
-        return {
-            "status": "healthy",
-            "service": "memmachine",
-            "version": "1.0.0",
-            "memory_managers": {
-                "semantic_memory": semantic_session_manager is not None,
-                "episodic_memory": episodic_memory is not None,
-            },
-        }
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+    # try:
+    #     # Check if memory managers are initialized
+    #     if semantic_session_manager is None or episodic_memory is None:
+    #         raise HTTPException(
+    #             status_code=503, detail="Memory managers not initialized"
+    #         )
+    #
+    #     # Basic health check - could be extended to check database connectivity
+    #     return {
+    #         "status": "healthy",
+    #         "service": "memmachine",
+    #         "version": "1.0.0",
+    #         "memory_managers": {
+    #             "semantic_memory": semantic_session_manager is not None,
+    #             "episodic_memory": episodic_memory is not None,
+    #         },
+    #     }
+    # except Exception as e:
+    #     raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
 async def start():

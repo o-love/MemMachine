@@ -8,6 +8,7 @@ import time
 from typing import Any
 from uuid import uuid4
 
+import instructor
 from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.data_types import ExternalServiceAPIError
