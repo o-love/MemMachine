@@ -80,7 +80,10 @@ class RerankerManager:
             raise ValueError(f"Reranker with name {name} not found.")
 
     async def _build_bm25_reranker(self, name: str) -> Reranker:
-        from memmachine.common.reranker.bm25_reranker import BM25Reranker, BM25RerankerParams
+        from memmachine.common.reranker.bm25_reranker import (
+            BM25Reranker,
+            BM25RerankerParams,
+        )
 
         def get_tokenizer(name: str, language: str) -> Callable[[str], list[str]]:
             if name == "default":
