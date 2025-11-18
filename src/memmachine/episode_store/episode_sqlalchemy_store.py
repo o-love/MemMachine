@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
+from memmachine.common.data_types import JSONValue
 from memmachine.episode_store.episode_model import Episode, EpisodeType
 from memmachine.episode_store.episode_storage import EpisodeIdT, EpisodeStorage
 
@@ -118,7 +119,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         producer_role: str,
         produced_for_id: str | None = None,
         episode_type: EpisodeType | None = None,
-        metadata: dict[str, str] | None = None,
+        metadata: dict[str, JSONValue] | None = None,
         created_at: AwareDatetime | None = None,
     ) -> EpisodeIdT:
         stmt = (
@@ -242,9 +243,9 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
 
     @validate_call
     async def delete_history(self, history_ids: list[EpisodeIdT]):
-        history_ids = [int(h_id) for h_id in history_ids]
+        int_history_ids = [int(h_id) for h_id in history_ids]
 
-        stmt = delete(History).where(History.id.in_(history_ids))
+        stmt = delete(History).where(History.id.in_(int_history_ids))
 
         async with self._create_session() as session:
             await session.execute(stmt)
@@ -261,7 +262,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         episode_types: list[EpisodeType] | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, str] | None = None,
+        metadata: dict[str, JSONValue] | None = None,
     ):
         stmt = delete(History)
 

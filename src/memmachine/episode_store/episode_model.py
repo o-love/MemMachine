@@ -31,7 +31,6 @@ class Episode(BaseModel):
     uuid: EpisodeIdT | None = None
     content: str
     session_key: str
-    sequence_num: int
     created_at: datetime
 
     producer_id: str

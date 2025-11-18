@@ -111,7 +111,7 @@ class IngestionService:
                     )
                 except Exception as e:
                     logger.error(
-                        f"Failed to process message {message.metadata.uuid} for semantic type {semantic_category.name}",
+                        f"Failed to process message {message.uuid} for semantic type {semantic_category.name}",
                         e,
                     )
                     if self._debug_fail_loudly:
