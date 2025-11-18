@@ -1,4 +1,6 @@
 import asyncio
+import logging
+from asyncio import Lock
 from typing import Self
 
 from neo4j import AsyncGraphDatabase
@@ -14,30 +16,48 @@ from memmachine.common.vector_graph_store.neo4j_vector_graph_store import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 class StorageManager:
     def __init__(self, conf: StorageConf):
         self.conf = conf
         self.graph_stores: dict[str, VectorGraphStore] = {}
         self.sql_engines: dict[str, AsyncEngine] = {}
 
-    def build_all(self, validate=false) -> Self:
+        self._lock = Lock()
+
+    async def build_all(self, validate=false) -> Self:
         """Build and verify all configured database connections."""
-        self._build_neo4j()
-        self._build_sql_engines()
-        if validate:
-            self._validate_neo4j()
-            self._validate_sql_engines()
+        async with self._lock:
+            await asyncio.gather(
+                self._build_neo4j(),
+                self._build_sql_engines(),
+            )
+            if validate:
+                await asyncio.gather(
+                    self._validate_neo4j(), self._validate_sql_engines()
+                )
         return self
 
     async def close(self):
         """Close all database connections."""
-        tasks = []
-        for store in self.graph_stores.values():
-            tasks.append(store.close())
-        for engine in self.sql_engines.values():
-            tasks.append(engine.dispose())
+        async with self._lock:
+            tasks = []
+            for name, store in self.graph_stores.items():
 
-        await asyncio.gather(*tasks)
+                def close_store():
+                    try:
+                        store.close()
+                    except Exception as e:
+                        logger.error(f"Error closing graph store '{name}': {e}")
+                    store.close()
+
+                tasks.append(store.close())
+            for engine in self.sql_engines.values():
+                tasks.append(engine.dispose())
+
+            await asyncio.gather(*tasks)
 
     def get_vector_graph_store(self, name: str) -> VectorGraphStore:
         if name not in self.graph_stores:
@@ -51,6 +71,8 @@ class StorageManager:
 
     async def _build_neo4j(self):
         for name, conf in self.conf.neo4j_confs.items():
+            if name in self.graph_stores:
+                continue
             neo4j_host = conf.host
             if "neo4j+s://" in neo4j_host:
                 neo4j_uri = neo4j_host
@@ -85,6 +107,8 @@ class StorageManager:
     async def _build_sql_engines(self):
         schema = "sqlite+aiosqlite:///"
         for name, conf in self.conf.sqlite_confs.items():
+            if name in self.sql_engines:
+                continue
             db_url = conf.file_path
             if not conf.file_path.startswith(schema):
                 db_url = f"sqlite+aiosqlite:///{db_url}"

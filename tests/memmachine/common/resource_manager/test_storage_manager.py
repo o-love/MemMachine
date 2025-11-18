@@ -56,7 +56,7 @@ async def test_build_all_without_validation(mock_conf):
     builder._validate_neo4j = AsyncMock()
     builder._validate_sql_engines = AsyncMock()
 
-    result = builder.build_all(validate=True)
+    result = await builder.build_all(validate=True)
 
     # build_all should call the build methods but NOT validation methods
     builder._build_neo4j.assert_called_once()

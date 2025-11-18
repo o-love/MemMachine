@@ -40,7 +40,9 @@ class ResourceManagerImpl:
         self._model_manager: LanguageModelManager = LanguageModelManager(
             self._conf.model
         )
-        self._reranker_manager: RerankerManager = RerankerManager(self._conf.reranker)
+        self._reranker_manager: RerankerManager = RerankerManager(
+            self._conf.reranker, embedder_factory=self._embedder_manager
+        )
         self._metric_factory: dict[str, MetricsFactory] = {
             "prometheus": PrometheusMetricsFactory
         }
@@ -52,11 +54,11 @@ class ResourceManagerImpl:
         self._semantic_manager: SemanticResourceManager | None = None
 
     async def build(self):
-        self._storage_manager.build_all(validate=True)
         tasks = [
+            self._storage_manager.build_all(validate=True),
             self._embedder_manager.build_all(),
             self._model_manager.build_all(),
-            self._reranker_manager.build_all(embedder_factory=self._embedder_manager),
+            self._reranker_manager.build_all(),
         ]
 
         await asyncio.gather(*tasks)
@@ -83,7 +85,7 @@ class ResourceManagerImpl:
         return await self._model_manager.get_language_model(name)
 
     async def get_reranker(self, name: str) -> Reranker:
-        return self._reranker_manager.get_reranker(name)
+        return await self._reranker_manager.get_reranker(name)
 
     async def get_metrics_factory(self, name: str) -> MetricsFactory:
         return self._metric_factory.get(name)

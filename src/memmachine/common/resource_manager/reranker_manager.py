@@ -1,3 +1,6 @@
+import asyncio
+from asyncio import Lock
+from collections import defaultdict
 from typing import Protocol
 
 import boto3
@@ -16,97 +19,143 @@ class EmbedderFactory(Protocol):
 
 
 class RerankerManager:
-    def __init__(self, conf: RerankerConf):
+    def __init__(
+        self, conf: RerankerConf, embedder_factory: InstanceOf[EmbedderFactory]
+    ):
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}
 
-    async def build_all(
-        self, embedder_factory: InstanceOf[EmbedderFactory]
-    ) -> dict[str, Reranker]:
-        self._build_bm25_rerankers()
-        self._build_cross_encoder_rerankers()
-        self._build_amazon_bedrock_rerankers()
-        await self._build_embedder_rerankers(embedder_factory)
-        self._build_identity_rerankers()
-        self._build_rrf_hybrid_rerankers()
+        self._embedder_factory: EmbedderFactory = embedder_factory
+        self._lock = Lock()
+        self._rerankers_lock = defaultdict(Lock)
+
+    async def build_all(self) -> dict[str, Reranker]:
+        names = [
+            name
+            for d in [
+                self.conf.bm25,
+                self.conf.cross_encoder,
+                self.conf.amazon_bedrock,
+                self.conf.embedder,
+                self.conf.identity,
+                self.conf.rrf_hybrid,
+            ]
+            for name in d.keys()
+        ]
+        tasks = [self.get_reranker(name) for name in names]
+        await asyncio.gather(*tasks)
         return self.rerankers
 
-    def get_reranker(self, reranker_id: str) -> Reranker:
-        if reranker_id not in self.rerankers:
-            raise ValueError(f"Reranker with id {reranker_id} not found.")
-        return self.rerankers[reranker_id]
+    async def get_reranker(self, name: str) -> Reranker:
+        if name in self.rerankers:
+            return self.rerankers[name]
 
-    def _build_bm25_rerankers(self):
-        for name, conf in self.conf.bm25.items():
-            from memmachine.common.reranker.bm25_reranker import BM25Reranker
+        if name not in self._rerankers_lock:
+            async with self._lock:
+                self._rerankers_lock.setdefault(name, Lock())
 
-            self.rerankers[name] = BM25Reranker(conf)
+        async with self._rerankers_lock[name]:
+            if name in self.rerankers:
+                return self.rerankers[name]
 
-    def _build_cross_encoder_rerankers(self):
-        for name, conf in self.conf.cross_encoder.items():
-            from memmachine.common.reranker.cross_encoder_reranker import (
-                CrossEncoderReranker,
-            )
+            reranker = await self._build_reranker(name)
+            self.rerankers[name] = reranker
+            return reranker
 
-            self.rerankers[name] = CrossEncoderReranker(conf)
+    async def _build_reranker(self, name: str) -> Reranker:
+        if name in self.conf.bm25:
+            return await self._build_bm25_reranker(name)
+        elif name in self.conf.cross_encoder:
+            return await self._build_cross_encoder_reranker(name)
+        elif name in self.conf.amazon_bedrock:
+            return await self._build_amazon_bedrock_reranker(name)
+        elif name in self.conf.embedder:
+            return await self._build_embedder_reranker(name)
+        elif name in self.conf.identity:
+            return await self._build_identity_reranker(name)
+        elif name in self.conf.rrf_hybrid:
+            return await self._build_rrf_hybrid_reranker(name)
+        else:
+            raise ValueError(f"Reranker with name {name} not found.")
 
-    def _build_amazon_bedrock_rerankers(self):
-        for name, conf in self.conf.amazon_bedrock.items():
-            from memmachine.common.reranker.amazon_bedrock_reranker import (
-                AmazonBedrockReranker,
-                AmazonBedrockRerankerParams,
-            )
+    async def _build_bm25_reranker(self, name: str) -> Reranker:
+        from memmachine.common.reranker.bm25_reranker import BM25Reranker
 
-            client = boto3.client(
-                "bedrock-agent-runtime",
-                region_name=conf.region,
-                aws_access_key_id=conf.aws_access_key_id,
-                aws_secret_access_key=conf.aws_secret_access_key,
-            )
-            params = AmazonBedrockRerankerParams(
-                client=client,
-                region=conf.region,
-                model_id=conf.model_id,
-                additional_model_request_fields=conf.additional_model_request_fields,
-            )
-            self.rerankers[name] = AmazonBedrockReranker(params)
+        conf = self.conf.bm25[name]
+        self.rerankers[name] = BM25Reranker(conf)
+        return self.rerankers[name]
 
-    async def _build_embedder_rerankers(self, embedder_factory: EmbedderFactory):
-        from memmachine.common.reranker.embedder_reranker import (
+    async def _build_cross_encoder_reranker(self, name: str) -> Reranker:
+        from memmachine.common.reranker.cross_encoder_reranker import (
+            CrossEncoderReranker,
+        )
+
+        conf = self.conf.cross_encoder[name]
+        self.rerankers[name] = CrossEncoderReranker(conf)
+        return self.rerankers[name]
+
+    async def _build_amazon_bedrock_reranker(self, name: str) -> Reranker:
+        from memmachine.common.reranker.amazon_bedrock_reranker import (
+            AmazonBedrockReranker,
+            AmazonBedrockRerankerParams,
+        )
+
+        conf = self.conf.amazon_bedrock[name]
+
+        client = boto3.client(
+            "bedrock-agent-runtime",
+            region_name=conf.region,
+            aws_access_key_id=conf.aws_access_key_id,
+            aws_secret_access_key=conf.aws_secret_access_key,
+        )
+        params = AmazonBedrockRerankerParams(
+            client=client,
+            region=conf.region,
+            model_id=conf.model_id,
+            additional_model_request_fields=conf.additional_model_request_fields,
+        )
+        self.rerankers[name] = AmazonBedrockReranker(params)
+        return self.rerankers[name]
+
+    async def _build_embedder_reranker(self, name: str) -> Reranker:
+        from ..reranker.embedder_reranker import (
             EmbedderReranker,
             EmbedderRerankerParams,
         )
 
-        for name, conf in self.conf.embedder.items():
-            embedder = await embedder_factory.get_embedder(conf.embedder_id)
+        conf = self.conf.embedder[name]
+        embedder = await self._embedder_factory.get_embedder(conf.embedder_id)
+        params = EmbedderRerankerParams(embedder=embedder)
+        self.rerankers[name] = EmbedderReranker(params)
+        return self.rerankers[name]
 
-            params = EmbedderRerankerParams(embedder=embedder)
-            self.rerankers[name] = EmbedderReranker(params)
+    async def _build_identity_reranker(self, name: str) -> Reranker:
+        from ..reranker.identity_reranker import IdentityReranker
 
-    def _build_identity_rerankers(self):
-        for name, conf in self.conf.identity.items():
-            from memmachine.common.reranker.identity_reranker import IdentityReranker
+        self.rerankers[name] = IdentityReranker()
+        return self.rerankers[name]
 
-            self.rerankers[name] = IdentityReranker()
-
-    def _build_rrf_hybrid_rerankers(self):
+    async def _build_rrf_hybrid_reranker(self, name: str) -> Reranker:
         """Build RRF hybrid rerankers by combining existing rerankers.
 
         This method must be called after all individual rerankers have been built,
         """
-        for name, conf in self.conf.rrf_hybrid.items():
-            from memmachine.common.reranker.rrf_hybrid_reranker import (
-                RRFHybridReranker,
-                RRFHybridRerankerParams,
-            )
+        from ..reranker.rrf_hybrid_reranker import (
+            RRFHybridReranker,
+            RRFHybridRerankerParams,
+        )
 
-            rerankers = []
-            for reranker_id in conf.reranker_ids:
-                if reranker_id not in self.rerankers:
-                    raise ValueError(
-                        f"Reranker with id {reranker_id} not found for "
-                        f"RRFHybridReranker {name}."
-                    )
-                rerankers.append(self.rerankers[reranker_id])
-            params = RRFHybridRerankerParams(rerankers=rerankers, k=conf.k)
-            self.rerankers[name] = RRFHybridReranker(params)
+        conf = self.conf.rrf_hybrid[name]
+        rerankers = []
+        for reranker_id in conf.reranker_ids:
+            try:
+                reranker = await self.get_reranker(reranker_id)
+                rerankers.append(reranker)
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to get reranker with id {reranker_id} for "
+                    f"RRFHybridReranker {name}: {e}"
+                ) from e
+        params = RRFHybridRerankerParams(rerankers=rerankers, k=conf.k)
+        self.rerankers[name] = RRFHybridReranker(params)
+        return self.rerankers[name]
