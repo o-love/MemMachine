@@ -10,8 +10,10 @@ def build_update_prompt(*, tags: dict[str, str], description: str | None = None)
         A profile is a two-level key-value store. We call the outer key the *tag*, and the inner key the *feature*. Together, a *tag* and a *feature* are associated with one or several *value*s.
 
         """
-        + description if description else ""
-        + """
+        + description
+        if description
+        else ""
+        """
 
         How to construct profile entries:
         - Entries should be atomic. They should communicate a single discrete fact.

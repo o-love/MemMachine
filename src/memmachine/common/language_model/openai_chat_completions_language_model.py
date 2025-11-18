@@ -160,7 +160,9 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
             end_time,
         )
 
-        return TypeAdapter(output_format).validate_python(response.choices[0].message.parsed)
+        return TypeAdapter(output_format).validate_python(
+            response.choices[0].message.parsed
+        )
 
     async def generate_response(  # noqa: C901
         self,

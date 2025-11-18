@@ -2,7 +2,6 @@
 
 import asyncio
 
-from pydantic import InstanceOf
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.configuration import Configuration
