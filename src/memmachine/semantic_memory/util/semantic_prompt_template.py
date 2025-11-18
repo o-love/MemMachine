@@ -1,7 +1,7 @@
 """Prompt templates used by the semantic memory pipeline."""
 
 
-def build_update_prompt(*, tags: dict[str, str], description: str | None = None) -> str:
+def build_update_prompt(*, tags: dict[str, str], description: str = "") -> str:
     """Create an update prompt for extracting profile changes from a query."""
     return (
         """
@@ -11,9 +11,7 @@ def build_update_prompt(*, tags: dict[str, str], description: str | None = None)
 
         """
         + description
-        if description
-        else ""
-        """
+        + """
 
         How to construct profile entries:
         - Entries should be atomic. They should communicate a single discrete fact.
