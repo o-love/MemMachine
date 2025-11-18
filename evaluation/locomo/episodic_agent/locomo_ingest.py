@@ -31,7 +31,9 @@ async def main() -> None:
     )
 
     async def process_conversation(
-        idx, item, memory_manager: EpisodicMemoryManager,
+        idx,
+        item,
+        memory_manager: EpisodicMemoryManager,
     ) -> None:
         if "conversation" not in item:
             return

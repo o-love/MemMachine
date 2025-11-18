@@ -146,7 +146,9 @@ class SemanticService:
 
     @validate_call
     async def add_message_to_sets(
-        self, history_id: EpisodeIdT, set_ids: list[SetIdT],
+        self,
+        history_id: EpisodeIdT,
+        set_ids: list[SetIdT],
     ) -> None:
         res = await asyncio.gather(
             *[

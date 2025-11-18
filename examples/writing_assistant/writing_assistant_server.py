@@ -253,7 +253,9 @@ async def store_and_search_data(user_id: str, query: str):
             search_resp.status_code,
         )
         if search_resp.status_code != 200:
-            logger.error("Search failed with %s: %s", search_resp.status_code, search_resp.text)
+            logger.error(
+                "Search failed with %s: %s", search_resp.status_code, search_resp.text
+            )
             return {
                 "status": "error",
                 "message": "Failed to search memory data",
@@ -349,7 +351,9 @@ async def analyze_writing_style(user_id: str, query: str):
         )
 
         if search_resp.status_code != 200:
-            logger.error("Search failed with %s: %s", search_resp.status_code, search_resp.text)
+            logger.error(
+                "Search failed with %s: %s", search_resp.status_code, search_resp.text
+            )
             return {
                 "status": "error",
                 "message": "Failed to retrieve existing writing style data",

@@ -398,7 +398,10 @@ class AmazonBedrockLanguageModel(LanguageModel):
         )
 
     def _collect_metrics(
-        self, response: dict[str, Any], start_time: float, end_time: float,
+        self,
+        response: dict[str, Any],
+        start_time: float,
+        end_time: float,
     ) -> None:
         if self._should_collect_metrics:
             if (response_usage := response.get("usage")) is not None:

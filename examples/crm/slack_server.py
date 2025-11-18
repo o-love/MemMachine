@@ -58,7 +58,8 @@ async def slack_events(
     request: Request,
     x_slack_signature: Annotated[str | None, Header(alias="X-Slack-Signature")] = None,
     x_slack_request_timestamp: Annotated[
-        str | None, Header(alias="X-Slack-Request-Timestamp"),
+        str | None,
+        Header(alias="X-Slack-Request-Timestamp"),
     ] = None,
 ):
     signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")

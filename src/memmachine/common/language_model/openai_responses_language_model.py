@@ -292,7 +292,10 @@ class OpenAIResponsesLanguageModel(LanguageModel):
         )
 
     def _collect_metrics(
-        self, response: object, start_time: float, end_time: float,
+        self,
+        response: object,
+        start_time: float,
+        end_time: float,
     ) -> None:
         if self._should_collect_metrics:
             if response.usage is not None:

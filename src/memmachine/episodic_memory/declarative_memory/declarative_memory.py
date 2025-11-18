@@ -161,7 +161,9 @@ class DeclarativeMemory:
                 },
             )
             for derivative, embedding in zip(
-                derivatives, derivative_embeddings, strict=False,
+                derivatives,
+                derivative_embeddings,
+                strict=False,
             )
         ]
 
@@ -172,7 +174,9 @@ class DeclarativeMemory:
                 target_uuid=episode.uuid,
             )
             for episode, episode_derivatives in zip(
-                episodes, episodes_derivatives, strict=False,
+                episodes,
+                episodes_derivatives,
+                strict=False,
             )
             for derivative in episode_derivatives
         ]

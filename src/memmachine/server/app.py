@@ -573,7 +573,9 @@ class UserIDContextMiddleware:
     """
 
     def __init__(
-        self, app: StarletteWithLifespan, header_name: str = "user-id",
+        self,
+        app: StarletteWithLifespan,
+        header_name: str = "user-id",
     ) -> None:
         """Store the wrapped app and the name of the header carrying user id."""
         self.app = app
