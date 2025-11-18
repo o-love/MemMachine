@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Memory management interface for MemMachine.
 
@@ -6,12 +8,13 @@ operations for a specific context.
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import requests
 
-from .client import MemMachineClient
+if TYPE_CHECKING:
+    from .client import MemMachineClient
 
 logger = logging.getLogger(__name__)
 

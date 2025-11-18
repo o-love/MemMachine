@@ -65,7 +65,8 @@ class ShortTermMemoryParams(BaseModel):
     )
 
     @field_validator("summary_prompt_user")
-    def validate_summary_user_prompt(self, v: str) -> str:
+    @classmethod
+    def validate_summary_user_prompt(cls, v: str) -> str:
         fields = [fname for _, fname, _, _ in string.Formatter().parse(v) if fname]
         if len(fields) != 3:
             raise ValueError(f"Expect 3 fields in {v}")
