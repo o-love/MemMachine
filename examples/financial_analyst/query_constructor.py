@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class FinancialAnalystQueryConstructor(BaseQueryConstructor):
-    def __init__(self):
+    def __init__(self) -> None:
         self.prompt_template = """
 You are a helpful financial analyst assistant. Use the provided context and profile information to answer the user's question accurately and helpfully.
 
@@ -72,5 +72,5 @@ Response Format:
                 query=query,
             )
         except Exception as e:
-            logger.error(f"Error creating financial analyst query: {e}")
+            logger.exception(f"Error creating financial analyst query: {e}")
             return f"{profile_str}\n\n{context_block}{query}"

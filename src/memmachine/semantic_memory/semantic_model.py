@@ -1,3 +1,5 @@
+"""Core data models for semantic memory features and retrieval."""
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable

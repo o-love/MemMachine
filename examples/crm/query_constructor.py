@@ -429,7 +429,7 @@ def _build_unified_query_template() -> str:
 class CRMQueryConstructor(BaseQueryConstructor):
     """CRM Query Constructor optimized for text rendering in Slack"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.prompt_template = _build_unified_query_template()
 
     def create_query(self, profile: str | None, context: str | None, query: str) -> str:
@@ -453,7 +453,7 @@ class CRMQueryConstructor(BaseQueryConstructor):
             try:
                 config_json = json.dumps(current_config, indent=2)
             except (TypeError, ValueError) as e:
-                logger.error(f"Error serializing CONFIG to JSON: {e}")
+                logger.exception(f"Error serializing CONFIG to JSON: {e}")
                 config_json = '{"error": "Configuration serialization failed"}'
 
             result = self.prompt_template.format(
@@ -466,10 +466,10 @@ class CRMQueryConstructor(BaseQueryConstructor):
             logger.info(f"[DEBUG] Query constructor preview: {result[:500]}...")
             return result
         except KeyError as e:
-            logger.error(f"Template formatting error - missing placeholder: {e}")
+            logger.exception(f"Template formatting error - missing placeholder: {e}")
             raise RuntimeError(
                 f"Failed to format prompt due to missing key: {e}",
             ) from e
         except Exception as e:
-            logger.error(f"Error creating CRM query: {e}")
+            logger.exception(f"Error creating CRM query: {e}")
             return f"{profile_str}\n\n{context_block}{query}"

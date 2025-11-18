@@ -12,7 +12,7 @@ class SlackService:
     """Thin async wrapper around Slack Web API for the operations we need.
     """
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None) -> None:
         self.token = token or os.getenv("SLACK_BOT_TOKEN")
         if not self.token:
             logger.warning("SLACK_BOT_TOKEN is not set; Slack operations will fail")
@@ -30,7 +30,7 @@ class SlackService:
             real = (profile.get("real_name") or "").strip()
             return display or real or user_id
         except SlackApiError as e:
-            logger.error(
+            logger.exception(
                 f"[SLACK] users.info failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return user_id
@@ -49,7 +49,7 @@ class SlackService:
             )
             return resp.get("ts")
         except SlackApiError as e:
-            logger.error(
+            logger.exception(
                 f"[SLACK] chat.postMessage failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return None
@@ -94,7 +94,7 @@ class SlackService:
             return messages
 
         except SlackApiError as e:
-            logger.error(
+            logger.exception(
                 f"[SLACK] conversations.history failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return []
@@ -134,7 +134,7 @@ class SlackService:
             return channels
 
         except SlackApiError as e:
-            logger.error(
+            logger.exception(
                 f"[SLACK] conversations.list failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return []

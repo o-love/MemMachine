@@ -110,7 +110,7 @@ class OpenAIEmbedder(Embedder):
         """Embed search queries with retries."""
         return await self._embed(queries, max_attempts)
 
-    async def _embed(
+    async def _embed(  # noqa: C901
         self,
         inputs: list[Any],
         max_attempts: int = 1,

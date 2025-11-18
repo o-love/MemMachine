@@ -1,9 +1,11 @@
 import asyncio
+import contextlib
 import hashlib
 import hmac
 import logging
 import os
 import time
+from typing import Annotated
 
 import httpx
 import uvicorn
@@ -43,7 +45,7 @@ def get_counter_status():
     }
 
 
-def reset_counters():
+def reset_counters() -> None:
     """Reset all counters to zero"""
     message_counters["processed"] = 0
     message_counters["skipped"] = 0
@@ -53,10 +55,8 @@ def reset_counters():
 @router.post("/events")
 async def slack_events(
     request: Request,
-    x_slack_signature: str | None = Header(default=None, alias="X-Slack-Signature"),
-    x_slack_request_timestamp: str | None = Header(
-        default=None, alias="X-Slack-Request-Timestamp",
-    ),
+    x_slack_signature: Annotated[str | None, Header(alias="X-Slack-Signature")] = None,
+    x_slack_request_timestamp: Annotated[str | None, Header(alias="X-Slack-Request-Timestamp")] = None,
 ):
     signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
     raw_body: bytes = await request.body()
@@ -108,7 +108,7 @@ async def slack_events(
     stripped = (text or "").lstrip()
     low = stripped.lower()
 
-    if low.startswith("*q") or low.startswith("*q "):
+    if low.startswith(("*q", "*q ")):
         query_text = stripped[2:].lstrip()
         asyncio.create_task(
             process_query_and_reply(channel, ts, thread_ts, user, query_text),
@@ -183,7 +183,7 @@ async def process_memory_post(
 
 async def process_query_and_reply(
     channel: str, ts: str, thread_ts: str | None, user: str, query_text: str,
-):
+) -> None:
     """Handle *Q queries by searching memory and using OpenAI chat completion"""
     logger.info(f"[SLACK] Processing query from user {user}: {query_text[:50]}...")
 
@@ -216,7 +216,7 @@ async def process_query_and_reply(
                 response_text = f"⚠️ Search failed with status {resp.status_code}"
 
     except Exception as e:
-        logger.error(f"[SLACK] Error searching memory: {e}")
+        logger.exception(f"[SLACK] Error searching memory: {e}")
         response_text = f"⚠️ Error searching memory: {e!s}"
 
     await slack_service.post_message(
@@ -257,7 +257,7 @@ async def generate_openai_response(formatted_query: str, original_query: str) ->
         return response_text
 
     except Exception as e:
-        logger.error(f"[OPENAI] Error generating response: {e}")
+        logger.exception(f"[OPENAI] Error generating response: {e}")
         return f"⚠️ Error generating AI response: {e!s}"
 
 
@@ -308,7 +308,7 @@ async def reset_counters_endpoint():
     return {"status": "success", "message": "Counters reset"}
 
 
-async def main():
+async def main() -> None:
     """Main function that handles user input before starting server"""
     message_limit = get_user_input()
 
@@ -333,13 +333,11 @@ async def main():
         logger.info("[SLACK] Shutting down...")
         if not historical_task.done():
             historical_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await historical_task
-            except asyncio.CancelledError:
-                pass
 
 
-async def ingest_historical_messages_with_limit(message_limit: int):
+async def ingest_historical_messages_with_limit(message_limit: int) -> None:
     """Ingest historical messages with the specified limit"""
     logger.info(
         f"[SLACK] Starting historical message ingestion with limit: {message_limit}",
@@ -438,11 +436,11 @@ async def ingest_historical_messages_with_limit(message_limit: int):
         )
 
     except Exception as e:
-        logger.error(f"[SLACK] Error during historical ingestion: {e}")
+        logger.exception(f"[SLACK] Error during historical ingestion: {e}")
         print(f"❌ Error during historical ingestion: {e}")
         import traceback
 
-        logger.error(f"[SLACK] Traceback: {traceback.format_exc()}")
+        logger.exception(f"[SLACK] Traceback: {traceback.format_exc()}")
 
 
 if __name__ == "__main__":

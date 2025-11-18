@@ -120,7 +120,7 @@ async def test_mcp_tool_description(mcp_client):
         if tool.name == "add_memory":
             assert "into memory" in tool.description
             return
-    assert False
+    raise AssertionError
 
 
 @patch("memmachine.server.app._add_memory", new_callable=AsyncMock)

@@ -162,7 +162,7 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
 
         return response.choices[0].message.parsed
 
-    async def generate_response(
+    async def generate_response(  # noqa: C901
         self,
         system_prompt: str | None = None,
         user_prompt: str | None = None,

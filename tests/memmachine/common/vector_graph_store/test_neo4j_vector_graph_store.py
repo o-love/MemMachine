@@ -1187,7 +1187,7 @@ async def test_delete_all_data(neo4j_driver, vector_graph_store):
     assert len(records) == 0
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def vector_graph_store_indexing(neo4j_driver):
     return Neo4jVectorGraphStore(
         Neo4jVectorGraphStoreParams(
@@ -1490,7 +1490,7 @@ def test__sanitize_desanitize_name():
 
     sanitized_names = [Neo4jVectorGraphStore._sanitize_name(name) for name in names]
 
-    for original, sanitized in zip(names, sanitized_names):
+    for original, sanitized in zip(names, sanitized_names, strict=False):
         assert len(sanitized) > 0
         assert sanitized[0].isalpha()
         assert all(c.isalnum() or c == "_" for c in sanitized)

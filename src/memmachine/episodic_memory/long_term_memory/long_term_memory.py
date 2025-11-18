@@ -1,3 +1,5 @@
+"""Long-term declarative memory coordination."""
+
 from collections.abc import Iterable, Mapping
 from typing import cast
 from uuid import UUID

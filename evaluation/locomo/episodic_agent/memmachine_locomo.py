@@ -25,7 +25,7 @@ commit_id = (
 
 
 class MemMachineSearch:
-    def __init__(self, output_path=f"results_IM_{commit_id}.json"):
+    def __init__(self, output_path=f"results_IM_{commit_id}.json") -> None:
         self._semaphore = asyncio.Semaphore(10)
         self._output_path = output_path
         if not os.path.exists(output_path):
@@ -71,10 +71,12 @@ class MemMachineSearch:
         return result
 
     async def process_data_file(
-        self, file_path, exclude_category={5}, base_url="http://localhost:8080",
-    ):
-        async def process_item(idx, item):
-            if str(idx) in self.results.keys():
+        self, file_path, exclude_category=None, base_url="http://localhost:8080",
+    ) -> None:
+        if exclude_category is None:
+            exclude_category = {5}
+        async def process_item(idx, item) -> None:
+            if str(idx) in self.results:
                 print(f"Conversation {idx} has already been processed")
                 return
             qa = item["qa"]
@@ -101,7 +103,7 @@ class MemMachineSearch:
 
         with open(file_path, "r") as f:
             data = json.load(f)
-            for idx, convo in tqdm(zip(range(len(data)), data)):
+            for idx, convo in tqdm(zip(range(len(data)), data, strict=False)):
                 await process_item(idx, convo)
         # Final save at the end
         with open(self._output_path, "w") as f:

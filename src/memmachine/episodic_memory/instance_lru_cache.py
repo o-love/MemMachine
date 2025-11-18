@@ -1,3 +1,5 @@
+"""LRU cache implementation for managing episodic memory instances."""
+
 from datetime import UTC, datetime
 from typing import cast
 
@@ -6,7 +8,8 @@ from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 
 class Node:
     """
-    Node for the doubly linked list.
+    Represent a node for the doubly linked list.
+
     Each node stores a key-value pair.
     """
 
@@ -21,7 +24,7 @@ class Node:
 
 class MemoryInstanceCache:
     """
-    A Least Recently Used (LRU) Cache implementation that manage memory instances.
+    Implement an LRU cache that manages memory instances.
 
     Attributes:
         capacity (int): The maximum number of items the cache can hold.
@@ -47,7 +50,7 @@ class MemoryInstanceCache:
         self.tail.prev = self.head
 
     def _remove_node(self, node: Node) -> None:
-        """Removes a node from the doubly linked list."""
+        """Remove a node from the doubly linked list."""
         if node.prev and node.next:
             prev_node = node.prev
             next_node = node.next
@@ -55,7 +58,7 @@ class MemoryInstanceCache:
             next_node.prev = prev_node
 
     def _add_to_front(self, node: Node) -> None:
-        """Adds a node to the front of the doubly linked list (right after head)."""
+        """Add a node to the front of the doubly linked list (right after head)."""
         node.prev = self.head
         node.next = self.head.next
         if self.head.next:
@@ -63,17 +66,17 @@ class MemoryInstanceCache:
         self.head.next = node
 
     def clear(self) -> None:
-        """Removes all items from the cache."""
+        """Remove all items from the cache."""
         self.cache.clear()
         self.head.next = self.tail
         self.tail.prev = self.head
 
     def keys(self) -> list[str]:
-        """Returns a list of all keys in the cache."""
+        """Return a list of all keys in the cache."""
         return list(self.cache.keys())
 
     def erase(self, key: str) -> None:
-        """Removes an item from the cache."""
+        """Remove an item from the cache."""
         if key in self.cache:
             node = self.cache[key]
             if node.ref_count > 0:
@@ -83,7 +86,8 @@ class MemoryInstanceCache:
 
     def get(self, key: str) -> EpisodicMemory | None:
         """
-        Retrieves an item from the cache.
+        Retrieve an item from the cache.
+
         Returns the value if the key exists, otherwise -1 (or None/raise KeyError).
         Moves the accessed item to the front (most recently used).
         """
@@ -99,7 +103,8 @@ class MemoryInstanceCache:
 
     def get_ref_count(self, key: str) -> int:
         """
-        Retrieves the reference count of an item in the cache.
+        Retrieve the reference count of an item in the cache.
+
         Returns the reference count if the key exists, otherwise -1.
         """
         if key in self.cache:
@@ -107,7 +112,7 @@ class MemoryInstanceCache:
         return -1
 
     async def add(self, key: str, value: EpisodicMemory) -> None:
-        """Adds a new item to the cache."""
+        """Add a new item to the cache."""
         if key in self.cache:
             raise ValueError(f"Key {key} already exists")
 

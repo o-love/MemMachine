@@ -5,7 +5,7 @@ import argparse
 import asyncio
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run memory experiments")
     parser.add_argument("--method", default="add", help="Method to use")
     parser.add_argument(

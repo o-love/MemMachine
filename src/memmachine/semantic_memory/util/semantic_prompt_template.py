@@ -1,3 +1,5 @@
+"""Prompt templates used by the semantic memory pipeline."""
+
 def build_update_prompt(*, tags: dict[str, str], description: str | None = None) -> str:
     return (
         """

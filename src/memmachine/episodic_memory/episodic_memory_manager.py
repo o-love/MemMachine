@@ -1,3 +1,5 @@
+"""Factory and manager for per-session episodic memory instances."""
+
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -45,7 +47,7 @@ class EpisodicMemoryManagerParams(BaseModel):
 
 class EpisodicMemoryManager:
     """
-    Manages the lifecycle and access of episodic memory instances.
+    Manage the lifecycle and access of episodic memory instances.
 
     This class is responsible for creating, retrieving, and closing
     `SemanticMemory` instances based on a session key. It uses a
@@ -56,7 +58,7 @@ class EpisodicMemoryManager:
 
     def __init__(self, params: EpisodicMemoryManagerParams) -> None:
         """
-        Initializes the SemanticMemoryManager.
+        Initialize the SemanticMemoryManager.
 
         Args:
             params: The configuration parameters for the manager.
@@ -85,7 +87,7 @@ class EpisodicMemoryManager:
         self, session_key: str,
     ) -> AsyncIterator[EpisodicMemory]:
         """
-        Asynchronously provides a SemanticMemory instance for a given session key.
+        Provide a SemanticMemory instance for a given session key.
 
         This is an asynchronous context manager. It will create a new
         `SemanticMemory` instance if one doesn't exist for the given session key,
@@ -138,7 +140,7 @@ class EpisodicMemoryManager:
         config: dict | None = None,
     ) -> AsyncIterator[EpisodicMemory]:
         """
-        Creates a new episodic memory instance and stores its configuration.
+        Create a new episodic memory instance and store its configuration.
 
         Args:
             session_key: The unique identifier for the session.
@@ -174,7 +176,7 @@ class EpisodicMemoryManager:
 
     async def delete_episodic_session(self, session_key: str) -> None:
         """
-        Deletes an episodic memory instance and its associated data.
+        Delete an episodic memory instance and its associated data.
 
         Args:
             session_key: The unique identifier of the session to delete.
@@ -212,7 +214,7 @@ class EpisodicMemoryManager:
         self, filter: dict[str, str] | None,
     ) -> list[str]:
         """
-        Retrieves a list of all available episodic memory session keys.
+        Retrieve a list of all available episodic memory session keys.
 
         Returns:
             A list of session keys.
@@ -223,12 +225,12 @@ class EpisodicMemoryManager:
     async def get_session_configuration(
         self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
-        """Retrieves the configuration, description, and metadata for a given session."""
+        """Retrieve the configuration, description, and metadata for a given session."""
         return await self._session_data_manager.get_session_info(session_key)
 
     async def close_session(self, session_key: str) -> None:
         """
-        Closes an idle episodic memory instance and its associated data.
+        Close an idle episodic memory instance and its associated data.
 
         Args:
             session_key: The unique identifier of the session to close.
@@ -249,12 +251,12 @@ class EpisodicMemoryManager:
             self._instance_cache.erase(session_key)
 
     async def close(self) -> None:
-        """Closes all open episodic memory instances and the session storage."""
+        """Close all open episodic memory instances and the session storage."""
         tasks = []
         async with self._lock:
             if self._closed:
                 return
-            for key in self._instance_cache.keys():
+            for key in self._instance_cache:
                 tasks.append(self._instance_cache.get(key).close())
             await asyncio.gather(*tasks)
             await self._session_data_manager.close()

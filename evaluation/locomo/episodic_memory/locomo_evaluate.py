@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from llm_judge import evaluate_llm_judge
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--data-path", required=True, help="Path to the source data file",

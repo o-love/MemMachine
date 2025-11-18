@@ -211,8 +211,8 @@ async def test_add_message_records_history_and_uningested_counts(
 
     # Then the history is recorded for both set ids and marked as uningested
     assert len(history_id) > 0
-    assert [msg_id for msg_id in profile_messages] == [history_id]
-    assert [msg_id for msg_id in session_messages] == [history_id]
+    assert list(profile_messages) == [history_id]
+    assert list(session_messages) == [history_id]
     assert await semantic_service.number_of_uningested([profile_id]) == 1
     assert await semantic_service.number_of_uningested([session_id]) == 1
 

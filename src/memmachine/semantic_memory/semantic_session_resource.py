@@ -1,3 +1,5 @@
+"""Request/response models for semantic memory session resources."""
+
 from enum import Enum
 from typing import Final, Protocol, runtime_checkable
 
@@ -12,7 +14,7 @@ class IsolationType(Enum):
     SESSION = "session"
 
 
-ALL_MEMORY_TYPES: Final[list[IsolationType]] = [m for m in IsolationType]
+ALL_MEMORY_TYPES: Final[list[IsolationType]] = list(IsolationType)
 
 
 @runtime_checkable

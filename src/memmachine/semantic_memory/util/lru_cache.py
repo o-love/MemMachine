@@ -1,11 +1,14 @@
-from typing import Generic, TypeVar
+"""Lightweight generic LRU cache implementation."""
+
+from typing import TypeVar
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class Node(Generic[K, V]):
+class Node[K, V]:
     """
-    Node for the doubly linked list.
+    Represent a node for the doubly linked list.
+
     Each node stores a key-value pair.
     """
 
@@ -16,9 +19,9 @@ class Node(Generic[K, V]):
         self.next: Node | None = None
 
 
-class LRUCache(Generic[K, V]):
+class LRUCache[K, V]:
     """
-    A Least Recently Used (LRU) Cache implementation.
+    Implement a Least Recently Used (LRU) cache.
 
     Attributes:
         capacity (int): The maximum number of items the cache can hold.
@@ -43,7 +46,7 @@ class LRUCache(Generic[K, V]):
         self.tail.prev = self.head
 
     def _remove_node(self, node: Node) -> None:
-        """Removes a node from the doubly linked list."""
+        """Remove a node from the doubly linked list."""
         if node.prev and node.next:
             prev_node = node.prev
             next_node = node.next
@@ -51,7 +54,7 @@ class LRUCache(Generic[K, V]):
             next_node.prev = prev_node
 
     def _add_to_front(self, node: Node) -> None:
-        """Adds a node to the front of the doubly linked list (right after head)."""
+        """Add a node to the front of the doubly linked list (right after head)."""
         node.prev = self.head
         node.next = self.head.next
         if self.head.next:
@@ -66,7 +69,7 @@ class LRUCache(Generic[K, V]):
         self.tail.prev = self.head
 
     def erase(self, key: K) -> None:
-        """Removes an item from the cache."""
+        """Remove an item from the cache."""
         if key in self.cache:
             node = self.cache[key]
             self._remove_node(node)
@@ -74,7 +77,8 @@ class LRUCache(Generic[K, V]):
 
     def get(self, key: K) -> V | None:
         """
-        Retrieves an item from the cache.
+        Retrieve an item from the cache.
+
         Returns the value if the key exists, otherwise -1 (or None/raise KeyError).
         Moves the accessed item to the front (most recently used).
         """
@@ -89,7 +93,8 @@ class LRUCache(Generic[K, V]):
 
     def put(self, key: K, value: V) -> None:
         """
-        Adds or updates an item in the cache.
+        Add or update an item in the cache.
+
         If the key exists, its value is updated and it's moved to the front.
         If the key doesn't exist, it's added.
         If the cache is full, the least recently used item is evicted.

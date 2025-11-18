@@ -1,3 +1,5 @@
+"""Default prompt templates for included sample domains."""
+
 from memmachine.semantic_memory.semantic_model import SemanticCategory
 from memmachine.server.prompt.crm_prompt import CrmSemanticCategory
 from memmachine.server.prompt.financial_analyst_prompt import (

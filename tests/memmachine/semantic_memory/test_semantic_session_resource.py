@@ -255,7 +255,7 @@ class TestIsolationType:
         assert IsolationType.SESSION.value == "session"
 
     def test_isolation_type_enum_members(self):
-        isolation_types = [m for m in IsolationType]
+        isolation_types = list(IsolationType)
         assert len(isolation_types) == 3
         assert IsolationType.USER in isolation_types
         assert IsolationType.ROLE in isolation_types

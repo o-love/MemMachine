@@ -25,7 +25,7 @@ class AgentState(TypedDict):
     memory_tool_results: Annotated[list, "Results from memory tool calls"]
 
 
-def simple_memory_workflow_demo():
+def simple_memory_workflow_demo() -> None:
     """Simple demo showing basic memory operations without LangGraph dependency.
 
     This demonstrates the MemMachine tools functionality that can be integrated
@@ -133,7 +133,7 @@ def simple_memory_workflow_demo():
     tools.close()
 
 
-def main():
+def main() -> None:
     """Main demo function."""
     try:
         # Run simple demo

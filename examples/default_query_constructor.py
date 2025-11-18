@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class DefaultQueryConstructor(BaseQueryConstructor):
-    def __init__(self):
+    def __init__(self) -> None:
         self.prompt_template = """
 You are a helpful AI assistant. Use the provided context and profile information to answer the user's question accurately and helpfully.
 
@@ -68,6 +68,6 @@ Response Format:
                 query=query,
             )
         except Exception as e:
-            logger.error(f"Error creating chatbot query: {e}")
+            logger.exception(f"Error creating chatbot query: {e}")
             # Fallback to simple format
             return f"{profile_str}\n\n{context_block}{query}"

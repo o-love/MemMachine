@@ -18,7 +18,7 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 
 import uvicorn
 from dotenv import load_dotenv
@@ -114,15 +114,17 @@ class AppConst:
 
     EPISODE_META_DOC = "Additional metadata for the episode."
 
-    GROUP_ID_EXAMPLES = ["group-1234", "project-alpha", "team-chat"]
-    AGENT_ID_EXAMPLES = ["crm", "healthcare", "sales", "agent-007"]
-    USER_ID_EXAMPLES = ["user-001", "alice@example.com"]
-    SESSION_ID_EXAMPLES = ["session-5678", "chat-thread-42", "conversation-abc"]
-    PRODUCER_EXAMPLES = ["chatbot", "user-1234", "agent-007"]
-    PRODUCER_FOR_EXAMPLES = ["user-1234", "team-alpha", "project-xyz"]
-    EPISODE_CONTENT_EXAMPLES = ["Met at the coffee shop to discuss project updates."]
-    EPISODE_TYPE_EXAMPLES = ["message"]
-    EPISODE_META_EXAMPLES = [{"mood": "happy", "location": "office"}]
+    GROUP_ID_EXAMPLES: ClassVar[list[str]] = ["group-1234", "project-alpha", "team-chat"]
+    AGENT_ID_EXAMPLES: ClassVar[list[str]] = ["crm", "healthcare", "sales", "agent-007"]
+    USER_ID_EXAMPLES: ClassVar[list[str]] = ["user-001", "alice@example.com"]
+    SESSION_ID_EXAMPLES: ClassVar[list[str]] = ["session-5678", "chat-thread-42", "conversation-abc"]
+    PRODUCER_EXAMPLES: ClassVar[list[str]] = ["chatbot", "user-1234", "agent-007"]
+    PRODUCER_FOR_EXAMPLES: ClassVar[list[str]] = ["user-1234", "team-alpha", "project-xyz"]
+    EPISODE_CONTENT_EXAMPLES: ClassVar[list[str]] = [
+        "Met at the coffee shop to discuss project updates.",
+    ]
+    EPISODE_TYPE_EXAMPLES: ClassVar[list[str]] = ["message"]
+    EPISODE_META_EXAMPLES: ClassVar[list[dict[str, str]]] = [{"mood": "happy", "location": "office"}]
 
 
 # Request session data
@@ -230,8 +232,8 @@ class SessionData(BaseModel):
 
     def is_valid(self) -> bool:
         """
-        Return False if the session data is invalid (both group_id and
-        session_id are empty), True otherwise.
+        Return False if the session data is invalid (both group_id and session_id are empty), True otherwise.
+
         """
         return (
             self.group_id != "" and self.session_id != "" and self.first_user_id() != ""
@@ -377,9 +379,8 @@ class NewEpisode(RequestWithSession):
     @model_validator(mode="after")
     def _set_default_producer_id(self) -> Self:
         """Defaults session_id to 'default' if not set."""
-        if self.producer == "":
-            if self.session is not None:
-                self.producer = self.session.from_user_id_or("")
+        if self.producer == "" and self.session is not None:
+            self.producer = self.session.from_user_id_or("")
         if self.producer == "":
             self.session_id = AppConst.DEFAULT_PRODUCER_ID
         return self
@@ -738,7 +739,7 @@ mcp_app = mcp.get_app("/")
 @asynccontextmanager
 async def mcp_http_lifespan(application: FastAPI) -> AsyncIterator[None]:
     """
-    Manages the combined lifespan of the main app and the MCP app.
+    Manage the combined lifespan of the main app and the MCP app.
 
     This context manager chains the `http_app_lifespan` (for main application
     resources like memory managers) and the `mcp_app.lifespan` (for

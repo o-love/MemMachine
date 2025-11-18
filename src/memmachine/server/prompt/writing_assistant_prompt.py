@@ -1,5 +1,6 @@
 """
 Writing Assistant prompt for MemMachine
+
 Handles writing style analysis and content generation using persona-based approach.
 """
 

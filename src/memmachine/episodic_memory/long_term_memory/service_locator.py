@@ -1,3 +1,5 @@
+"""Helpers for building long-term memory from configuration."""
+
 from pydantic import InstanceOf
 
 from memmachine.common.configuration.episodic_config import LongTermMemoryConf
@@ -10,6 +12,7 @@ def long_term_memory_params_from_config(
     config: LongTermMemoryConf,
     resource_manager: InstanceOf[CommonResourceManager],
 ) -> LongTermMemoryParams:
+    """Build LongTermMemory parameters from configuration and resources."""
     return LongTermMemoryParams(
         session_id=config.session_id,
         vector_graph_store=resource_manager.get_vector_graph_store(

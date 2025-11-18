@@ -143,7 +143,7 @@ async def process_question(
     }
 
 
-async def main():
+async def main() -> None:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(

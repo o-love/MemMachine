@@ -170,7 +170,7 @@ async def test_process_single_set_applies_commands(
     assert feature.value == "blue"
     assert feature.tag == "car"
     assert feature.metadata.citations is not None
-    assert [c_id for c_id in feature.metadata.citations] == [message_id]
+    assert list(feature.metadata.citations) == [message_id]
 
     remaining = await semantic_storage.get_feature_set(
         set_ids=["user-123"],
@@ -189,7 +189,7 @@ async def test_process_single_set_applies_commands(
         set_ids=["user-123"],
         is_ingested=True,
     )
-    assert [msg_id for msg_id in ingested] == [message_id]
+    assert list(ingested) == [message_id]
     assert embedder_double.ingest_calls == [["blue"]]
 
 
@@ -346,5 +346,5 @@ async def test_deduplicate_features_merges_and_relabels(
     assert consolidated.tag == "food"
     assert consolidated.feature_name == "pizza"
     assert consolidated.metadata.citations is not None
-    assert [c_id for c_id in consolidated.metadata.citations] == [drop_history]
+    assert list(consolidated.metadata.citations) == [drop_history]
     assert resources.embedder.ingest_calls == [["consolidated pizza"]]

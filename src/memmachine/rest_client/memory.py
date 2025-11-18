@@ -144,7 +144,7 @@ class Memory:
         """
         return self.__session_id
 
-    def add(
+    def add(  # noqa: C901
         self,
         content: str,
         producer: str | None = None,
@@ -241,8 +241,6 @@ class Memory:
                 timeout=self.client.timeout,
             )
             response.raise_for_status()
-            logger.debug(f"Successfully added memory: {content[:50]}...")
-            return True
         except requests.RequestException as e:
             # Try to get detailed error information from response
             error_detail = ""
@@ -251,11 +249,14 @@ class Memory:
                     error_detail = f" Response: {e.response.text}"
                 except Exception:
                     error_detail = f" Status: {e.response.status_code}"
-            logger.error(f"Failed to add memory: {e}{error_detail}")
+            logger.exception("Failed to add memory%s", error_detail)
             raise
-        except Exception as e:
-            logger.error(f"Failed to add memory: {e}")
+        except Exception:
+            logger.exception("Failed to add memory")
             raise
+        else:
+            logger.debug(f"Successfully added memory: {content[:50]}...")
+            return True
 
     def search(
         self,
@@ -306,8 +307,8 @@ class Memory:
             data = response.json()
             logger.info(f"Search completed for query: {query}")
             return data.get("content", {})
-        except Exception as e:
-            logger.error(f"Failed to search memories: {e}")
+        except Exception:
+            logger.exception("Failed to search memories")
             raise
 
     def get_context(self) -> dict[str, Any]:

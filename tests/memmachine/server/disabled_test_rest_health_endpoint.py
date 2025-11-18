@@ -65,7 +65,6 @@ def test_health_check_returns_healthy_status(monkeypatch):
     # Call the /health endpoint and verify it returns a 200 status code
     # and includes expected health information in the response.
     response = client.get("/health")
-    print("Health endpoint response:", response.text)  # Debug output
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["status"] == "healthy"

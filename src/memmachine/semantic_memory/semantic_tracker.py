@@ -1,10 +1,13 @@
+"""Track feature update cadence for semantic memory sets."""
+
 import asyncio
 from datetime import UTC, datetime
 
 
 class SemanticUpdateTracker:
     """
-    Tracks feature update activity for a feature set.
+    Track feature update activity for a feature set.
+
     When a message is added to a feature set, this class keeps track of how many
     messages have been sent and when the first message was sent.
     This is used to determine when to trigger feature updates based
@@ -20,7 +23,8 @@ class SemanticUpdateTracker:
 
     def mark_update(self) -> None:
         """
-        Marks that a new message has been added to the feature set.
+        Mark that a new message has been added to the feature set.
+
         Increments the message count and sets the first updated time
         if this is the first message.
         """
@@ -30,7 +34,8 @@ class SemanticUpdateTracker:
 
     def _seconds_from_first_update(self) -> float | None:
         """
-        Returns the number of seconds since the first message was sent.
+        Return the number of seconds since the first message was sent.
+
         If no messages have been sent, returns None.
         """
         if self._first_updated is None:
@@ -40,7 +45,8 @@ class SemanticUpdateTracker:
 
     def reset(self) -> None:
         """
-        Resets the tracker state.
+        Reset the tracker state.
+
         Clears the message count and first updated time.
         """
         self._message_count = 0
@@ -48,7 +54,8 @@ class SemanticUpdateTracker:
 
     def should_update(self) -> bool:
         """
-        Determines if a feature update should be triggered.
+        Determine if a feature update should be triggered.
+
         A feature update is triggered if either the message count
         exceeds the limit or the time since the first message exceeds
         the time limit.
@@ -83,7 +90,8 @@ class SemanticUpdateTrackerManager:
 
     async def mark_update(self, set_ids: list[str]) -> None:
         """
-        Marks that a new message has been assigned to a feature set.
+        Mark that a new message has been assigned to a feature set.
+
         Creates a new tracker if one does not exist for the feature set.
         """
         async with self._trackers_lock:
@@ -94,7 +102,8 @@ class SemanticUpdateTrackerManager:
 
     async def get_sets_to_update(self) -> list[str]:
         """
-        Returns a list of sets whose features need to be updated.
+        Return a list of sets whose features need to be updated.
+
         A feature update is needed if the set's tracker indicates
         that an update should be triggered.
         """

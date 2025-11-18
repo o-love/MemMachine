@@ -17,6 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """Apply the initial semantic storage schema."""
     # Enable pgvector extension
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
@@ -79,6 +80,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revert the initial semantic storage schema."""
     op.execute("DROP TABLE IF EXISTS metadata.migration_tracker")
     op.execute("DROP TABLE IF EXISTS citations")
     op.execute("DROP TABLE IF EXISTS history")

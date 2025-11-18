@@ -17,7 +17,7 @@ class MemMachineTools:
         agent_id: str = "langgraph_agent",
         user_id: str = "default_user",
         session_id: str | None = None,
-    ):
+    ) -> None:
         """Initialize MemMachine tools.
 
         Args:
@@ -234,7 +234,7 @@ class MemMachineTools:
         memory = self.get_memory(user_id, agent_id, group_id, session_id)
         return memory.get_context()
 
-    def close(self):
+    def close(self) -> None:
         """Close the client and clean up resources."""
         if self.client:
             self.client.close()

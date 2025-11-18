@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class WritingAssistantQueryConstructor(BaseQueryConstructor):
-    def __init__(self):
+    def __init__(self) -> None:
         self.prompt_template = """
 You are a writing assistant that helps users write content in their writing style.
 
@@ -159,7 +159,7 @@ Use the "/submit" command followed by the content type and your writing sample:
                 query=query,
             )
         except Exception as e:
-            logger.error(f"Error creating writing assistant query: {e}")
+            logger.exception(f"Error creating writing assistant query: {e}")
             # Fallback to simple format
             return f"{profile_str}\n\n{context_block}{query}"
 

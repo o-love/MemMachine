@@ -14,7 +14,7 @@ from memmachine.episodic_memory.episodic_memory_manager import (
 )
 
 
-async def main():
+async def main() -> None:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data-path", required=True, help="Path to the data file")
@@ -30,7 +30,7 @@ async def main():
         "locomo_config.yaml",
     )
 
-    async def process_conversation(idx, item, memory_manager: EpisodicMemoryManager):
+    async def process_conversation(idx, item, memory_manager: EpisodicMemoryManager) -> None:
         if "conversation" not in item:
             return
 

@@ -1,3 +1,5 @@
+"""Manage semantic memory sessions and associated lifecycle hooks."""
+
 import asyncio
 from typing import Any
 

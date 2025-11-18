@@ -11,7 +11,7 @@ class SessionDataManager(ABC):
     """Interface for managing session data and short-term memory."""
 
     @classmethod
-    async def close(self) -> None:
+    async def close(cls) -> None:
         """Close the database connection."""
         raise NotImplementedError
 

@@ -1,3 +1,5 @@
+"""HTTP entrypoint for exposing the MCP server over FastAPI/uvicorn."""
+
 import argparse
 import asyncio
 import ipaddress
@@ -18,8 +20,8 @@ async def run_mcp_http(host: str, port: int) -> None:
             await uvicorn.Server(
                 uvicorn.Config(mcp.get_app(), host=host, port=int(port)),
             ).serve()
-    except Exception as e:
-        logger.exception(f"MemMachine MCP HTTP server crashed: {e}")
+    except Exception:
+        logger.exception("MemMachine MCP HTTP server crashed")
     finally:
         logger.info("MemMachine MCP HTTP server stopped")
 

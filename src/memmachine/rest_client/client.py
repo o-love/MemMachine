@@ -1,3 +1,5 @@
+"""Client utilities for interacting with the MemMachine HTTP API."""
+
 import logging
 from types import TracebackType
 from typing import Any
@@ -156,8 +158,8 @@ class MemMachineClient:
             )
             response.raise_for_status()
             return response.json()
-        except requests.RequestException as e:
-            logger.error(f"Health check failed: {e}")
+        except requests.RequestException:
+            logger.exception("Health check failed")
             raise
 
     def close(self) -> None:

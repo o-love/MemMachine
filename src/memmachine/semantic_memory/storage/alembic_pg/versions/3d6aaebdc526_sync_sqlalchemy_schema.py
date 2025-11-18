@@ -7,6 +7,7 @@ Create Date: 2025-11-04 20:32:38.622715
 
 """
 
+import contextlib
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -21,6 +22,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """Sync the database schema with the current SQLAlchemy models."""
     # Vector extension (no-op if already installed)
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
@@ -163,18 +165,14 @@ def upgrade() -> None:
     # 3) citations column renames (preserve data) + rebuild FKs
     with op.batch_alter_table("citations", schema=None) as b:
         # rename legacy columns if present
-        try:
+        with contextlib.suppress(Exception):
             b.alter_column(
                 "profile_id", new_column_name="feature_id", existing_type=sa.Integer,
             )
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             b.alter_column(
                 "content_id", new_column_name="history_id", existing_type=sa.Integer,
             )
-        except Exception:
-            pass
 
     # Drop existing FKs (unknown names) and recreate with explicit names
     op.execute(
@@ -213,29 +211,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revert the schema changes applied in this migration."""
     # citations back
     with op.batch_alter_table("citations", schema=None) as b:
-        try:
+        with contextlib.suppress(Exception):
             b.drop_constraint("fk_citations_history", type_="foreignkey")
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             b.drop_constraint("fk_citations_feature", type_="foreignkey")
-        except Exception:
-            pass
     with op.batch_alter_table("citations", schema=None) as b:
-        try:
+        with contextlib.suppress(Exception):
             b.alter_column(
                 "history_id", new_column_name="content_id", existing_type=sa.Integer,
             )
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             b.alter_column(
                 "feature_id", new_column_name="profile_id", existing_type=sa.Integer,
             )
-        except Exception:
-            pass
 
     # history: add back legacy cols & data
     with op.batch_alter_table("history", schema=None) as b:

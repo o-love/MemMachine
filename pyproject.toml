@@ -125,14 +125,30 @@ select = [
 ignore = [
     "E501", "UP015", "TRY002", "COM812",
     "D102", "D212", "D203", "RET504",
-    "TRY003", "PLC0415",
+    "TRY003", "PLC0415", "G004",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ASYNC251", "ANN", "D", "SLF", "ARG"]
 "tools/**/*.py" = ["SIM", "DTZ", "C9", "ANN", "T201", "PT", "INP", "PTH", "D"]
-"examples/**/*.py" = ["ASYNC210", "T201", "D", "ARG", "T201"]
-"evaluation/**/*.py" = ["D", "ARG", "T201"]
+"examples/**/*.py" = ["ANN", "ASYNC210", "T201", "D", "ARG", "T201", "TRY401", "C901", "TRY300"]
+"evaluation/**/*.py" = [
+    "D",
+    "ARG",
+    "T201",
+    "ANN",
+    "PTH123",
+    "PTH120",
+    "PTH110",
+    "PTH100",
+    "ASYNC230",
+    "RUF001",
+    "N806",
+    "B023",
+    "B007",
+    "TRY300",
+    "PERF401",
+]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"
@@ -157,5 +173,3 @@ exclude = []
 git = "https://github.com/MagicStack/asyncpg.git"
 rev = "9e42642b9110d206706697921b6e697a0972649d"
 marker = "sys_platform == 'win32' and python_version == '3.14'"
-
-

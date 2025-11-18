@@ -296,7 +296,7 @@ class SemanticService:
 
             try:
                 await ingestion_service.process_set_ids(dirty_sets)
-            except Exception as e:
+            except Exception:
                 if self._debug_fail_loudly:
-                    raise e
-                logger.error(f"background task crashed, restarting: {e}")
+                    raise
+                logger.exception("background task crashed, restarting")

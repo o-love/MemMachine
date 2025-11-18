@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 from neo4j import AsyncDriver
+from neo4j.graph import Node as Neo4jNode
 from pydantic import InstanceOf, validate_call
 
 from memmachine.episode_store.episode_model import EpisodeIdT

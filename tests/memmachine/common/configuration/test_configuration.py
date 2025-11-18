@@ -79,7 +79,7 @@ def test_update_episodic_memory_conf(
     assert updated.short_term_memory.message_capacity == 12345
 
 
-def find_config_file(filename: str, start_path: Path = None) -> Path:
+def find_config_file(filename: str, start_path: Path | None = None) -> Path:
     """Search parent directories for `sample_configs/filename`.
     """
     if start_path is None:

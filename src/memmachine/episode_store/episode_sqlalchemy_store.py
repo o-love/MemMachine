@@ -1,3 +1,5 @@
+"""SQLAlchemy implementation of the episode storage layer."""
+
 from datetime import UTC
 
 from pydantic import AwareDatetime, validate_call

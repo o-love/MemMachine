@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 
@@ -106,10 +107,8 @@ def restore_logging():
     # restore
     for h in list(root.handlers):
         root.removeHandler(h)
-        try:
+        with contextlib.suppress(Exception):
             h.close()
-        except Exception:
-            pass
     for h in old_handlers:
         root.addHandler(h)
     root.setLevel(old_level)

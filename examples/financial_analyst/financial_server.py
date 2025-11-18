@@ -6,6 +6,8 @@ import requests
 from fastapi import FastAPI
 from query_constructor import FinancialAnalystQueryConstructor
 
+logger = logging.getLogger(__name__)
+
 # Configuration
 MEMORY_BACKEND_URL = os.getenv("MEMORY_BACKEND_URL", "http://localhost:8080")
 FINANCIAL_SERVER_PORT = int(os.getenv("FINANCIAL_SERVER_PORT", "8000"))
@@ -43,7 +45,7 @@ async def store_data(user_id: str, query: str):
         response.raise_for_status()
         return {"status": "success", "data": response.json()}
     except Exception:
-        logging.exception("Error occurred in /memory get_data")
+        logger.exception("Error occurred in /memory get_data")
         return {"status": "error", "message": "Internal error in /memory get_data"}
 
 
@@ -63,27 +65,27 @@ async def get_data(query: str, user_id: str, timestamp: str):
             "filter": {"producer_id": user_id},
         }
 
-        logging.debug(
+        logger.debug(
             f"Sending POST request to {MEMORY_BACKEND_URL}/v1/memories/search",
         )
-        logging.debug(f"Search data: {search_data}")
+        logger.debug(f"Search data: {search_data}")
 
         response = requests.post(
             f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
         )
 
-        logging.debug(f"Response status: {response.status_code}")
-        logging.debug(f"Response headers: {dict(response.headers)}")
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response headers: {dict(response.headers)}")
 
         if response.status_code != 200:
-            logging.error(f"Backend returned {response.status_code}: {response.text}")
+            logger.error(f"Backend returned {response.status_code}: {response.text}")
             return {
                 "status": "error",
                 "message": "Failed to retrieve memory data",
             }
 
         response_data = response.json()
-        logging.debug(f"Response data: {response_data}")
+        logger.debug(f"Response data: {response_data}")
 
         content = response_data.get("content", {})
         episodic_memory = content.get("episodic_memory", [])
@@ -114,7 +116,7 @@ async def get_data(query: str, user_id: str, timestamp: str):
             "query_type": "example",
         }
     except Exception:
-        logging.exception("Error occurred in /memory get_data")
+        logger.exception("Error occurred in /memory get_data")
         return {"status": "error", "message": "Internal error in /memory get_data"}
 
 
@@ -144,9 +146,9 @@ async def store_and_search_data(user_id: str, query: str):
             f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000,
         )
 
-        logging.debug(f"Store-and-search response status: {resp.status_code}")
+        logger.debug(f"Store-and-search response status: {resp.status_code}")
         if resp.status_code != 200:
-            logging.error(f"Store failed with {resp.status_code}: {resp.text}")
+            logger.error(f"Store failed with {resp.status_code}: {resp.text}")
             return {
                 "status": "error",
                 "message": "Failed to store memory data",
@@ -163,9 +165,9 @@ async def store_and_search_data(user_id: str, query: str):
             f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
         )
 
-        logging.debug(f"Store-and-search response status: {search_resp.status_code}")
+        logger.debug(f"Store-and-search response status: {search_resp.status_code}")
         if search_resp.status_code != 200:
-            logging.error(
+            logger.error(
                 f"Search failed with {search_resp.status_code}: {search_resp.text}",
             )
             return {
@@ -208,7 +210,7 @@ async def store_and_search_data(user_id: str, query: str):
         return f"Message ingested successfully. No relevant context found yet.\n\nFormatted Response:\n{formatted_response}"
 
     except Exception:
-        logging.exception("Error occurred in store_and_search_data")
+        logger.exception("Error occurred in store_and_search_data")
         return {"status": "error", "message": "Internal error in store_and_search"}
 
 

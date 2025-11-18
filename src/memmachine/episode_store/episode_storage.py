@@ -1,3 +1,5 @@
+"""Abstract storage interface for episodic history."""
+
 from abc import ABC, abstractmethod
 
 from pydantic import AwareDatetime

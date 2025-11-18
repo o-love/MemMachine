@@ -169,7 +169,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         nodes: Iterable[Node],
     ) -> None:
         """Add nodes to a collection, creating indexes as needed."""
-        if collection not in self._collection_node_counts.keys():
+        if collection not in self._collection_node_counts:
             # Not async-safe but it's not crucial if the count is off.
             self._collection_node_counts[collection] = await self._count_nodes(
                 collection,
@@ -264,7 +264,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         edges: Iterable[Edge],
     ) -> None:
         """Add edges between collections, creating indexes as needed."""
-        if relation not in self._relation_edge_counts.keys():
+        if relation not in self._relation_edge_counts:
             # Not async-safe but it's not crucial if the count is off.
             self._relation_edge_counts[relation] = await self._count_edges(relation)
 
@@ -868,8 +868,9 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         sanitized_property_name: str,
     ) -> None:
         """
-        Create unique constraint if not exists.
-        Wait for the constraint to be online.
+        Create a unique constraint if it does not yet exist.
+
+        Wait for the constraint to be online before returning.
 
         Args:
             entity_type (EntityType):
@@ -1139,7 +1140,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                             mangle_property_name(key): value
                             for key, value in required_properties.items()
                         },
-                    ).keys()
+                    )
                 ],
             )
             or "TRUE"

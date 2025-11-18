@@ -39,7 +39,7 @@ Just return the label CORRECT or WRONG in a json format with the key as "label".
 """
 
 
-def evaluate_llm_judge(question, gold_answer, generated_answer):
+def evaluate_llm_judge(question, gold_answer, generated_answer) -> int:
     """Evaluate the generated answer against the gold answer using an LLM judge."""
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -60,7 +60,7 @@ def evaluate_llm_judge(question, gold_answer, generated_answer):
     return 1 if label == "CORRECT" else 0
 
 
-def main():
+def main() -> None:
     """Main function to evaluate RAG results using LLM judge."""
     parser = argparse.ArgumentParser(description="Evaluate RAG results using LLM judge")
     parser.add_argument(

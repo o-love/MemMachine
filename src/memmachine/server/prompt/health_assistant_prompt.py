@@ -1,3 +1,5 @@
+"""Prompt template definitions for the health assistant domain."""
+
 from memmachine.semantic_memory.semantic_model import (
     RawSemanticPrompt,
     SemanticCategory,

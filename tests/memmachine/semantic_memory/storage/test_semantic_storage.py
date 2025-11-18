@@ -138,7 +138,7 @@ async def test_get_feature_set_basic_vector_search(
 
     # Given a storage with fully distinct features
     embed_a, value_a = oposite_vector_features[0]
-    embed_b, value_b = oposite_vector_features[1]
+    _embed_b, value_b = oposite_vector_features[1]
 
     # When doing a vector search
     results = await semantic_storage.get_feature_set(

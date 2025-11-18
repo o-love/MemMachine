@@ -1,3 +1,4 @@
+"""Declarative memory data models and interfaces."""
 from .data_types import (
     ContentType,
     Episode,

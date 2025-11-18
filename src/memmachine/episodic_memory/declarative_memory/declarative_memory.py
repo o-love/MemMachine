@@ -159,7 +159,7 @@ class DeclarativeMemory:
                     ): (embedding, self._embedder.similarity_metric),
                 },
             )
-            for derivative, embedding in zip(derivatives, derivative_embeddings)
+            for derivative, embedding in zip(derivatives, derivative_embeddings, strict=False)
         ]
 
         derivative_episode_edges = [
@@ -168,7 +168,7 @@ class DeclarativeMemory:
                 source_uuid=derivative.uuid,
                 target_uuid=episode.uuid,
             )
-            for episode, episode_derivatives in zip(episodes, episodes_derivatives)
+            for episode, episode_derivatives in zip(episodes, episodes_derivatives, strict=False)
             for derivative in episode_derivatives
         ]
 
@@ -348,7 +348,7 @@ class DeclarativeMemory:
                 zip(
                     episode_context_scores,
                     nuclear_episodes,
-                    episode_contexts,
+                    episode_contexts, strict=False,
                 ),
                 key=lambda triple: triple[0],
                 reverse=True,
@@ -424,8 +424,8 @@ class DeclarativeMemory:
         self, query: str, episode_contexts: Iterable[Iterable[Episode]],
     ) -> list[float]:
         """
-        Score episode node contexts
-        based on their relevance to the query.
+        Score episode node contexts based on their relevance to the query.
+
         """
         context_strings = []
         for episode_context in episode_contexts:
@@ -545,9 +545,7 @@ class DeclarativeMemory:
         max_num_episodes: int,
     ) -> list[Episode]:
         """
-        Unify episode contexts
-        anchored on their nuclear episodes
-        into a single list of episodes,
+        Unify episode contexts anchored on their nuclear episodes into a single list of episodes,
         respecting the episode limit.
         """
         episode_set: set[Episode] = set()
@@ -620,8 +618,7 @@ class DeclarativeMemory:
     @staticmethod
     def _embedding_name(model_id: str, dimensions: int) -> str:
         """
-        Generate a standardized property name for embeddings
-        based on the model ID and embedding dimensions.
+        Generate a standardized property name for embeddings based on the model ID and embedding dimensions.
 
         Args:
             model_id (str): The identifier of the embedding model.

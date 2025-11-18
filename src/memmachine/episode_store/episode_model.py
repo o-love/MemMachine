@@ -1,3 +1,5 @@
+"""Data models for representing episodes and related enumerations."""
+
 from datetime import datetime
 from enum import Enum
 

@@ -140,7 +140,7 @@ async def locomo_response(group_id: int, query: str, users: list[str], model: st
     class LocomoPrefetches(AgentHooks):
         async def on_start(
             self, wrapper: RunContextWrapper[Memory], agent: Agent[Memory],
-        ):
+        ) -> None:
             wrapper.context.memory = search_result
             wrapper.context.turn += 1
 

@@ -9,6 +9,7 @@ are summarized asynchronously to maintain context over a longer conversation.
 """
 
 import asyncio
+import contextlib
 import logging
 import string
 import uuid
@@ -56,7 +57,7 @@ class ShortTermMemoryParams(BaseModel):
     )
 
     @field_validator("summary_prompt_user")
-    def validate_summary_user_prompt(cls, v: str) -> str:
+    def validate_summary_user_prompt(self, v: str) -> str:
         fields = [fname for _, fname, _, _ in string.Formatter().parse(v) if fname]
         if len(fields) != 3:
             raise ValueError(f"Expect 3 fields in {v}")
@@ -87,7 +88,7 @@ class ShortTermMemory:
     ) -> None:
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-positional-arguments
-        """Initializes the ShortTermMemory instance."""
+        """Initialize the ShortTermMemory instance."""
         self._model: LanguageModel = param.llm_model
         self._data_manager: SessionDataManager | None = param.data_manager
         self._summary_user_prompt = param.summary_prompt_user
@@ -109,12 +110,10 @@ class ShortTermMemory:
 
     @classmethod
     async def create(cls, params: ShortTermMemoryParams) -> "ShortTermMemory":
-        """Creates a new ShortTermMemory instance."""
+        """Create a new ShortTermMemory instance."""
         if params.data_manager is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 await params.data_manager.create_tables()
-            except ValueError:
-                pass
             try:
                 (
                     summary,
@@ -129,7 +128,7 @@ class ShortTermMemory:
 
     def _is_full(self) -> bool:
         """
-        Checks if the short-term memory has reached its capacity.
+        Check if the short-term memory has reached its capacity.
 
         Memory is considered full if total message
         length exceeds its respective maximums.
@@ -143,7 +142,7 @@ class ShortTermMemory:
 
     async def add_episode(self, episode: Episode) -> bool:
         """
-        Adds a new episode to the short-term memory.
+        Add a new episode to the short-term memory.
 
         Args:
             episode: The episode to add.
@@ -167,7 +166,8 @@ class ShortTermMemory:
 
     async def _do_evict(self) -> None:
         """
-        The eviction make a copy of the episode to create summary
+        Evict episodes to make space while building a summary asynchronously.
+
         asynchronously. It clears the stats. It keeps as many episode
         as possible for current capacity.
         """
@@ -197,7 +197,7 @@ class ShortTermMemory:
 
     async def close(self) -> None:
         """
-        Clears all events and the summary from the short-term memory.
+        Clear all events and the summary from the short-term memory.
 
         Resets the message length to zero.
         """
@@ -239,7 +239,7 @@ class ShortTermMemory:
 
     async def _create_summary(self, episodes: list[Episode]) -> None:
         """
-        Generates a new summary of the events currently in memory.
+        Generate a new summary of the events currently in memory.
 
         If no summary exists, it creates a new one. If a summary already
         exists, it creates a "rolling" summary that incorporates the previous
@@ -285,7 +285,7 @@ class ShortTermMemory:
         except RuntimeError:
             logger.info("Runtime error when creating summary")
 
-    async def get_short_term_memory_context(
+    async def get_short_term_memory_context(  # noqa: C901
         self,
         query: str,
         limit: int = 0,
@@ -293,7 +293,7 @@ class ShortTermMemory:
         filter: dict[str, str] | None = None,
     ) -> tuple[list[Episode], str]:
         """
-        Retrieves context from short-term memory for a given query.
+        Retrieve context from short-term memory for a given query.
 
         This includes the current summary and as many recent episodes as can
         fit within a specified message length limit.
@@ -343,7 +343,7 @@ class ShortTermMemory:
             return list(episodes), self._summary
 
     def _compute_episode_length(self, episode: Episode) -> int:
-        """Computes the message length in an episodes."""
+        """Compute the message length in an episode."""
         result = 0
         if episode.content is None:
             return 0
@@ -356,7 +356,7 @@ class ShortTermMemory:
         if isinstance(episode.metadata, str):
             result += len(episode.metadata)
         elif isinstance(episode.metadata, dict):
-            for _, v in episode.metadata.items():
+            for v in episode.metadata.values():
                 if isinstance(v, str):
                     result += len(v)
                 else:

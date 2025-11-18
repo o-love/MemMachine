@@ -129,53 +129,65 @@ class EpisodicMemory:
     @property
     def short_term_memory(self) -> ShortTermMemory | None:
         """
-        Get the short-term memory of the episodic memory instance
+        Get the short-term memory of the episodic memory instance.
+
         Returns:
             The short-term memory of the episodic memory instance.
+
         """
         return self._short_term_memory
 
     @short_term_memory.setter
     def short_term_memory(self, value: ShortTermMemory | None) -> None:
         """
-        Set the short-term memory of the episodic memory instance
-        This makes the short term memory can be injected
+        Set the short-term memory of the episodic memory instance.
+
+        This makes the short term memory can be injected.
+
         Args:
             value: The new short-term memory of the episodic memory instance.
+
         """
         self._short_term_memory = value
 
     @property
     def long_term_memory(self) -> LongTermMemory | None:
         """
-        Get the long-term memory of the episodic memory instance
+        Get the long-term memory of the episodic memory instance.
+
         Returns:
             The long-term memory of the episodic memory instance.
+
         """
         return self._long_term_memory
 
     @long_term_memory.setter
     def long_term_memory(self, value: LongTermMemory | None) -> None:
         """
-        Set the long-term memory of the episodic memory instance
-        This makes the long term memory can be injected
+        Set the long-term memory of the episodic memory instance.
+
+        This makes the long term memory can be injected.
+
         Args:
             value: The new long-term memory of the episodic memory instance.
+
         """
         self._long_term_memory = value
 
     @property
     def session_key(self) -> str:
         """
-        Get the session key of the episodic memory instance
+        Get the session key of the episodic memory instance.
+
         Returns:
             The session key of the episodic memory instance.
+
         """
         return self._session_key
 
     async def add_memory_episode(self, episode: Episode) -> None:
         """
-        Adds a new memory episode to both session and declarative memory.
+        Add a new memory episode to both session and declarative memory.
 
         Validates that the producer and recipient of the episode are part of
         the current memory context.
@@ -248,8 +260,9 @@ class EpisodicMemory:
 
     async def delete_session_episodes(self) -> None:
         """
-        Deletes all data from both session and declarative memory for this
+        Delete all data from both session and declarative memory for this
         context.
+
         This is a destructive operation.
         """
         if not self._enabled:
@@ -268,7 +281,7 @@ class EpisodicMemory:
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> tuple[list[Episode], list[Episode], list[str]]:
         """
-        Retrieves relevant context for a given query from all memory stores.
+        Retrieve relevant context for a given query from all memory stores.
 
         It fetches episodes from both short-term (session) and long-term
         (declarative) memory, deduplicates them, and returns them along with
@@ -344,7 +357,7 @@ class EpisodicMemory:
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> str:
         """
-        Constructs a finalized query string that includes context from memory.
+        Construct a finalized query string that includes context from memory.
 
         The context (summary and recent episodes) is prepended to the original
         query, formatted with XML-like tags for the language model to parse.

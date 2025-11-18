@@ -1,3 +1,5 @@
+"""SQLAlchemy-backed semantic storage implementation using pgvector."""
+
 from pathlib import Path
 from typing import Any
 
@@ -22,9 +24,10 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
-from sqlalchemy.sql import func
+from sqlalchemy.sql import Select, func
 
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature, SetIdT
@@ -139,6 +142,7 @@ class SetIngestedHistory(BaseSemanticStorage):
 
 
 async def apply_alembic_migrations(engine: AsyncEngine) -> None:
+    """Run Alembic migrations for the semantic storage tables."""
     script_location = Path(__file__).parent / "alembic_pg"
     versions_location = script_location / "versions"
 

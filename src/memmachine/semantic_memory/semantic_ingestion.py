@@ -1,3 +1,5 @@
+"""Ingestion pipeline for converting episodes into semantic features."""
+
 import asyncio
 import itertools
 import logging
@@ -62,7 +64,7 @@ class IngestionService:
         if len(errors) > 0:
             raise ExceptionGroup("Failed to process set ids", errors)
 
-    async def _process_single_set(self, set_id: str) -> None:
+    async def _process_single_set(self, set_id: str) -> None:  # noqa: C901
         resources = self._resource_retriever.get_resources(set_id)
 
         history_ids = await self._semantic_storage.get_history_messages(
@@ -110,13 +112,14 @@ class IngestionService:
                         model=resources.language_model,
                         update_prompt=semantic_category.prompt.update_prompt,
                     )
-                except Exception as e:
-                    logger.error(
-                        f"Failed to process message {message.uuid} for semantic type {semantic_category.name}",
-                        e,
+                except Exception:
+                    logger.exception(
+                        "Failed to process message %s for semantic type %s",
+                        message.uuid,
+                        semantic_category.name,
                     )
                     if self._debug_fail_loudly:
-                        raise e
+                        raise
 
                     continue
 
@@ -238,10 +241,10 @@ class IngestionService:
                 model=resources.language_model,
                 consolidate_prompt=semantic_category.prompt.consolidation_prompt,
             )
-        except (ValueError, TypeError) as e:
-            logger.error("Failed to update features while calling LLM", e)
+        except (ValueError, TypeError):
+            logger.exception("Failed to update features while calling LLM")
             if self._debug_fail_loudly:
-                raise e
+                raise
             return
 
         if consolidate_resp is None or consolidate_resp.keep_memories is None:
@@ -268,7 +271,7 @@ class IngestionService:
             ],
         )
         citation_ids = TypeAdapter(list[EpisodeIdT]).validate_python(
-            [c_id for c_id in merged_citations],
+            list(merged_citations),
         )
 
         async def _add_feature(f: LLMReducedFeature) -> None:

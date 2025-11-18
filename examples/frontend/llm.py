@@ -183,12 +183,13 @@ def chat(messages, persona):
         total_tok = len(text.split())
 
         return text, dt, total_tok, (total_tok / dt if dt else total_tok)
+    return None
 
 
 # ──────────────────────────────────────────────────────────────
 # Diagnostics / CLI test
 # ──────────────────────────────────────────────────────────────
-def check_credentials():
+def check_credentials() -> bool:
     required = ["MODEL_API_KEY"]
     missing = [var for var in required if not os.getenv(var)]
     if missing:
@@ -197,7 +198,7 @@ def check_credentials():
     return True
 
 
-def test_chat():
+def test_chat() -> None:
     print("Testing chat...")
     try:
         test_messages = [
