@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 import pytest
@@ -29,7 +29,7 @@ def create_test_episode(**kwargs):
         "episode_type": "message",
         "content_type": ContentType.STRING,
         "content": "default content",
-        "created_at": datetime.now(),
+        "created_at": datetime.now(tz=UTC),
         "producer_id": "user1",
         "producer_role": "user",
         "produced_for_id": None,

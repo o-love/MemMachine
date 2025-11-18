@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import asyncpg
 import requests
@@ -80,7 +80,7 @@ async def store_data(user_id: str, query: str, slack_message_id: str | None):
             "episode_type": "message",
             "metadata": {
                 "speaker": user_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "type": "message",
                 "slack_message_id": slack_message_id,
             },
@@ -184,7 +184,7 @@ async def store_and_search_data(user_id: str, query: str):
             "episode_type": "message",
             "metadata": {
                 "speaker": user_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "type": "message",
             },
         }

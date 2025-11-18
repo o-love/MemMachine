@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import json
 from collections import deque
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import cast
 
 from dotenv import load_dotenv
@@ -80,7 +80,7 @@ async def main():
                     episode_content=message_text,
                     episode_type="default",
                     content_type=ContentType.STRING,
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=UTC),
                     metadata={
                         "source_timestamp": session_date_time,
                         "source_speaker": speaker,

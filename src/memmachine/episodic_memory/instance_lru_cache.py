@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
@@ -14,7 +14,7 @@ class Node:
         self.key = key
         self.value = value
         self.ref_count = 1
-        self.last_access = datetime.now()
+        self.last_access = datetime.now(tz=UTC)
         self.prev: Node = self
         self.next: Node = self
 
@@ -98,7 +98,7 @@ class MemoryInstanceCache:
             # Move accessed node to the front
             self._remove_node(node)
             self._add_to_front(node)
-            node.last_access = datetime.now()
+            node.last_access = datetime.now(tz=UTC)
             return node.value
         return None
 
@@ -151,7 +151,7 @@ class MemoryInstanceCache:
         """
         Remove unused instance with long lifetime.
         """
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         lru_node = self.tail.prev
         while lru_node != self.head:
             if lru_node.ref_count > 0:

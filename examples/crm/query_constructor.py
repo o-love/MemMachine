@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from base_query_constructor import BaseQueryConstructor
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # -----------------------
 def _current_date_iso() -> str:
     """Get current date in ISO format"""
-    return datetime.now().strftime("%Y-%m-%d")
+    return datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
 
 # -----------------------

@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import requests
 from fastapi import FastAPI
@@ -32,7 +32,7 @@ async def store_data(user_id: str, query: str):
             "episode_type": "message",
             "metadata": {
                 "speaker": user_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "type": "message",
             },
         }
@@ -135,7 +135,7 @@ async def store_and_search_data(user_id: str, query: str):
             "episode_type": "message",
             "metadata": {
                 "speaker": user_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "type": "message",
             },
         }

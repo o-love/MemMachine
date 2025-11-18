@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 class SemanticUpdateTracker:
@@ -24,7 +24,7 @@ class SemanticUpdateTracker:
         """
         self._message_count += 1
         if self._first_updated is None:
-            self._first_updated = datetime.now()
+            self._first_updated = datetime.now(tz=UTC)
 
     def _seconds_from_first_update(self) -> float | None:
         """Returns the number of seconds since the first message was sent.
@@ -32,7 +32,7 @@ class SemanticUpdateTracker:
         """
         if self._first_updated is None:
             return None
-        delta = datetime.now() - self._first_updated
+        delta = datetime.now(tz=UTC) - self._first_updated
         return delta.total_seconds()
 
     def reset(self):

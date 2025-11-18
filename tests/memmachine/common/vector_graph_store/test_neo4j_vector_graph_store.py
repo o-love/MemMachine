@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -132,7 +132,7 @@ async def test_add_nodes(neo4j_driver, vector_graph_store):
         ),
         Node(
             uuid=uuid4(),
-            properties={"name": "Node3", "time": datetime.now()},
+            properties={"name": "Node3", "time": datetime.now(tz=UTC)},
             embeddings={
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
@@ -165,7 +165,7 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
         ),
         Node(
             uuid=node3_uuid,
-            properties={"name": "Node3", "time": datetime.now()},
+            properties={"name": "Node3", "time": datetime.now(tz=UTC)},
             embeddings={
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
@@ -191,7 +191,7 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
             uuid=uuid4(),
             source_uuid=node1_uuid,
             target_uuid=node2_uuid,
-            properties={"description": "Node1 to Node2", "time": datetime.now()},
+            properties={"description": "Node1 to Node2", "time": datetime.now(tz=UTC)},
         ),
         Edge(
             uuid=uuid4(),
@@ -599,7 +599,7 @@ async def test_search_related_nodes(vector_graph_store):
 
 @pytest.mark.asyncio
 async def test_search_directional_nodes(vector_graph_store):
-    time = datetime.now()
+    time = datetime.now(tz=UTC)
     delta = timedelta(days=1)
 
     nodes = [
@@ -713,7 +713,7 @@ async def test_search_directional_nodes(vector_graph_store):
 async def test_search_directional_nodes_multiple_by_properties(
     neo4j_driver, vector_graph_store
 ):
-    time = datetime.now()
+    time = datetime.now(tz=UTC)
     delta = timedelta(days=1)
 
     nodes = [
@@ -1090,7 +1090,7 @@ async def test_get_nodes(vector_graph_store):
     nodes = [
         Node(
             uuid=uuid4(),
-            properties={"name": "Node1", "time": datetime.now()},
+            properties={"name": "Node1", "time": datetime.now(tz=UTC)},
         ),
         Node(
             uuid=uuid4(),
@@ -1573,7 +1573,7 @@ async def test__nodes_from_neo4j_nodes(neo4j_driver, vector_graph_store):
         ),
         Node(
             uuid=uuid4(),
-            properties={"name": "Node3", "time": datetime.now()},
+            properties={"name": "Node3", "time": datetime.now(tz=UTC)},
             embeddings={
                 "embedding_name": (
                     [0.1, 0.2, 0.3],

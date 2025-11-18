@@ -76,12 +76,26 @@ enable_error_code = ["deprecated"]
 exclude = ["venv/", ".venv/"]
 plugins = ['pydantic.mypy']
 
-[tool.ruff]
-exclude = ["tools/"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP", "TID", "C90"]
+select = [
+    "E",
+    "F",
+    "I",
+    "W",
+    "UP",
+    "TID",
+    "C90",
+    "DTZ",
+    "ASYNC",
+    "ANN",
+]
 ignore = ["E501", "UP015"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ASYNC251", "ANN"]
+"tools/**/*.py" = ["DTZ", "C9", "ANN"]
+"examples/**/*.py" = ["ASYNC210"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

@@ -1,6 +1,6 @@
 """Tests for the EpisodicMemory class."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, call, create_autospec
 from uuid import uuid4
 
@@ -27,7 +27,7 @@ def create_test_episode(**kwargs):
         "session_key": "test_session",
         "sequence_num": 1,
         "content": "test content",
-        "created_at": datetime.now(),
+        "created_at": datetime.now(tz=UTC),
         "producer_id": "test_producer",
         "producer_role": "user",
     }
@@ -255,10 +255,10 @@ async def test_formalize_query_with_context(
 ):
     """Test formalizing a query with context from memory."""
     ep1 = create_test_episode(
-        content="hello", created_at=datetime(2023, 1, 1, 12, 0, 0)
+        content="hello", created_at=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
     )
     ep2 = create_test_episode(
-        content="world", created_at=datetime(2023, 1, 1, 12, 0, 1)
+        content="world", created_at=datetime(2023, 1, 1, 12, 0, 1, tzinfo=UTC)
     )
 
     mock_short_term_memory.get_short_term_memory_context.return_value = (

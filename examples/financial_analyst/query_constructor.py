@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from base_query_constructor import BaseQueryConstructor
@@ -62,7 +62,7 @@ Response Format:
             raise ValueError("Query cannot be empty")
         profile_str = profile or ""
         context_block = f"{context}\n\n" if context else ""
-        current_date = datetime.now().strftime("%Y-%m-%d")
+        current_date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
         try:
             return self.prompt_template.format(
