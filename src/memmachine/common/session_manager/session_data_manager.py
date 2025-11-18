@@ -8,8 +8,8 @@ from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 class SessionDataManager(ABC):
     """Interface for managing session data and short-term memory."""
 
-    @classmethod
-    async def close(cls) -> None:
+    @abstractmethod
+    async def close(self) -> None:
         """Close the database connection."""
         raise NotImplementedError
 

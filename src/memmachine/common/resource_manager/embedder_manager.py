@@ -104,7 +104,7 @@ class EmbedderManager:
 
         params = OpenAIEmbedderParams(
             client=openai.AsyncOpenAI(
-                api_key=conf.api_key,
+                api_key=conf.api_key.get_secret_value(),
                 base_url=conf.base_url,
             ),
             model=conf.model,

@@ -2,6 +2,7 @@
 
 import asyncio
 
+from pydantic import InstanceOf
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from memmachine.common.configuration import Configuration
@@ -41,7 +42,7 @@ class ResourceManagerImpl:
         self._conf = conf
         self._conf.logging.apply()
         self._storage_manager: StorageManager = StorageManager(self._conf.storage)
-        self._embedder_manager: EmbedderManager = EmbedderManager(self._conf.embeder)
+        self._embedder_manager: EmbedderManager = EmbedderManager(self._conf.embedder)
         self._model_manager: LanguageModelManager = LanguageModelManager(
             self._conf.model,
         )
@@ -49,7 +50,7 @@ class ResourceManagerImpl:
             self._conf.reranker,
             embedder_factory=self._embedder_manager,
         )
-        self._metric_factory: dict[str, MetricsFactory] = {
+        self._metric_factory: dict[str, type[MetricsFactory]] = {
             "prometheus": PrometheusMetricsFactory,
         }
 
@@ -100,7 +101,7 @@ class ResourceManagerImpl:
         """Return a reranker by name."""
         return await self._reranker_manager.get_reranker(name)
 
-    async def get_metrics_factory(self, name: str) -> MetricsFactory | None:
+    async def get_metrics_factory(self, name: str) -> type[MetricsFactory] | None:
         """Return a metrics factory by name, if available."""
         return self._metric_factory.get(name)
 

@@ -8,7 +8,7 @@ from typing import Any, TypeVar
 from uuid import uuid4
 
 import openai
-from pydantic import BaseModel, Field, InstanceOf
+from pydantic import BaseModel, Field, InstanceOf, TypeAdapter
 
 from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.metrics_factory import MetricsFactory
@@ -160,7 +160,7 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
             end_time,
         )
 
-        return response.choices[0].message.parsed
+        return TypeAdapter(output_format).validate_python(response.choices[0].message.parsed)
 
     async def generate_response(  # noqa: C901
         self,

@@ -38,8 +38,8 @@ class RerankerManager:
         self.rerankers: dict[str, Reranker] = {}
 
         self._embedder_factory: EmbedderFactory = embedder_factory
-        self._lock = Lock()
-        self._rerankers_lock = defaultdict(Lock)
+        self._lock: Lock = Lock()
+        self._rerankers_lock: dict[str, Lock] = defaultdict(Lock)
 
     async def build_all(self) -> dict[str, Reranker]:
         """Build all configured rerankers and return the cache."""
@@ -156,8 +156,8 @@ class RerankerManager:
         client = boto3.client(
             "bedrock-agent-runtime",
             region_name=conf.region,
-            aws_access_key_id=conf.aws_access_key_id,
-            aws_secret_access_key=conf.aws_secret_access_key,
+            aws_access_key_id=conf.aws_access_key_id.get_secret_value(),
+            aws_secret_access_key=conf.aws_secret_access_key.get_secret_value(),
         )
         params = AmazonBedrockRerankerParams(
             client=client,

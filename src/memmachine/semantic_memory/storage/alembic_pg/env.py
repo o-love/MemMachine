@@ -39,7 +39,7 @@ def pg_server() -> URL:
         username=user,
         password=password,
         host=host,
-        port=port,
+        port=int(port),
         database=database,
     )
 
