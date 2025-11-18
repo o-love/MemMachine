@@ -6,7 +6,7 @@ from memmachine.server.app import global_memory_lifespan, mcp
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     try:
         asyncio.run(run_mcp_stdio())
     except KeyboardInterrupt:
@@ -15,7 +15,7 @@ def main():
         logger.exception(f"MemMachine MCP server crashed: {e}")
 
 
-async def run_mcp_stdio():
+async def run_mcp_stdio() -> None:
     try:
         logger.info("starting the MemMachine MCP server")
         async with global_memory_lifespan():

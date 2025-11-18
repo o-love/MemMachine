@@ -6,7 +6,6 @@ from typing import Self
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-from sympy import false
 
 from memmachine.common.configuration.storage_conf import StorageConf
 from memmachine.common.vector_graph_store import VectorGraphStore
@@ -19,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 class StorageManager:
-    def __init__(self, conf: StorageConf):
+    def __init__(self, conf: StorageConf) -> None:
         self.conf = conf
         self.graph_stores: dict[str, VectorGraphStore] = {}
         self.sql_engines: dict[str, AsyncEngine] = {}
 
         self._lock = Lock()
 
-    async def build_all(self, validate=false) -> Self:
+    async def build_all(self, validate: bool = False) -> Self:
         """Build and verify all configured database connections."""
         async with self._lock:
             await asyncio.gather(
@@ -39,13 +38,13 @@ class StorageManager:
                 )
         return self
 
-    async def close(self):
+    async def close(self) -> None:
         """Close all database connections."""
         async with self._lock:
             tasks = []
             for name, store in self.graph_stores.items():
 
-                def close_store():
+                def close_store() -> None:
                     try:
                         store.close()
                     except Exception as e:
@@ -68,7 +67,7 @@ class StorageManager:
             raise ValueError(f"SQL connection '{name}' not found.")
         return self.sql_engines[name]
 
-    async def _build_neo4j(self):
+    async def _build_neo4j(self) -> None:
         for name, conf in self.conf.neo4j_confs.items():
             if name in self.graph_stores:
                 continue
@@ -88,7 +87,7 @@ class StorageManager:
             )
             self.graph_stores[name] = Neo4jVectorGraphStore(params)
 
-    async def _validate_neo4j(self):
+    async def _validate_neo4j(self) -> None:
         for name, driver in self.conf.neo4j_confs.items():
             try:
                 async with driver.session() as session:
@@ -102,7 +101,7 @@ class StorageManager:
                 await driver.close()
                 raise ConnectionError(f"Neo4J config '{name}' failed verification: {e}")
 
-    async def _build_sql_engines(self):
+    async def _build_sql_engines(self) -> None:
         schema = "sqlite+aiosqlite:///"
         for name, conf in self.conf.sqlite_confs.items():
             if name in self.sql_engines:
@@ -113,7 +112,7 @@ class StorageManager:
             engine = create_async_engine(db_url, echo=False, future=True)
             self.sql_engines[name] = engine
 
-    async def _validate_sql_engines(self):
+    async def _validate_sql_engines(self) -> None:
         for name, engine in self.sql_engines.items():
             try:
                 with engine.connect() as conn:

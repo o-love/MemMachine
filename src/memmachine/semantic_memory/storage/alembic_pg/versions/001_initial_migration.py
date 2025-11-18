@@ -1,4 +1,5 @@
-"""Initial migration - original schema without SQLAlchemy
+"""
+Initial migration - original schema without SQLAlchemy.
 
 Revision ID: 001
 Revises:

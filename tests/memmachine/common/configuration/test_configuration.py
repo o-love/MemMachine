@@ -80,8 +80,7 @@ def test_update_episodic_memory_conf(
 
 
 def find_config_file(filename: str, start_path: Path = None) -> Path:
-    """
-    Search parent directories for `sample_configs/filename`.
+    """Search parent directories for `sample_configs/filename`.
     """
     if start_path is None:
         start_path = Path(__file__).resolve()

@@ -81,36 +81,59 @@ plugins = ['pydantic.mypy']
 select = [
     "A",
     "ANN",
+    "ARG",
     "ASYNC",
     "B",
     "C4",
     "C90",
     "COM",
+    "D",
     "DTZ",
     "E",
     "F",
     "FA",
+    "FAST",
+    "FURB",
     "G",
     "I",
     "ICN",
     "INP",
     "INT",
     "ISC",
-#    "LOG", Enable in future PR
+    "LOG",
+    "N",
+    "NPY",
+    "PERF",
     "PIE",
+    "PLC",
     "PT",
+    "PTH",
     "PYI",
+    "Q",
+    "RET",
+    "RSE",
+    "RUF",
+    "SLF",
+    "SIM",
     "T20",
+    "TC",
     "TID",
+    "TRY",
     "UP",
     "W",
+    "YTT",
 ]
-ignore = ["E501", "UP015"]
+ignore = [
+    "E501", "UP015", "TRY002", "COM812",
+    "D102", "D212", "D203", "RET504",
+    "TRY003", "PLC0415",
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["ASYNC251", "ANN"]
-"tools/**/*.py" = ["DTZ", "C9", "ANN", "T201", "PT", "INP"]
-"examples/**/*.py" = ["ASYNC210", "T201"]
+"tests/**/*.py" = ["ASYNC251", "ANN", "D", "SLF", "ARG"]
+"tools/**/*.py" = ["SIM", "DTZ", "C9", "ANN", "T201", "PT", "INP", "PTH", "D"]
+"examples/**/*.py" = ["ASYNC210", "T201", "D", "ARG"]
+"evaluation/**/*.py" = ["D", "ARG"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

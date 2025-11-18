@@ -10,7 +10,6 @@ import logging
 import re
 from collections.abc import Awaitable, Iterable, Mapping
 from enum import Enum
-from typing import Any
 from uuid import UUID
 
 from neo4j import AsyncDriver
@@ -74,6 +73,7 @@ class Neo4jVectorGraphStoreParams(BaseModel):
             in a collection or having a relation
             at which vector indexes may be created
             (default: 10,000).
+
     """
 
     driver: InstanceOf[AsyncDriver] = Field(
@@ -131,28 +131,16 @@ class Neo4jVectorGraphStoreParams(BaseModel):
 # Node labels, relationship types, and property names
 # cannot be parameterized.
 class Neo4jVectorGraphStore(VectorGraphStore):
-    """
-    Asynchronous Neo4j-based implementation of VectorGraphStore.
-    """
+    """Asynchronous Neo4j-based implementation of VectorGraphStore."""
 
     class CacheIndexState(Enum):
-        """
-        Enumeration for index state in the cache.
-        May not correspond to actual index state in Neo4j.
-        """
+        """Index state cached locally (not Neo4j authoritative)."""
 
         CREATING = 0
         ONLINE = 1
 
-    def __init__(self, params: Neo4jVectorGraphStoreParams):
-        """
-        Initialize a Neo4jVectorGraphStore
-        with the provided parameters.
-
-        Args:
-            params (Neo4jVectorGraphStoreParams):
-                Parameters for the Neo4jVectorGraphStore.
-        """
+    def __init__(self, params: Neo4jVectorGraphStoreParams) -> None:
+        """Initialize the graph store with the provided parameters."""
         super().__init__()
 
         self._driver = params.driver
@@ -179,7 +167,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         self,
         collection: str,
         nodes: Iterable[Node],
-    ):
+    ) -> None:
+        """Add nodes to a collection, creating indexes as needed."""
         if collection not in self._collection_node_counts.keys():
             # Not async-safe but it's not crucial if the count is off.
             self._collection_node_counts[collection] = await self._count_nodes(
@@ -273,7 +262,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         source_collection: str,
         target_collection: str,
         edges: Iterable[Edge],
-    ):
+    ) -> None:
+        """Add edges between collections, creating indexes as needed."""
         if relation not in self._relation_edge_counts.keys():
             # Not async-safe but it's not crucial if the count is off.
             self._relation_edge_counts[relation] = await self._count_edges(relation)
@@ -379,6 +369,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         required_properties: Mapping[str, PropertyValue] | None = None,
         include_missing_properties: bool = False,
     ) -> list[Node]:
+        """Search nodes by vector similarity with optional property filters."""
         if required_properties is None:
             required_properties = {}
 
@@ -510,6 +501,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         include_missing_edge_properties: bool = False,
         include_missing_node_properties: bool = False,
     ) -> list[Node]:
+        """Search nodes connected by a relation with optional property filters."""
         if required_edge_properties is None:
             required_edge_properties = {}
         if required_node_properties is None:
@@ -581,6 +573,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         required_properties: Mapping[str, PropertyValue] | None = None,
         include_missing_properties: bool = False,
     ) -> list[Node]:
+        """Find nodes ordered by property values in a chosen direction."""
         if required_properties is None:
             required_properties = {}
 
@@ -672,7 +665,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         sanitized_by_properties: Iterable[str],
         starting_at: Iterable[OrderedPropertyValue | None],
         order_ascending: Iterable[bool],
-    ):
+    ) -> str:
         sanitized_by_properties = list(sanitized_by_properties)
         starting_at = list(starting_at)
         order_ascending = list(order_ascending)
@@ -721,6 +714,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         required_properties: Mapping[str, PropertyValue] | None = None,
         include_missing_properties: bool = False,
     ) -> list[Node]:
+        """Search nodes that match the provided property filters."""
         if required_properties is None:
             required_properties = {}
 
@@ -755,6 +749,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         collection: str,
         node_uuids: Iterable[UUID],
     ) -> list[Node]:
+        """Retrieve nodes by uuid from a specific collection."""
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
 
         records, _, _ = await self._driver.execute_query(
@@ -771,7 +766,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         self,
         collection: str,
         node_uuids: Iterable[UUID],
-    ):
+    ) -> None:
+        """Delete nodes by uuid from a collection."""
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
 
         await self._driver.execute_query(
@@ -781,16 +777,16 @@ class Neo4jVectorGraphStore(VectorGraphStore):
             node_uuids=[str(node_uuid) for node_uuid in node_uuids],
         )
 
-    async def delete_all_data(self):
+    async def delete_all_data(self) -> None:
+        """Delete all nodes and relationships from the database."""
         await self._driver.execute_query("MATCH (n) DETACH DELETE n")
 
-    async def close(self):
+    async def close(self) -> None:
+        """Close the underlying Neo4j driver."""
         await self._driver.close()
 
     async def _count_nodes(self, collection: str) -> int:
-        """
-        Count the number of nodes in a collection.
-        """
+        """Count the number of nodes in a collection."""
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
 
         records, _, _ = await self._driver.execute_query(
@@ -800,9 +796,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         return records[0]["node_count"]
 
     async def _count_edges(self, relation: str) -> int:
-        """
-        Count the number of edges having a relation type.
-        """
+        """Count the number of edges having a relation type."""
         sanitized_relation = Neo4jVectorGraphStore._sanitize_name(relation)
 
         records, _, _ = await self._driver.execute_query(
@@ -812,10 +806,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         return records[0]["relationship_count"]
 
-    async def _populate_index_state_cache(self):
-        """
-        Populate the index state cache.
-        """
+    async def _populate_index_state_cache(self) -> None:
+        """Populate the index state cache."""
         if self._index_state_cache:
             return
 
@@ -841,18 +833,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         self,
         entity_type: EntityType,
         sanitized_collection_or_relation: str,
-    ):
-        """
-        Create initial indexes if not exist.
-        Wait for the indexes to be online.
-
-        Args:
-            entity_type (EntityType):
-                The type of entity the indexes are for.
-            sanitized_collections_or_relations (str):
-                Sanitized collection of nodes or relation type of edges
-                to create initial indexes for.
-        """
+    ) -> None:
+        """Create initial indexes if missing and wait for them to be online."""
         tasks = [
             self._create_unique_constraint_if_not_exists(
                 entity_type=entity_type,
@@ -884,7 +866,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         entity_type: EntityType,
         sanitized_collection_or_relation: str,
         sanitized_property_name: str,
-    ):
+    ) -> None:
         """
         Create unique constraint if not exists.
         Wait for the constraint to be online.
@@ -897,6 +879,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 to create unique constraint for.
             sanitized_property_name (str):
                 Name of the property to create unique constraint on.
+
         """
         await self._populate_index_state_cache()
 
@@ -950,21 +933,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         entity_type: EntityType,
         sanitized_collection_or_relation: str,
         sanitized_property_names: str | Iterable[str],
-    ):
-        """
-        Create range index if not exists.
-        Wait for the index to be online.
-
-        Args:
-            entity_type (EntityType):
-                The type of entity the index is for.
-            sanitized_collection_or_relation (str):
-                Collection of nodes or relation type of edges
-                to create range index for.
-            sanitized_property_names (str | Iterable[str]):
-                List of property names representing
-                the hierarchy for the range index.
-        """
+    ) -> None:
+        """Create a range index if missing and wait for it to be online."""
         if isinstance(sanitized_property_names, str):
             sanitized_property_names = [sanitized_property_names]
 
@@ -1027,26 +997,8 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         sanitized_embedding_name: str,
         dimensions: int,
         similarity_metric: SimilarityMetric = SimilarityMetric.COSINE,
-    ):
-        """
-        Create vector index if not exists.
-        Wait for the index to be online.
-
-        Args:
-            entity_type (EntityType):
-                The type of entity the index is for.
-            sanitized_collection_or_relation (str):
-                Sanitized collection of nodes or relation type of edges
-                to create vector index for.
-            sanitized_embedding_name (str):
-                Sanitized name of the embedding property to create vector index on.
-            dimensions (int):
-                Dimensionality of the embedding vectors.
-                Must be between 1 and 4096.
-            similarity_metric (SimilarityMetric):
-                Similarity metric to use for the vector index
-                (default: SimilarityMetric.COSINE).
-        """
+    ) -> None:
+        """Create a vector index if missing and wait for it to be online."""
         if not (1 <= dimensions <= 4096):
             raise ValueError("dimensions must be between 1 and 4096")
 
@@ -1115,20 +1067,9 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
     @async_locked
     async def _await_create_index_if_not_exists(
-        self, index_name: str, create_index_task: Awaitable,
-    ):
-        """
-        Execute the creation of node vector index if not exists
-        and wait for it to be online.
-        Locked because Neo4j concurrent index creation
-        can raise exceptions even with "IF NOT EXISTS".
-
-        Args:
-            index_name (str):
-                Name of the index to await creation for.
-            create_index_task (Awaitable):
-                Awaitable task to create vector index.
-        """
+        self, index_name: str, create_index_task: Awaitable[None],
+    ) -> None:
+        """Await index creation and mark it online in the cache."""
         await create_index_task
 
         await self._driver.execute_query(
@@ -1144,31 +1085,14 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
     @staticmethod
     def _sanitize_name(name: str) -> str:
-        """
-        Sanitize a name to be used in Neo4j.
-        https://neo4j.com/docs/cypher-manual/current/syntax/naming
-
-        Args:
-            name (str): The name to sanitize.
-
-        Returns:
-            str: The sanitized name.
-        """
+        """Sanitize a name for safe Neo4j identifiers."""
         return Neo4jVectorGraphStore._SANITIZE_NAME_PREFIX + "".join(
             c if c.isalnum() else f"_u{ord(c):x}_" for c in name
         )
 
     @staticmethod
     def _desanitize_name(sanitized_name: str) -> str:
-        """
-        Desanitize a name from Neo4j.
-
-        Args:
-            sanitized_name (str): The sanitized name.
-
-        Returns:
-            str: The desanitized name.
-        """
+        """Restore a sanitized name to its original form."""
         return re.sub(
             r"_u([0-9a-fA-F]+)_",
             lambda match: chr(int(match[1], 16)),
@@ -1179,17 +1103,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
     def _sanitize_properties(
         properties: Mapping[str, PropertyValue] | None,
     ) -> dict[str, PropertyValue]:
-        """
-        Sanitize property names in a properties mapping for Neo4j.
-
-        Args:
-            properties (Mapping[str, PropertyValue] | None):
-                Mapping of properties or None.
-
-        Returns:
-            dict[str, PropertyValue]:
-                Mapping with sanitized property names.
-        """
+        """Sanitize property names in a mapping for Neo4j storage."""
         return (
             {
                 Neo4jVectorGraphStore._sanitize_name(key): value
@@ -1206,23 +1120,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         required_properties: Mapping[str, PropertyValue] | None,
         include_missing_properties: bool,
     ) -> str:
-        """
-        Format required properties for use in a Cypher query.
-
-        Args:
-            entity_query_alias (str):
-                Alias of the node or relationship in the query
-                (e.g., "n", "r").
-            required_properties (Mapping[str, PropertyValue] | None):
-                Mapping of required properties or None.
-            include_missing_properties (bool):
-                Whether to include results
-                with missing required properties.
-
-        Returns:
-            str:
-                Formatted required properties string for Cypher query.
-        """
+        """Format required property predicates for a Cypher query."""
         if required_properties is None:
             required_properties = {}
 
@@ -1253,21 +1151,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         sanitized_collection_or_relation: str,
         sanitized_property_names: str | Iterable[str],
     ) -> str:
-        """
-        Generate a unique name for an index
-        based on the entity type, collection, and property name.
-
-        Args:
-            entity_type (EntityType):
-                The type of entity the index is for.
-            sanitized_collection_or_relation (str):
-                The sanitized node collection or edge relation type.
-            sanitized_property_names (str | Iterable[str]):
-                The sanitized property names.
-
-        Returns:
-            str: The generated vector index name.
-        """
+        """Generate a unique index name from entity type and properties."""
         if isinstance(sanitized_property_names, str):
             sanitized_property_names = [sanitized_property_names]
 
@@ -1295,6 +1179,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         Returns:
             str: The similarity metric property name.
+
         """
         return f"similarity_metric_for_{embedding_name}"
 
@@ -1310,6 +1195,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         Returns:
             list[Node]: List of Node objects.
+
         """
         nodes = []
         for neo4j_node in neo4j_nodes:
@@ -1363,7 +1249,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         return nodes
 
     @staticmethod
-    def _python_value_from_neo4j_value(value: Any) -> Any:
+    def _python_value_from_neo4j_value(value: object) -> object:
         """
         Convert a Neo4j value to a native Python value.
 
@@ -1372,6 +1258,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         Returns:
             Any: The converted Python value.
+
         """
         if isinstance(value, Neo4jDateTime):
             return value.to_native()

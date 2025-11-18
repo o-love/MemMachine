@@ -9,12 +9,10 @@ client = TestClient(app, raise_server_exceptions=False)
 
 
 def test_health_check_propagates_unexpected_exceptions(monkeypatch):
-    """
-    This test verifies two behaviors of the /health endpoint:
+    """This test verifies two behaviors of the /health endpoint:
     1. When expected errors occur (e.g., missing memory managers), the endpoint returns a 503 status code and a useful error message.
     2. When an unexpected exception occurs, the endpoint returns a generic 500 Internal Server Error response.
     """
-
     # Monkeypatch global memory managers to None to simulate an expected error condition.
     import memmachine.server.app as app_module
 
@@ -46,11 +44,9 @@ def test_health_check_propagates_unexpected_exceptions(monkeypatch):
 
 
 def test_health_check_returns_healthy_status(monkeypatch):
-    """
-    This test verifies that the /health endpoint returns a healthy status and useful information
+    """This test verifies that the /health endpoint returns a healthy status and useful information
     when the application is properly initialized.
     """
-
     # Monkeypatch global memory managers to simulate healthy state
     import memmachine.server.app as app_module
 

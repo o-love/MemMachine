@@ -1,4 +1,5 @@
-"""FastAPI application for the MemMachine memory system.
+"""
+FastAPI application for the MemMachine memory system.
 
 This module sets up and runs a FastAPI web server that provides endpoints for
 interacting with the Profile Memory and Episodic Memory components.
@@ -15,6 +16,7 @@ import asyncio
 import contextvars
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, Self
 
@@ -125,7 +127,8 @@ class AppConst:
 
 # Request session data
 class SessionData(BaseModel):
-    """Metadata used to organize and filter memory or conversation context.
+    """
+    Metadata used to organize and filter memory or conversation context.
 
     Each ID serves a different level of data separation:
     - `group_id`: identifies a shared context (e.g., a group chat or project).
@@ -159,7 +162,8 @@ class SessionData(BaseModel):
     )
 
     def merge(self, other: Self) -> None:
-        """Merge another SessionData into this one in place.
+        """
+        Merge another SessionData into this one in place.
 
         - Combine and deduplicate list fields.
         - Overwrite string fields if the new value is set.
@@ -185,22 +189,21 @@ class SessionData(BaseModel):
         self.user_id = merge_lists(self.user_id, other.user_id)
 
     def first_user_id(self) -> str:
-        """Returns the first user ID if available, else default user id."""
+        """Return the first user ID if available, else default user id."""
         return self.user_id[0] if self.user_id else AppConst.DEFAULT_USER_ID
 
     def combined_user_ids(self) -> str:
-        """format groups id to <size>#<user-id><size>#<user-id>..."""
+        """Format groups id to <size>#<user-id><size>#<user-id>..."""
         return "".join([f"{len(uid)}#{uid}" for uid in sorted(self.user_id)])
 
     def from_user_id_or(self, default_value: str) -> str:
-        """returns the first user id or combined user ids as a default string."""
+        """Return the first user id or combined user ids as a default string."""
         size_user_id = len(self.user_id)
         if size_user_id == 0:
             return default_value
-        elif size_user_id == 1:
+        if size_user_id == 1:
             return self.first_user_id()
-        else:
-            return self.combined_user_ids()
+        return self.combined_user_ids()
 
     @model_validator(mode="after")
     def _set_default_group_id(self) -> Self:
@@ -226,7 +229,8 @@ class SessionData(BaseModel):
         return self
 
     def is_valid(self) -> bool:
-        """Return False if the session data is invalid (both group_id and
+        """
+        Return False if the session data is invalid (both group_id and
         session_id are empty), True otherwise.
         """
         return (
@@ -243,7 +247,8 @@ class RequestWithSession(BaseModel):
         "Use header-based session instead.",
     )
 
-    def log_error_with_session(self, e: HTTPException, message: str):
+    def log_error_with_session(self, e: HTTPException, message: str) -> None:
+        """Log an HTTP error with session context."""
         sess = self.get_session()
         session_name = (
             f"{sess.group_id}-{sess.agent_id}-{sess.user_id}-{sess.session_id}"
@@ -252,6 +257,7 @@ class RequestWithSession(BaseModel):
         logger.error(e)
 
     def get_session(self) -> SessionData:
+        """Return attached session data or an empty default."""
         if self.session is None:
             return SessionData(
                 group_id="",
@@ -261,7 +267,8 @@ class RequestWithSession(BaseModel):
             )
         return self.session
 
-    def new_404_not_found_error(self, message: str):
+    def new_404_not_found_error(self, message: str) -> HTTPException:
+        """Create a session-scoped 404 HTTPException."""
         session = self.get_session()
         return HTTPException(
             status_code=404,
@@ -272,7 +279,8 @@ class RequestWithSession(BaseModel):
         )
 
     def merge_session(self, session: SessionData) -> None:
-        """Merge another SessionData into this one in place.
+        """
+        Merge another SessionData into this one in place.
 
         - Combine and deduplicate list fields.
         - Overwrite string fields if the new value is set.
@@ -283,9 +291,12 @@ class RequestWithSession(BaseModel):
             self.session.merge(session)
 
     def validate_session(self) -> None:
-        """Validate that the session data is not empty.
+        """
+        Validate that the session data is not empty.
+
         Raises:
             RequestValidationError: If the session data is empty.
+
         """
         if self.session is None or not self.session.is_valid():
             # Raise the same type of validation error FastAPI uses
@@ -300,7 +311,8 @@ class RequestWithSession(BaseModel):
             )
 
     def merge_and_validate_session(self, other: SessionData) -> None:
-        """Merge another SessionData into this one in place and validate.
+        """
+        Merge another SessionData into this one in place and validate.
 
         - Combine and deduplicate list fields.
         - Overwrite string fields if the new value is set.
@@ -308,6 +320,7 @@ class RequestWithSession(BaseModel):
 
         Raises:
             RequestValidationError: If the resulting session data is empty.
+
         """
         self.merge_session(other)
         self.validate_session()
@@ -418,7 +431,7 @@ async def _get_session_from_header(
     user_id_keys = [AppConst.USER_ID_KEY, "user_id"]
     headers = request.headers
 
-    def get_with_alias(possible_keys: list[str], default: str):
+    def get_with_alias(possible_keys: list[str], default: str) -> str:
         for key in possible_keys:
             for hk, hv in headers.items():
                 if hk.lower() == key.lower():
@@ -475,18 +488,21 @@ resource_manager: ResourceManagerImpl | None = None
 
 async def initialize_resource(config_file: str) -> ResourceManagerImpl:
     """
-    This is a temporary solution to unify the ProfileMemory and Episodic Memory
-    configuration.
-    Initializes the SemanticSessionManager and EpisodicMemoryManager instances,
-    and establishes necessary connections (e.g., to the database).
+    Initialize shared resources for profile and episodic memory.
+
+    This is a temporary solution to unify ProfileMemory and Episodic Memory
+    configuration. It initializes SemanticSessionManager and EpisodicMemoryManager
+    instances, and establishes necessary connections (e.g., to the database).
     These resources are cleaned up on shutdown.
+
     Args:
         config_file: The path to the configuration file.
+
     Returns:
         A tuple containing the EpisodicMemoryManager, SemanticSessionManager,
         and SessionIdManager instances.
-    """
 
+    """
     config = load_config_yml_file(config_file)
     ret = ResourceManagerImpl(config)
     semantic_service = await (
@@ -496,20 +512,23 @@ async def initialize_resource(config_file: str) -> ResourceManagerImpl:
     return ret
 
 
-async def init_global_memory():
+async def init_global_memory() -> None:
+    """Initialize global resource manager based on configuration."""
     config_file = os.getenv("MEMORY_CONFIG", "cfg.yml")
     global resource_manager
     resource_manager = await initialize_resource(config_file)
 
 
-async def shutdown_global_memory():
+async def shutdown_global_memory() -> None:
+    """Shut down global resources and close connections."""
     global resource_manager
     await resource_manager.close()
 
 
 @asynccontextmanager
-async def global_memory_lifespan():
-    """Handles application startup and shutdown events.
+async def global_memory_lifespan() -> AsyncIterator[None]:
+    """
+    Handle application startup and shutdown events.
 
     Initializes the ProfileMemory and EpisodicMemoryManager instances,
     and establishes necessary connections (e.g., to the database).
@@ -532,6 +551,7 @@ def get_current_user_id() -> str | None:
 
     Returns:
         The user_id if available, None otherwise.
+
     """
     return user_id_context_var.get()
 
@@ -544,11 +564,13 @@ class UserIDContextMiddleware:
     Optionally override `user_id` from header "user-id".
     """
 
-    def __init__(self, app: StarletteWithLifespan, header_name: str = "user-id"):
+    def __init__(self, app: StarletteWithLifespan, header_name: str = "user-id") -> None:
+        """Store the wrapped app and the name of the header carrying user id."""
         self.app = app
         self.header_name = header_name
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Extract the user id from the request headers and stash in context."""
         user_id: str | None = None
 
         if scope.get("type") == "http":
@@ -565,13 +587,15 @@ class UserIDContextMiddleware:
 
     @property
     def lifespan(self) -> Lifespan[Starlette]:
+        """Expose the underlying application's lifespan handler."""
         return self.app.lifespan
 
 
 class MemMachineFastMCP(FastMCP):
     """Custom FastMCP subclass for MemMachine with authentication middleware."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize the FastMCP app with parent configuration."""
         super().__init__(*args, **kwargs)
 
     def get_app(self, path: str | None = None) -> UserIDContextMiddleware:
@@ -599,9 +623,7 @@ mcpSuccess = McpResponse(status=McpStatus.SUCCESS, message="Success")
 
 
 class UserIDWithEnv(BaseModel):
-    """
-    Model with user_id that can be overridden by MM_USER_ID env var.
-    """
+    """Model with user_id that can be overridden by MM_USER_ID env var."""
 
     user_id: str = Field(
         ...,
@@ -613,8 +635,8 @@ class UserIDWithEnv(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _update_user(self):
-        """is MM_USER_ID env var set? If so, override user_id"""
+    def _update_user(self) -> "UserIDWithEnv":
+        """Override user_id if MM_USER_ID or current user is set."""
         env_user_id = os.environ.get("MM_USER_ID")
         if env_user_id:
             self.user_id = env_user_id
@@ -714,8 +736,9 @@ mcp_app = mcp.get_app("/")
 
 
 @asynccontextmanager
-async def mcp_http_lifespan(application: FastAPI):
-    """Manages the combined lifespan of the main app and the MCP app.
+async def mcp_http_lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """
+    Manages the combined lifespan of the main app and the MCP app.
 
     This context manager chains the `http_app_lifespan` (for main application
     resources like memory managers) and the `mcp_app.lifespan` (for
@@ -724,10 +747,10 @@ async def mcp_http_lifespan(application: FastAPI):
 
     Args:
         application: The FastAPI application instance.
+
     """
-    async with global_memory_lifespan():
-        async with mcp_app.lifespan(application):
-            yield
+    async with global_memory_lifespan(), mcp_app.lifespan(application):
+        yield
 
 
 app = FastAPI(lifespan=mcp_http_lifespan)
@@ -767,8 +790,10 @@ async def mcp_add_memory(
         param: The memory entry containing the user ID and full context (nested style).
         user_id: The unique identifier of the user (flat style).
         content: The complete context or summary to store in memory (flat style).
+
     Returns:
         McpResponse indicating success or failure.
+
     """
     # Handle flat parameters by constructing the Pydantic model
     if param is None:
@@ -818,8 +843,10 @@ async def mcp_search_memory(
         user_id: The unique identifier of the user (flat style).
         query: The current user message or topic of discussion (flat style).
         limit: The maximum number of memory entries to retrieve (flat style). Defaults to 5.
+
     Returns:
         McpResponse on failure, or SearchResult on success
+
     """
     # Handle flat parameters by constructing the Pydantic model
     if param is None:
@@ -844,8 +871,9 @@ async def add_memory(
     episode: NewEpisode,
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
-):
-    """Adds a memory episode to both episodic and semantic memory.
+) -> None:
+    """
+    Add a memory episode to both episodic and semantic memory.
 
     This endpoint first retrieves the appropriate episodic memory instance
     based on the session context (group, agent, user, session IDs). It then
@@ -861,17 +889,21 @@ async def add_memory(
         HTTPException: 404 if no matching episodic memory instance is found.
         HTTPException: 400 if the producer or produced_for IDs are invalid
                        for the given context.
+
     """
     episode.merge_and_validate_session(session)
     episode.update_response_session_header(response)
     await _add_memory(episode)
 
 
-async def _add_memory(episode: NewEpisode):
-    """Adds a memory episode to both episodic and semantic memory.
-    Internal function.  Shared by both REST API and MCP API
+async def _add_memory(episode: NewEpisode) -> None:
+    """
+    Add a memory episode to both episodic and semantic memory.
 
-    See the docstring for add_memory() for details."""
+    Internal helper shared by both REST API and MCP API.
+
+    See the docstring for add_memory() for details.
+    """
     session = episode.get_session()
     group_id = session.group_id
     inst: (
@@ -910,8 +942,9 @@ async def add_episodic_memory(
     episode: NewEpisode,
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
-):
-    """Adds a memory episode to episodic memory only.
+) -> None:
+    """
+    Add a memory episode to episodic memory only.
 
     This endpoint first retrieves the appropriate episodic memory instance
     based on the session context (group, agent, user, session IDs). It then
@@ -927,15 +960,18 @@ async def add_episodic_memory(
         HTTPException: 404 if no matching episodic memory instance is found.
         HTTPException: 400 if the producer or produced_for IDs are invalid
                        for the given context.
+
     """
     episode.merge_and_validate_session(session)
     episode.update_response_session_header(response)
     await _add_episodic_memory(episode)
 
 
-async def _add_episodic_memory(episode: NewEpisode):
-    """Adds a memory episode to both episodic and semantic memory.
-    Internal function.  Shared by both REST API and MCP API
+async def _add_episodic_memory(episode: NewEpisode) -> None:
+    """
+    Add a memory episode to episodic memory only.
+
+    Internal helper shared by both REST API and MCP API.
 
     See the docstring for add_episodic_memory() for details.
     """
@@ -974,8 +1010,9 @@ async def add_profile_memory(
     episode: NewEpisode,
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
-):
-    """Adds a memory episode to both profile memory.
+) -> None:
+    """
+    Add a memory episode to profile memory.
 
     This endpoint first retrieves the appropriate episodic memory instance
     based on the session context (group, agent, user, session IDs). It then
@@ -991,15 +1028,18 @@ async def add_profile_memory(
         HTTPException: 404 if no matching episodic memory instance is found.
         HTTPException: 400 if the producer or produced_for IDs are invalid
                        for the given context.
+
     """
     episode.merge_and_validate_session(session)
     episode.update_response_session_header(response)
     await _add_semantic_memory(episode)
 
 
-async def _add_semantic_memory(episode: NewEpisode):
-    """Adds a memory episode to profile memory.
-    Internal function.  Shared by both REST API and MCP API
+async def _add_semantic_memory(episode: NewEpisode) -> None:
+    """
+    Add a memory episode to profile memory.
+
+    Internal helper shared by both REST API and MCP API.
 
     See the docstring for add_profile_memory() for details.
     """
@@ -1024,7 +1064,8 @@ async def search_memory(
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
 ) -> SearchResult:
-    """Searches for memories across both episodic and profile memory.
+    """
+    Search memories across episodic and profile storage.
 
     Retrieves the relevant episodic memory instance and then performs
     concurrent searches in both the episodic memory and the profile memory.
@@ -1040,6 +1081,7 @@ async def search_memory(
 
     Raises:
         HTTPException: 404 if no matching episodic memory instance is found.
+
     """
     q.merge_and_validate_session(session)
     q.update_response_session_header(response)
@@ -1047,9 +1089,12 @@ async def search_memory(
 
 
 async def _search_memory(q: SearchQuery) -> SearchResult:
-    """Searches for memories across both episodic and profile memory.
-    Internal function.  Shared by both REST API and MCP API
-    See the docstring for search_memory() for details."""
+    """
+    Search for memories across both episodic and profile memory.
+
+    Internal helper shared by both REST API and MCP API.
+    See the docstring for search_memory() for details.
+    """
     # session = q.get_session()
     # inst: EpisodicMemory | None = await cast(
     #     EpisodicMemoryManager, episodic_memory
@@ -1078,7 +1123,8 @@ async def search_episodic_memory(
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
 ) -> SearchResult:
-    """Searches for memories across both profile memory.
+    """
+    Search episodic memory for a given session context.
 
     Args:
         q: The SearchQuery object containing the query and context.
@@ -1090,6 +1136,7 @@ async def search_episodic_memory(
 
     Raises:
         HTTPException: 404 if no matching episodic memory instance is found.
+
     """
     q.merge_and_validate_session(session)
     q.update_response_session_header(response)
@@ -1097,8 +1144,10 @@ async def search_episodic_memory(
 
 
 async def _search_episodic_memory(q: SearchQuery) -> SearchResult:
-    """Searches for memories across episodic memory.
-    Internal function.  Shared by both REST API and MCP API
+    """
+    Search episodic memory for matching results.
+
+    Internal helper shared by both REST API and MCP API.
     See the docstring for search_episodic_memory() for details.
     """
     # session = q.get_session()
@@ -1124,7 +1173,8 @@ async def search_profile_memory(
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
 ) -> SearchResult:
-    """Searches for memories across profile memory.
+    """
+    Search profile memory within the provided session context.
 
     Args:
         q: The SearchQuery object containing the query and context.
@@ -1136,6 +1186,7 @@ async def search_profile_memory(
 
     Raises:
         HTTPException: 404 if no matching episodic memory instance is found.
+
     """
     q.merge_and_validate_session(session)
     q.update_response_session_header(response)
@@ -1143,8 +1194,10 @@ async def search_profile_memory(
 
 
 async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
-    """Searches for memories across profile memory.
-    Internal function.  Shared by both REST API and MCP API
+    """
+    Search profile memory for matching results.
+
+    Internal helper shared by both REST API and MCP API.
     See the docstring for search_profile_memory() for details.
     """
     # session = q.get_session()
@@ -1170,22 +1223,26 @@ async def delete_session_data(
     delete_req: DeleteDataRequest,
     response: Response,
     session: SessionData = Depends(_get_session_from_header),  # type: ignore
-):
+) -> None:
     """
-    Delete data for a particular session
+    Delete data for a particular session.
+
     Args:
         delete_req: The DeleteDataRequest object containing the session info.
         response: The HTTP response object to update headers.
         session: The session data from headers to merge with the request.
+
     """
     delete_req.merge_and_validate_session(session)
     delete_req.update_response_session_header(response)
     await _delete_session_data(delete_req)
 
 
-async def _delete_session_data(delete_req: DeleteDataRequest):
-    """Deletes all data for a specific session.
-    Internal function.  Shared by both REST API and MCP API
+async def _delete_session_data(delete_req: DeleteDataRequest) -> None:
+    """
+    Delete all data for a specific session.
+
+    Internal helper shared by both REST API and MCP API.
     See the docstring for delete_session_data() for details.
     """
     # session = delete_req.get_session()
@@ -1205,15 +1262,14 @@ async def _delete_session_data(delete_req: DeleteDataRequest):
 
 
 @app.get("/metrics")
-async def metrics():
+async def metrics() -> Response:
+    """Expose Prometheus metrics endpoint."""
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/v1/sessions")
 async def get_all_sessions() -> AllSessionsResponse:
-    """
-    Get all sessions
-    """
+    """Get all sessions."""
     # sessions = cast(EpisodicMemoryManager, episodic_memory).get_all_sessions()
     # return AllSessionsResponse(
     #     sessions=[
@@ -1230,9 +1286,7 @@ async def get_all_sessions() -> AllSessionsResponse:
 
 @app.get("/v1/users/{user_id}/sessions")
 async def get_sessions_for_user(user_id: str) -> AllSessionsResponse:
-    """
-    Get all sessions for a particular user
-    """
+    """Get all sessions for a particular user."""
     # sessions = cast(EpisodicMemoryManager, episodic_memory).get_user_sessions(user_id)
     # return AllSessionsResponse(
     #     sessions=[
@@ -1249,9 +1303,7 @@ async def get_sessions_for_user(user_id: str) -> AllSessionsResponse:
 
 @app.get("/v1/groups/{group_id}/sessions")
 async def get_sessions_for_group(group_id: str) -> AllSessionsResponse:
-    """
-    Get all sessions for a particular group
-    """
+    """Get all sessions for a particular group."""
     # sessions = cast(EpisodicMemoryManager, episodic_memory).get_group_sessions(group_id)
     # return AllSessionsResponse(
     #     sessions=[
@@ -1268,9 +1320,7 @@ async def get_sessions_for_group(group_id: str) -> AllSessionsResponse:
 
 @app.get("/v1/agents/{agent_id}/sessions")
 async def get_sessions_for_agent(agent_id: str) -> AllSessionsResponse:
-    """
-    Get all sessions for a particular agent
-    """
+    """Get all sessions for a particular agent."""
     # sessions = cast(EpisodicMemoryManager, episodic_memory).get_agent_sessions(agent_id)
     # return AllSessionsResponse(
     #     sessions=[
@@ -1287,7 +1337,7 @@ async def get_sessions_for_agent(agent_id: str) -> AllSessionsResponse:
 
 # === Health Check Endpoint ===
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint for container orchestration."""
     # try:
     #     # Check if memory managers are initialized
@@ -1310,8 +1360,8 @@ async def health_check():
     #     raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 
-async def start():
-    """Runs the FastAPI application using uvicorn server."""
+async def start() -> None:
+    """Run the FastAPI application using uvicorn server."""
     port_num = os.getenv("PORT", "8080")
     host_name = os.getenv("HOST", "0.0.0.0")
 
@@ -1320,8 +1370,8 @@ async def start():
     ).serve()
 
 
-def main():
-    """Main entry point for the application."""
+def main() -> None:
+    """Execute the CLI entry point for the application."""
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     log_format = os.getenv("LOG_FORMAT", "%(levelname)-7s %(message)s")
     logging.basicConfig(
@@ -1344,7 +1394,7 @@ def main():
         # MCP stdio mode
         config_file = os.getenv("MEMORY_CONFIG", "configuration.yml")
 
-        async def run_mcp_server():
+        async def run_mcp_server() -> None:
             """Initialize resources and run MCP server in the same event loop."""
             global resource_manager
             try:

@@ -1,3 +1,5 @@
+"""Abstract interfaces for semantic storage implementations."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -14,32 +16,21 @@ from memmachine.semantic_memory.semantic_model import (
 
 
 class SemanticStorageBase(ABC):
-    """
-    The base class for Semantic storage
-    """
+    """Base class for semantic storage backends."""
 
     @abstractmethod
-    async def startup(self):
-        """
-        initializations for the semantic storage,
-        such as creating a connection to the database
-        """
+    async def startup(self) -> None:
+        """Initialize the semantic storage connection."""
         raise NotImplementedError
 
     @abstractmethod
-    async def cleanup(self):
-        """
-        cleanup for the semantic storage
-        such as closing connection to the database
-        """
+    async def cleanup(self) -> None:
+        """Clean up semantic storage resources."""
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_all(self):
-        """
-        delete all semantic features in the storage
-        such as truncating the database table
-        """
+    async def delete_all(self) -> None:
+        """Delete all semantic features in the storage."""
         raise NotImplementedError
 
     @abstractmethod
@@ -48,6 +39,7 @@ class SemanticStorageBase(ABC):
         feature_id: FeatureIdT,
         load_citations: bool = False,
     ) -> SemanticFeature | None:
+        """Fetch a feature by id, optionally loading citation details."""
         raise NotImplementedError
 
     @abstractmethod
@@ -62,9 +54,7 @@ class SemanticStorageBase(ABC):
         embedding: InstanceOf[np.ndarray],
         metadata: dict[str, Any] | None = None,
     ) -> FeatureIdT:
-        """
-        Add a new feature to the user.
-        """
+        """Add a new feature to the user."""
         raise NotImplementedError
 
     @abstractmethod
@@ -79,11 +69,13 @@ class SemanticStorageBase(ABC):
         tag: str | None = None,
         embedding: InstanceOf[np.ndarray] | None = None,
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> None:
+        """Update an existing feature with any provided fields."""
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_features(self, feature_ids: list[FeatureIdT]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
+        """Delete the requested feature ids."""
         raise NotImplementedError
 
     @dataclass
@@ -107,9 +99,11 @@ class SemanticStorageBase(ABC):
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         """
-        Get feature set by user id
-        Return: A list of KV for each feature and value.
-           The value is an array with: feature value, feature tag and deleted, update time, create time and delete time.
+        Retrieve features matching the provided filters.
+
+        Returns:
+            A list of features with their metadata and timestamps.
+
         """
         raise NotImplementedError
 
@@ -124,16 +118,15 @@ class SemanticStorageBase(ABC):
         thresh: int | None = None,
         limit: int | None = None,
         vector_search_opts: VectorSearchOpts | None = None,
-    ):
-        """
-        Delete all the features by id
-        """
+    ) -> None:
+        """Delete features matching the given filters."""
         raise NotImplementedError
 
     @abstractmethod
     async def add_citations(
         self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT],
-    ):
+    ) -> None:
+        """Associate history ids as citations for a feature."""
         raise NotImplementedError
 
     @abstractmethod
@@ -144,10 +137,7 @@ class SemanticStorageBase(ABC):
         limit: int | None = None,
         is_ingested: bool | None = None,
     ) -> list[EpisodeIdT]:
-        """
-        retrieve the list of the history messages for the user
-        with the ingestion status, up to k messages if k > 0
-        """
+        """Retrieve history messages with optional ingestion status."""
         raise NotImplementedError
 
     @abstractmethod
@@ -157,13 +147,12 @@ class SemanticStorageBase(ABC):
         set_ids: list[SetIdT] | None = None,
         is_ingested: bool | None = None,
     ) -> int:
-        """
-        retrieve the count of the history messages
-        """
+        """Return the count of history messages."""
         raise NotImplementedError
 
     @abstractmethod
     async def add_history_to_set(self, set_id: SetIdT, history_id: EpisodeIdT) -> None:
+        """Attach a history id to a feature set."""
         raise NotImplementedError
 
     @abstractmethod
@@ -173,7 +162,5 @@ class SemanticStorageBase(ABC):
         set_id: SetIdT,
         history_ids: list[EpisodeIdT],
     ) -> None:
-        """
-        mark the messages with the id as ingested
-        """
+        """Mark the provided history messages as ingested."""
         raise NotImplementedError

@@ -48,7 +48,7 @@ class EpisodeStorage(ABC):
     async def delete_history(
         self,
         history_ids: list[EpisodeIdT],
-    ):
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -63,5 +63,5 @@ class EpisodeStorage(ABC):
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         metadata: dict[str, JSONValue] | None = None,
-    ):
+    ) -> None:
         raise NotImplementedError

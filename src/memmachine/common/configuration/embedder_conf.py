@@ -1,3 +1,5 @@
+"""Configuration models for embedder providers."""
+
 from typing import Self
 from urllib.parse import urlparse
 
@@ -8,32 +10,7 @@ from memmachine.common.data_types import SimilarityMetric
 
 
 class AmazonBedrockEmbedderConfig(BaseModel):
-    """
-    Configuration for AmazonBedrockEmbedder.
-
-    Attributes:
-        region (str):
-            AWS region where Bedrock is hosted
-            (default: 'us-east-1').
-        aws_access_key_id (SecretStr | None):
-            AWS access key ID for authentication
-            (default: None).
-        aws_secret_access_key (SecretStr | None):
-            AWS secret access key for authentication
-            (default: None).
-        aws_session_token (SecretStr | None):
-            AWS session token for authentication
-            (default: None).
-        model_id (str):
-            ID of the Bedrock model to use for embedding
-            (e.g. 'amazon.titan-embed-text-v2:0').
-        similarity_metric (SimilarityMetric):
-            Similarity metric to use for comparing embeddings
-            (default: SimilarityMetric.COSINE).
-        max_retry_interval_seconds (int, optional):
-            Maximal retry interval in seconds
-            (default: 120).
-    """
+    """Configuration for AmazonBedrockEmbedder."""
 
     region: str = Field(
         "us-east-1",
@@ -64,6 +41,8 @@ class AmazonBedrockEmbedderConfig(BaseModel):
 
 
 class OpenAIEmbedderConf(WithMetricsFactoryId):
+    """Configuration for OpenAI embedding models."""
+
     model: str = Field(
         default="text-embedding-3-small",
         min_length=1,
@@ -92,6 +71,7 @@ class OpenAIEmbedderConf(WithMetricsFactoryId):
     @field_validator("base_url")
     @classmethod
     def validate_base_url(cls, v: str) -> str:
+        """Ensure the base URL includes a scheme and host."""
         if v is not None:
             parsed_url = urlparse(v)
             if not parsed_url.scheme or not parsed_url.netloc:
@@ -100,18 +80,23 @@ class OpenAIEmbedderConf(WithMetricsFactoryId):
 
 
 class SentenceTransformerEmbedderConfig(WithMetricsFactoryId):
+    """Configuration for sentence-transformer based embedders."""
+
     model: str = Field(
         ..., min_length=1, description="The name of the sentence transformer model.",
     )
 
 
 class EmbedderConf(BaseModel):
+    """Top-level embedder configuration mapping provider ids to configs."""
+
     amazon_bedrock: dict[str, AmazonBedrockEmbedderConfig] = {}
     openai: dict[str, OpenAIEmbedderConf] = {}
     sentence_transformer: dict[str, SentenceTransformerEmbedderConfig] = {}
 
     @classmethod
     def parse_embedder_conf(cls, input_dict: dict) -> Self:
+        """Parse embedder config by provider and return the structured model."""
         embedder = input_dict
         if "embedder" in embedder:
             embedder = embedder["embedder"]

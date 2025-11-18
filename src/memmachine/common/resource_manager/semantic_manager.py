@@ -28,7 +28,7 @@ class SemanticResourceManager:
         prompt_conf: PromptConf,
         resource_manager: InstanceOf[CommonResourceManager],
         history_storage: EpisodeStorage,
-    ):
+    ) -> None:
         self._resource_manager = resource_manager
         self._conf = semantic_conf
         self._prompt_conf = prompt_conf
@@ -41,7 +41,7 @@ class SemanticResourceManager:
         self._semantic_service: SemanticService | None = None
         self._semantic_session_manager: SemanticSessionManager | None = None
 
-    async def close(self):
+    async def close(self) -> None:
         tasks = []
 
         if self._semantic_service is not None:
@@ -110,7 +110,7 @@ class SemanticResourceManager:
         )
         return self._semantic_service
 
-    async def get_semantic_session_manager(self):
+    async def get_semantic_session_manager(self) -> SemanticSessionManager:
         if self._semantic_session_manager is not None:
             return self._semantic_session_manager
 

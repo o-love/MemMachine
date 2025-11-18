@@ -1,4 +1,5 @@
-"""Core module for the Semantic Memory engine.
+"""
+Core module for the Semantic Memory engine.
 
 This module contains the `SemanticMemoryManager` class, which is the central component
 for creating, managing, and searching feature sets based on their
@@ -64,7 +65,7 @@ class SemanticService:
     def __init__(
         self,
         params: Params,
-    ):
+    ) -> None:
         self._semantic_storage = params.semantic_storage
         self._history_storage = params.history_storage
         self._background_ingestion_interval_sec = params.feature_update_interval_sec
@@ -82,14 +83,14 @@ class SemanticService:
         self._is_shutting_down = False
         self._debug_fail_loudly = params.debug_fail_loudly
 
-    async def start(self):
+    async def start(self) -> None:
         if self._ingestion_task is not None:
             return
 
         self._is_shutting_down = False
         self._ingestion_task = asyncio.create_task(self._background_ingestion_task())
 
-    async def stop(self):
+    async def stop(self) -> None:
         if self._ingestion_task is None:
             return
 
@@ -126,7 +127,7 @@ class SemanticService:
         )
 
     @validate_call
-    async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]):
+    async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]) -> None:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -142,7 +143,7 @@ class SemanticService:
         await self._dirty_sets.mark_update([set_id])
 
     @validate_call
-    async def add_message_to_sets(self, history_id: EpisodeIdT, set_ids: list[SetIdT]):
+    async def add_message_to_sets(self, history_id: EpisodeIdT, set_ids: list[SetIdT]) -> None:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
@@ -236,7 +237,7 @@ class SemanticService:
         value: str | None = None,
         tag: str | None = None,
         metadata: dict[str, str] | None = None,
-    ):
+    ) -> None:
         if value is not None:
             if set_id is None:
                 original_feature = await self._semantic_storage.get_feature(feature_id)
@@ -265,11 +266,11 @@ class SemanticService:
         )
 
     @validate_call
-    async def delete_features(self, feature_ids: list[FeatureIdT]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         await self._semantic_storage.delete_features(feature_ids)
 
     @validate_call
-    async def delete_feature_set(self, opts: FeatureSearchOpts):
+    async def delete_feature_set(self, opts: FeatureSearchOpts) -> None:
         await self._semantic_storage.delete_feature_set(
             set_ids=opts.set_ids,
             category_names=opts.category_names,
@@ -277,7 +278,7 @@ class SemanticService:
             tags=opts.tags,
         )
 
-    async def _background_ingestion_task(self):
+    async def _background_ingestion_task(self) -> None:
         ingestion_service = IngestionService(
             params=IngestionService.Params(
                 semantic_storage=self._semantic_storage,
@@ -298,5 +299,4 @@ class SemanticService:
             except Exception as e:
                 if self._debug_fail_loudly:
                     raise e
-                else:
-                    logger.error(f"background task crashed, restarting: {e}")
+                logger.error(f"background task crashed, restarting: {e}")

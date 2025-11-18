@@ -1,3 +1,5 @@
+"""Language model configuration models."""
+
 from typing import Any, Self
 from urllib.parse import urlparse
 
@@ -10,6 +12,8 @@ from memmachine.common.language_model.amazon_bedrock_language_model import (
 
 
 class OpenAIResponsesLanguageModelConf(WithMetricsFactoryId):
+    """Configuration for OpenAI Responses-compatible models."""
+
     model: str = Field(
         default="gpt-5-nano",
         description="OpenAI Responses API-compatible model",
@@ -30,6 +34,7 @@ class OpenAIResponsesLanguageModelConf(WithMetricsFactoryId):
     @field_validator("base_url")
     @classmethod
     def validate_base_url(cls, v: str) -> str:
+        """Ensure the base URL includes a scheme and host."""
         if v is not None:
             parsed_url = urlparse(v)
             if not parsed_url.scheme or not parsed_url.netloc:
@@ -38,6 +43,8 @@ class OpenAIResponsesLanguageModelConf(WithMetricsFactoryId):
 
 
 class OpenAIChatCompletionsLanguageModelConf(WithMetricsFactoryId):
+    """Configuration for OpenAI Chat Completions-compatible models."""
+
     model: str = Field(
         default="gpt-5-nano",
         min_length=1,
@@ -61,6 +68,7 @@ class OpenAIChatCompletionsLanguageModelConf(WithMetricsFactoryId):
     @field_validator("base_url")
     @classmethod
     def validate_base_url(cls, v: str) -> str:
+        """Ensure the base URL includes a scheme and host."""
         if v is not None:
             parsed_url = urlparse(v)
             if not parsed_url.scheme or not parsed_url.netloc:
@@ -98,6 +106,7 @@ class AmazonBedrockLanguageModelConf(WithMetricsFactoryId):
         max_retry_interval_seconds (int, optional):
             Maximal retry interval in seconds when retrying API calls
             (default: 120).
+
     """
 
     region: str = Field(
@@ -137,6 +146,8 @@ class AmazonBedrockLanguageModelConf(WithMetricsFactoryId):
 
 
 class LanguageModelConf(BaseModel):
+    """Top-level language model configuration container."""
+
     openai_responses_language_model_confs: dict[
         str, OpenAIResponsesLanguageModelConf,
     ] = {}
@@ -147,6 +158,7 @@ class LanguageModelConf(BaseModel):
 
     @classmethod
     def parse_language_model_conf(cls, input_dict: dict) -> Self:
+        """Parse language model config definitions into typed models."""
         lm = input_dict
         for key in ["language_model", "model", "language-model"]:
             if key in lm:

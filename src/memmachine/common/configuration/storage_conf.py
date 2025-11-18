@@ -1,3 +1,5 @@
+"""Storage configuration models."""
+
 from enum import Enum
 from typing import Self
 
@@ -5,6 +7,8 @@ from pydantic import BaseModel, Field, SecretStr
 
 
 class Neo4JConf(BaseModel):
+    """Configuration options for a Neo4j instance."""
+
     host: str = Field(default="localhost", description="neo4j connection host")
     port: int = Field(default=7687, description="neo4j connection port")
     user: str = Field(default="neo4j", description="neo4j username")
@@ -17,6 +21,8 @@ class Neo4JConf(BaseModel):
 
 
 class SqlAlchemyConf(BaseModel):
+    """Configuration for SQLAlchemy-backed relational databases."""
+
     dialect: str = Field(..., description="SQL dialect")
     driver: str = Field(..., description="SQLAlchemy driver")
 
@@ -31,17 +37,22 @@ class SqlAlchemyConf(BaseModel):
 
 
 class SupportedDB(str, Enum):
+    """Supported database provider identifiers."""
+
     NEO4J = "neo4j"
     POSTGRES = "postgres"
     SQLITE = "sqlite"
 
 
 class StorageConf(BaseModel):
+    """Top-level storage configuration mapping identifiers to backends."""
+
     neo4j_confs: dict[str, Neo4JConf] = {}
     relational_db_confs: dict[str, SqlAlchemyConf] = {}
 
     @classmethod
     def parse_storage_conf(cls, input_dict: dict) -> Self:
+        """Parse storage configuration from a raw mapping."""
         storage = input_dict
         for key in ["storage", "Storage"]:
             if key in input_dict:

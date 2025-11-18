@@ -1,4 +1,5 @@
-"""sync_sqlalchemy_schema
+"""
+sync_sqlalchemy_schema.
 
 Revision ID: 3d6aaebdc526
 Revises: 001

@@ -1,6 +1,4 @@
-"""
-Amazon Bedrock-based reranker implementation.
-"""
+"""Amazon Bedrock-based reranker implementation."""
 
 import asyncio
 import logging
@@ -34,6 +32,7 @@ class AmazonBedrockRerankerParams(BaseModel):
             Keys are request fields for the model
             and values are values for those fields
             (default: {}).
+
     """
 
     client: Any = Field(
@@ -68,15 +67,16 @@ class AmazonBedrockReranker(Reranker):
     to score relevance of candidates to a query.
     """
 
-    def __init__(self, params: AmazonBedrockRerankerParams):
+    def __init__(self, params: AmazonBedrockRerankerParams) -> None:
         """
         Initialize an AmazonBedrockReranker
         with the provided parameters.
-        See https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_Rerank.html
+        See https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_Rerank.html.
 
         Args:
             params (AmazonBedrockRerankerParams):
                 Configuration for the reranker.
+
         """
         super().__init__()
 

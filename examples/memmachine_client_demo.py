@@ -1,5 +1,4 @@
-"""
-MemMachine Client Demo
+"""MemMachine Client Demo
 
 This script demonstrates the MemMachine client library usage.
 

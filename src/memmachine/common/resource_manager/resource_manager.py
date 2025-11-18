@@ -32,7 +32,7 @@ from memmachine.semantic_memory.semantic_session_manager import SemanticSessionM
 
 
 class ResourceManagerImpl:
-    def __init__(self, conf: Configuration):
+    def __init__(self, conf: Configuration) -> None:
         self._conf = conf
         self._conf.logging.apply()
         self._storage_manager: StorageManager = StorageManager(self._conf.storage)
@@ -53,7 +53,7 @@ class ResourceManagerImpl:
         self._history_storage: EpisodeStorage | None = None
         self._semantic_manager: SemanticResourceManager | None = None
 
-    async def build(self):
+    async def build(self) -> None:
         tasks = [
             self._storage_manager.build_all(validate=True),
             self._embedder_manager.build_all(),
@@ -63,7 +63,7 @@ class ResourceManagerImpl:
 
         await asyncio.gather(*tasks)
 
-    async def close(self):
+    async def close(self) -> None:
         tasks = []
         if self._semantic_manager is not None:
             tasks.append(self._semantic_manager.close())
@@ -87,7 +87,7 @@ class ResourceManagerImpl:
     async def get_reranker(self, name: str) -> Reranker:
         return await self._reranker_manager.get_reranker(name)
 
-    async def get_metrics_factory(self, name: str) -> MetricsFactory:
+    async def get_metrics_factory(self, name: str) -> MetricsFactory | None:
         return self._metric_factory.get(name)
 
     @property
@@ -121,7 +121,7 @@ class ResourceManagerImpl:
 
         return self._history_storage
 
-    async def get_semantic_manager(self):
+    async def get_semantic_manager(self) -> SemanticResourceManager:
         if self._semantic_manager is not None:
             return self._semantic_manager
 

@@ -1,3 +1,5 @@
+"""Episodic memory configuration and merge utilities."""
+
 from typing import Self, TypeVar
 
 from pydantic import BaseModel, Field
@@ -14,7 +16,7 @@ def merge_partial_configs(
     full_cls: type[TFull],
 ) -> TFull:
     """
-    Generic merge helper for Pydantic partial configs.
+    Merge partial Pydantic configs into a full configuration.
 
     - `primary` overrides `fallback`
     - Missing required fields (after merge) raise ValueError
@@ -35,6 +37,8 @@ def merge_partial_configs(
 
 
 class ShortTermMemoryConf(BaseModel):
+    """Configuration for short-term memory behavior."""
+
     session_key: str = Field(..., description="Session identifier", min_length=1)
     llm_model: str = Field(
         ..., description="ID of the language model to use for summarization",
@@ -51,6 +55,8 @@ class ShortTermMemoryConf(BaseModel):
 
 
 class ShortTermMemoryConfPartial(BaseModel):
+    """Partial configuration for short-term memory."""
+
     session_key: str | None = Field(
         default=None, description="Session identifier", min_length=1,
     )
@@ -70,10 +76,13 @@ class ShortTermMemoryConfPartial(BaseModel):
     )
 
     def merge(self, other: Self) -> ShortTermMemoryConf:
+        """Merge with another partial into a complete short-term config."""
         return merge_partial_configs(self, other, ShortTermMemoryConf)
 
 
 class LongTermMemoryConf(BaseModel):
+    """Configuration for long-term memory backed by a vector store."""
+
     session_id: str = Field(
         ...,
         description="Session identifier",
@@ -93,6 +102,8 @@ class LongTermMemoryConf(BaseModel):
 
 
 class LongTermMemoryConfPartial(BaseModel):
+    """Partial configuration for long-term memory."""
+
     session_id: str | None = Field(
         default=None,
         description="Session identifier",
@@ -111,10 +122,13 @@ class LongTermMemoryConfPartial(BaseModel):
     )
 
     def merge(self, other: Self) -> LongTermMemoryConf:
+        """Merge with another partial into a complete long-term config."""
         return merge_partial_configs(self, other, LongTermMemoryConf)
 
 
 class EpisodicMemoryConf(WithMetricsFactoryId):
+    """Configuration for episodic memory service."""
+
     session_key: str = Field(
         ..., min_length=1, description="The unique identifier for the session",
     )
@@ -139,6 +153,8 @@ class EpisodicMemoryConf(WithMetricsFactoryId):
 
 
 class EpisodicMemoryConfPartial(BaseModel):
+    """Partial configuration for episodic memory with nested sections."""
+
     session_key: str | None = Field(
         default=None,
         min_length=1,
@@ -166,11 +182,7 @@ class EpisodicMemoryConfPartial(BaseModel):
     )
 
     def merge(self, other: Self) -> EpisodicMemoryConf:
-        """
-        Merge scalar fields first using the shared merge utility,
-        then merge nested configuration blocks using normalized partials.
-        """
-
+        """Merge scalar fields, then merge nested configuration blocks."""
         # ---- Step 1: merge scalar fields (this ignores nested configs) ----
         merged = merge_partial_configs(self, other, EpisodicMemoryConfPartial)
 

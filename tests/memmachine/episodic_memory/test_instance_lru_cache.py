@@ -1,5 +1,4 @@
-"""
-Unit test for the MemoryInstanceCache.
+"""Unit test for the MemoryInstanceCache.
 """
 
 import asyncio

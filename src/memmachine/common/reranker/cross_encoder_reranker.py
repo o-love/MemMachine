@@ -1,6 +1,4 @@
-"""
-Cross-encoder based reranker implementation.
-"""
+"""Cross-encoder based reranker implementation."""
 
 import asyncio
 
@@ -17,6 +15,7 @@ class CrossEncoderRerankerParams(BaseModel):
     Attributes:
         cross_encoder (CrossEncoder):
             The cross-encoder model to use for reranking.
+
     """
 
     cross_encoder: InstanceOf[CrossEncoder] = Field(
@@ -30,7 +29,7 @@ class CrossEncoderReranker(Reranker):
     based on their relevance to the query.
     """
 
-    def __init__(self, params: CrossEncoderRerankerParams):
+    def __init__(self, params: CrossEncoderRerankerParams) -> None:
         """
         Initialize a CrossEncoderReranker
         with the provided parameters.
@@ -38,6 +37,7 @@ class CrossEncoderReranker(Reranker):
         Args:
             params (CrossEncoderRerankerParams):
                 Parameters for the CrossEncoderReranker.
+
         """
         super().__init__()
 

@@ -1,6 +1,4 @@
-"""
-Builder for LanguageModel instances.
-"""
+"""Builder for LanguageModel instances."""
 
 import asyncio
 from asyncio import Lock
@@ -12,7 +10,7 @@ from memmachine.common.language_model.language_model import LanguageModel
 
 
 class LanguageModelManager:
-    def __init__(self, conf: LanguageModelConf):
+    def __init__(self, conf: LanguageModelConf) -> None:
         self._lock = Lock()
         self._language_models_lock: dict[str, Lock] = {}
 
@@ -51,12 +49,11 @@ class LanguageModelManager:
     def _build_language_model(self, name: str) -> LanguageModel:
         if name in self.conf.openai_responses_language_model_confs:
             return self._build_openai_responses_language_model(name)
-        elif name in self.conf.openai_chat_completions_language_model_confs:
+        if name in self.conf.openai_chat_completions_language_model_confs:
             return self._build_openai_chat_completions_language_model(name)
-        elif name in self.conf.amazon_bedrock_language_model_confs:
+        if name in self.conf.amazon_bedrock_language_model_confs:
             return self._build_amazon_bedrock_language_model(name)
-        else:
-            raise ValueError(f"Language model with name {name} not found.")
+        raise ValueError(f"Language model with name {name} not found.")
 
     def _build_openai_responses_language_model(self, name: str) -> LanguageModel:
         import openai

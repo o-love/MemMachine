@@ -81,7 +81,7 @@ with st.sidebar:
 # Session state
 # ──────────────────────────────────────────────────────────────
 if "history" not in st.session_state:
-    st.session_state.history = cast(list[dict], [])
+    st.session_state.history = cast("list[dict]", [])
 
 
 # ──────────────────────────────────────────────────────────────

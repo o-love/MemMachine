@@ -45,7 +45,7 @@ async def main():
         group_id = f"group_{idx}"
 
         memory = cast(
-            EpisodicMemory,
+            "EpisodicMemory",
             await memory_manager.get_episodic_memory_instance(
                 group_id=group_id,
                 session_id=group_id,

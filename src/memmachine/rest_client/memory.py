@@ -11,6 +11,8 @@ from uuid import uuid4
 
 import requests
 
+from .client import MemMachineClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,17 +41,18 @@ class Memory:
         # Search memories
         results = memory.search("What do I like to eat?")
         ```
+
     """
 
     def __init__(
         self,
-        client,
+        client: MemMachineClient,
         group_id: str | None = None,
         agent_id: str | list[str] | None = None,
         user_id: str | list[str] | None = None,
         session_id: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: dict[str, Any],
+    ) -> None:
         """
         Initialize Memory instance.
 
@@ -60,6 +63,7 @@ class Memory:
             user_id: User identifier(s)
             session_id: Session identifier
             **kwargs: Additional configuration options
+
         """
         self.client = client
         self._client_closed = False
@@ -103,6 +107,7 @@ class Memory:
 
         Returns:
             List of user identifiers, or None if not set
+
         """
         return self.__user_id
 
@@ -113,6 +118,7 @@ class Memory:
 
         Returns:
             List of agent identifiers, or None if not set
+
         """
         return self.__agent_id
 
@@ -123,6 +129,7 @@ class Memory:
 
         Returns:
             Group identifier, or None if not set
+
         """
         return self.__group_id
 
@@ -133,6 +140,7 @@ class Memory:
 
         Returns:
             Session identifier
+
         """
         return self.__session_id
 
@@ -160,6 +168,7 @@ class Memory:
         Raises:
             requests.RequestException: If the request fails
             RuntimeError: If the client has been closed
+
         """
         if self._client_closed:
             raise RuntimeError("Cannot add memory: client has been closed")
@@ -268,6 +277,7 @@ class Memory:
         Raises:
             requests.RequestException: If the request fails
             RuntimeError: If the client has been closed
+
         """
         if self._client_closed:
             raise RuntimeError("Cannot search memories: client has been closed")
@@ -306,6 +316,7 @@ class Memory:
 
         Returns:
             Dictionary containing the context information
+
         """
         return {
             "group_id": self.__group_id,
@@ -314,5 +325,9 @@ class Memory:
             "session_id": self.__session_id,
         }
 
-    def __repr__(self):
-        return f"Memory(group_id='{self.group_id}', user_id='{self.user_id}', session_id='{self.session_id}')"
+    def __repr__(self) -> str:
+        return (
+            f"Memory(group_id='{self.group_id}', "
+            f"user_id='{self.user_id}', "
+            f"session_id='{self.session_id}')"
+        )

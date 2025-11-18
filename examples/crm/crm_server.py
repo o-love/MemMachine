@@ -250,12 +250,11 @@ async def store_and_search_data(user_id: str, query: str):
 
         if profile_memory and episodic_memory:
             return f"Profile: {profile_memory}\n\nContext: {episodic_memory}\n\nFormatted Response:\n{formatted_response}"
-        elif profile_memory:
+        if profile_memory:
             return f"Profile: {profile_memory}\n\nFormatted Response:\n{formatted_response}"
-        elif episodic_memory:
+        if episodic_memory:
             return f"Context: {episodic_memory}\n\nFormatted Response:\n{formatted_response}"
-        else:
-            return f"Message ingested successfully. No relevant context found yet.\n\nFormatted Response:\n{formatted_response}"
+        return f"Message ingested successfully. No relevant context found yet.\n\nFormatted Response:\n{formatted_response}"
 
     except Exception:
         logging.exception("Error occurred in /memory store-and-search")

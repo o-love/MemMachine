@@ -16,61 +16,51 @@ from .metrics_factory import MetricsFactory
 
 
 class PrometheusMetricsFactory(MetricsFactory):
-    """
-    Prometheus-based implementation of MetricsFactory.
-    """
+    """Prometheus-based implementation of MetricsFactory."""
 
     class Counter(MetricsFactory.Counter):
-        """
-        Prometheus-based implementation of a counter metric.
-        """
+        """Prometheus-based implementation of a counter metric."""
 
-        def __init__(self, counter: PrometheusCounter):
+        def __init__(self, counter: PrometheusCounter) -> None:
             self._counter = counter
 
-        def increment(self, value: float = 1, labels: dict[str, str] = {}):
+        def increment(self, value: float = 1, labels: dict[str, str] = {}) -> None:
             if labels:
                 self._counter.labels(**labels).inc(value)
             else:
                 self._counter.inc(value)
 
     class Gauge(MetricsFactory.Gauge):
-        """
-        Prometheus-based implementation of a gauge metric.
-        """
+        """Prometheus-based implementation of a gauge metric."""
 
-        def __init__(self, gauge: PrometheusGauge):
+        def __init__(self, gauge: PrometheusGauge) -> None:
             self._gauge = gauge
 
-        def set(self, value: float, labels: dict[str, str] = {}):
+        def set(self, value: float, labels: dict[str, str] = {}) -> None:
             if labels:
                 self._gauge.labels(**labels).set(value)
             else:
                 self._gauge.set(value)
 
     class Histogram(MetricsFactory.Histogram):
-        """
-        Prometheus-based implementation of a histogram metric.
-        """
+        """Prometheus-based implementation of a histogram metric."""
 
-        def __init__(self, histogram: PrometheusHistogram):
+        def __init__(self, histogram: PrometheusHistogram) -> None:
             self._histogram = histogram
 
-        def observe(self, value: float, labels: dict[str, str] = {}):
+        def observe(self, value: float, labels: dict[str, str] = {}) -> None:
             if labels:
                 self._histogram.labels(**labels).observe(value)
             else:
                 self._histogram.observe(value)
 
     class Summary(MetricsFactory.Summary):
-        """
-        Prometheus-based implementation of a summary metric.
-        """
+        """Prometheus-based implementation of a summary metric."""
 
-        def __init__(self, summary: PrometheusSummary):
+        def __init__(self, summary: PrometheusSummary) -> None:
             self._summary = summary
 
-        def observe(self, value: float, labels: dict[str, str] = {}):
+        def observe(self, value: float, labels: dict[str, str] = {}) -> None:
             if labels:
                 self._summary.labels(**labels).observe(value)
             else:

@@ -26,8 +26,7 @@ class AgentState(TypedDict):
 
 
 def simple_memory_workflow_demo():
-    """
-    Simple demo showing basic memory operations without LangGraph dependency.
+    """Simple demo showing basic memory operations without LangGraph dependency.
 
     This demonstrates the MemMachine tools functionality that can be integrated
     into LangGraph workflows.

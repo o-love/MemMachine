@@ -66,18 +66,17 @@ async def store_data(user_id: str, query: str):
                 "data": response.json(),
                 "message": "Say this: 'Thank you for submitting your writing sample. Your writing sample has been analyzed and stored.'",
             }
-        else:
-            return {
-                "status": "success",
-                "data": response.json(),
-                "message": "Message stored successfully",
-            }
+        return {
+            "status": "success",
+            "data": response.json(),
+            "message": "Message stored successfully",
+        }
 
     except Exception as e:
         logging.exception("Error occurred in /memory store_data")
         return {
             "status": "error",
-            "message": f"Internal error in /memory store_data: {str(e)}",
+            "message": f"Internal error in /memory store_data: {e!s}",
         }
 
 
@@ -165,7 +164,7 @@ async def get_data(query: str, user_id: str, timestamp: str):
         logging.exception("Error occurred in /memory get_data")
         return {
             "status": "error",
-            "message": f"Internal error in /memory get_data: {str(e)}",
+            "message": f"Internal error in /memory get_data: {e!s}",
         }
 
 
@@ -273,20 +272,19 @@ async def store_and_search_data(user_id: str, query: str):
         if submit_info["is_submission"]:
             message = "Say this: 'Thank you for submitting your writing sample. Your writing sample has been analyzed and stored.'"
             return message
-        elif profile_memory and episodic_memory:
+        if profile_memory and episodic_memory:
             return f"Profile: {profile_memory}\n\nContext: {episodic_memory}\n\nFormatted Response:\n{formatted_response}"
-        elif profile_memory:
+        if profile_memory:
             return f"Profile: {profile_memory}\n\nFormatted Response:\n{formatted_response}"
-        elif episodic_memory:
+        if episodic_memory:
             return f"Context: {episodic_memory}\n\nFormatted Response:\n{formatted_response}"
-        else:
-            return f"Message ingested successfully. No relevant context found yet.\n\nFormatted Response:\n{formatted_response}"
+        return f"Message ingested successfully. No relevant context found yet.\n\nFormatted Response:\n{formatted_response}"
 
     except Exception as e:
         logging.exception("Error occurred in store_and_search_data")
         return {
             "status": "error",
-            "message": f"Internal error in store_and_search: {str(e)}",
+            "message": f"Internal error in store_and_search: {e!s}",
         }
 
 
@@ -368,7 +366,7 @@ async def analyze_writing_style(user_id: str, query: str):
         logging.exception("Error occurred in analyze_writing_style")
         return {
             "status": "error",
-            "message": f"Internal error in analyze_writing_style: {str(e)}",
+            "message": f"Internal error in analyze_writing_style: {e!s}",
         }
 
 

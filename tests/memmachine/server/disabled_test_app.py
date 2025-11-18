@@ -1,5 +1,4 @@
-"""
-Test profile memory initialization
+"""Test profile memory initialization
 """
 
 from unittest.mock import MagicMock
@@ -141,12 +140,10 @@ def mock_config_file(tmp_path):
 async def test_initialize_resource_success(
     mock_dependencies, mock_config_file, monkeypatch,
 ):
-    """
-    Tests that initialize_resource successfully creates and returns
+    """Tests that initialize_resource successfully creates and returns
     EpisodicMemoryManager, SemanticSessionManager, and SessionIdManager instances
     with correct configurations.
     """
-
     # Call the function under test
     (
         episodic_manager,

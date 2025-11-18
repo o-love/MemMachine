@@ -112,8 +112,7 @@ class MigrationHack:
                 self.messages[conv_id] = messages
                 with open(extract_file, "w") as f:
                     # Write each message line by line to the extract file
-                    for message in self.messages[conv_id]:
-                        f.write(message + "\n")
+                    f.writelines(message + "\n" for message in self.messages[conv_id])
 
     def summarize_messages(self, summarize_every=20):
         print("== Summarizing messages starts")

@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
+from sqlalchemy.sql import Select
 
 from memmachine.common.data_types import JSONValue
 from memmachine.episode_store.episode_model import Episode, EpisodeType
@@ -98,7 +99,7 @@ class History(BaseHistoryStore):
 class SqlAlchemyEpisodeStore(EpisodeStorage):
     """SQLAlchemy episode store implementation."""
 
-    def __init__(self, engine: AsyncEngine):
+    def __init__(self, engine: AsyncEngine) -> None:
         self._engine: AsyncEngine = engine
         self._session_factory = async_sessionmaker(
             self._engine,
@@ -167,7 +168,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
 
     def _apply_history_filter(
         self,
-        stmt,
+        stmt: Select,
         *,
         session_keys: list[str] | None = None,
         producer_ids: list[str] | None = None,
@@ -177,7 +178,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         metadata: dict[str, str] | None = None,
-    ):
+    ) -> Select:
         if session_keys is not None:
             stmt = stmt.where(History.session_key.in_(session_keys))
 
@@ -241,7 +242,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         return [h.to_typed_model() for h in history_messages]
 
     @validate_call
-    async def delete_history(self, history_ids: list[EpisodeIdT]):
+    async def delete_history(self, history_ids: list[EpisodeIdT]) -> None:
         int_history_ids = [int(h_id) for h_id in history_ids]
 
         stmt = delete(History).where(History.id.in_(int_history_ids))
@@ -262,7 +263,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
         metadata: dict[str, JSONValue] | None = None,
-    ):
+    ) -> None:
         stmt = delete(History)
 
         stmt = self._apply_history_filter(

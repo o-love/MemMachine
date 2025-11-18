@@ -23,7 +23,7 @@ class EmbedderFactory(Protocol):
 class RerankerManager:
     def __init__(
         self, conf: RerankerConf, embedder_factory: InstanceOf[EmbedderFactory],
-    ):
+    ) -> None:
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}
 
@@ -67,18 +67,17 @@ class RerankerManager:
     async def _build_reranker(self, name: str) -> Reranker:
         if name in self.conf.bm25:
             return await self._build_bm25_reranker(name)
-        elif name in self.conf.cross_encoder:
+        if name in self.conf.cross_encoder:
             return await self._build_cross_encoder_reranker(name)
-        elif name in self.conf.amazon_bedrock:
+        if name in self.conf.amazon_bedrock:
             return await self._build_amazon_bedrock_reranker(name)
-        elif name in self.conf.embedder:
+        if name in self.conf.embedder:
             return await self._build_embedder_reranker(name)
-        elif name in self.conf.identity:
+        if name in self.conf.identity:
             return await self._build_identity_reranker(name)
-        elif name in self.conf.rrf_hybrid:
+        if name in self.conf.rrf_hybrid:
             return await self._build_rrf_hybrid_reranker(name)
-        else:
-            raise ValueError(f"Reranker with name {name} not found.")
+        raise ValueError(f"Reranker with name {name} not found.")
 
     async def _build_bm25_reranker(self, name: str) -> Reranker:
         from memmachine.common.reranker.bm25_reranker import (
@@ -106,6 +105,7 @@ class RerankerManager:
 
                     Returns:
                         list[str]: A list of tokens for use in BM25 scoring.
+
                     """
                     alphanumeric_text = re.sub(r"\W+", " ", text)
                     lower_text = alphanumeric_text.lower()
@@ -114,10 +114,9 @@ class RerankerManager:
                     return tokens
 
                 return _default_tokenize
-            elif name == "simple":
+            if name == "simple":
                 return lambda text: re.sub(r"\W+", " ", text).lower().split()
-            else:
-                raise ValueError(f"Unknown tokenizer: {name}")
+            raise ValueError(f"Unknown tokenizer: {name}")
 
         conf = self.conf.bm25[name]
         self.rerankers[name] = BM25Reranker(
@@ -188,7 +187,8 @@ class RerankerManager:
         return self.rerankers[name]
 
     async def _build_rrf_hybrid_reranker(self, name: str) -> Reranker:
-        """Build RRF hybrid rerankers by combining existing rerankers.
+        """
+        Build RRF hybrid rerankers by combining existing rerankers.
 
         This method must be called after all individual rerankers have been built,
         """

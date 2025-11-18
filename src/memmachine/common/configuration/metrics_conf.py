@@ -1,3 +1,5 @@
+"""Metrics configuration mixins."""
+
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
@@ -9,15 +11,7 @@ from memmachine.common.metrics_factory.prometheus_metrics_factory import (
 
 
 class WithMetricsFactoryId(BaseModel):
-    """
-    Mixin for configurations that include a metrics factory ID.
-
-    Attributes:
-        metrics_factory_id (str | None):
-            Metrics factory ID for monitoring and metrics collection.
-        user_metrics_labels (dict[str, str]):
-            User-defined labels for metrics.
-    """
+    """Mixin for configurations that include a metrics factory ID."""
 
     metrics_factory_id: str | None = Field(
         default=None,
@@ -31,6 +25,7 @@ class WithMetricsFactoryId(BaseModel):
     _factories: ClassVar[dict[str, MetricsFactory]] = {}
 
     def get_metrics_factory(self) -> MetricsFactory | None:
+        """Return the configured metrics factory instance, if any."""
         factory_id = self.metrics_factory_id
         if factory_id is None:
             return None

@@ -15,16 +15,14 @@ from .data_types import Edge, Node, OrderedPropertyValue, PropertyValue
 
 
 class VectorGraphStore(ABC):
-    """
-    Abstract base class for a vector graph store.
-    """
+    """Abstract base class for a vector graph store."""
 
     @abstractmethod
     async def add_nodes(
         self,
         collection: str,
         nodes: Iterable[Node],
-    ):
+    ) -> None:
         """
         Add nodes to the vector graph store.
 
@@ -33,6 +31,7 @@ class VectorGraphStore(ABC):
                 Collection that the nodes belong to.
             nodes (Iterable[Node]):
                 Iterable of Node objects to add.
+
         """
         raise NotImplementedError
 
@@ -43,7 +42,7 @@ class VectorGraphStore(ABC):
         source_collection: str,
         target_collection: str,
         edges: Iterable[Edge],
-    ):
+    ) -> None:
         """
         Add edges to the vector graph store.
 
@@ -56,6 +55,7 @@ class VectorGraphStore(ABC):
                 Collection that the target nodes belong to.
             edges (Iterable[Edge]):
                 Iterable of Edge objects to add.
+
         """
         raise NotImplementedError
 
@@ -100,6 +100,7 @@ class VectorGraphStore(ABC):
             list[Node]:
                 List of Node objects
                 that are similar to the query embedding.
+
         """
         raise NotImplementedError
 
@@ -165,6 +166,7 @@ class VectorGraphStore(ABC):
             list[Node]:
                 List of Node objects
                 that are related to the specified node.
+
         """
         raise NotImplementedError
 
@@ -213,6 +215,7 @@ class VectorGraphStore(ABC):
         Returns:
             list[Node]:
                 List of Node objects ordered by the specified property.
+
         """
         raise NotImplementedError
 
@@ -244,6 +247,7 @@ class VectorGraphStore(ABC):
         Returns:
             list[Node]:
                 List of Node objects matching the specified criteria.
+
         """
         raise NotImplementedError
 
@@ -264,6 +268,7 @@ class VectorGraphStore(ABC):
             list[Node]:
                 List of Node objects with the specified UUIDs.
                 Order is not guaranteed.
+
         """
         raise NotImplementedError
 
@@ -272,26 +277,23 @@ class VectorGraphStore(ABC):
         self,
         collection: str,
         node_uuids: Iterable[UUID],
-    ):
+    ) -> None:
         """
         Delete nodes from the collection.
 
         Args:
             node_uuids (Iterable[UUID]):
                 Iterable of UUIDs of the nodes to delete.
+
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_all_data(self):
-        """
-        Delete all data from the vector graph store.
-        """
+    async def delete_all_data(self) -> None:
+        """Delete all data from the vector graph store."""
         raise NotImplementedError
 
     @abstractmethod
-    async def close(self):
-        """
-        Shut down and release resources.
-        """
+    async def close(self) -> None:
+        """Shut down and release resources."""
         raise NotImplementedError

@@ -115,9 +115,8 @@ async def slack_events(
         )
         return PlainTextResponse(content="ok")
 
-    else:
-        asyncio.create_task(process_memory_post(channel, ts, thread_ts, user, text))
-        return PlainTextResponse(content="ok")
+    asyncio.create_task(process_memory_post(channel, ts, thread_ts, user, text))
+    return PlainTextResponse(content="ok")
 
 
 def verify_slack_signature(
@@ -143,6 +142,7 @@ async def process_memory_post(
 
     Returns:
         bool: True if message was skipped (already processed), False if successfully processed
+
     """
     logger.debug(f"[SLACK] Processing message from user {user}")
 
@@ -169,14 +169,12 @@ async def process_memory_post(
                     logger.debug(f"[SLACK] Message {ts} already processed, skipped")
                     message_counters["skipped"] += 1
                     return True
-                else:
-                    logger.debug("[SLACK] Message posted to memory successfully")
-                    message_counters["processed"] += 1
-                    return False
-            else:
-                logger.warning(f"[SLACK] Failed to post to memory: {resp.status_code}")
-                message_counters["errors"] += 1
+                logger.debug("[SLACK] Message posted to memory successfully")
+                message_counters["processed"] += 1
                 return False
+            logger.warning(f"[SLACK] Failed to post to memory: {resp.status_code}")
+            message_counters["errors"] += 1
+            return False
     except Exception as e:
         logger.error(f"[SLACK] Error posting to memory: {e}", exc_info=True)
         message_counters["errors"] += 1
@@ -219,7 +217,7 @@ async def process_query_and_reply(
 
     except Exception as e:
         logger.error(f"[SLACK] Error searching memory: {e}")
-        response_text = f"⚠️ Error searching memory: {str(e)}"
+        response_text = f"⚠️ Error searching memory: {e!s}"
 
     await slack_service.post_message(
         channel=channel, text=response_text, thread_ts=thread_ts or ts,
@@ -260,7 +258,7 @@ async def generate_openai_response(formatted_query: str, original_query: str) ->
 
     except Exception as e:
         logger.error(f"[OPENAI] Error generating response: {e}")
-        return f"⚠️ Error generating AI response: {str(e)}"
+        return f"⚠️ Error generating AI response: {e!s}"
 
 
 def get_user_input() -> int:

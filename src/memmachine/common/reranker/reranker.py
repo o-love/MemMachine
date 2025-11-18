@@ -9,9 +9,7 @@ from abc import ABC, abstractmethod
 
 
 class Reranker(ABC):
-    """
-    Abstract base class for a reranker.
-    """
+    """Abstract base class for a reranker."""
 
     async def rerank(self, query: str, candidates: list[str]) -> list[str]:
         """
@@ -27,6 +25,7 @@ class Reranker(ABC):
             list[str]:
                 The reranked list of candidates,
                 sorted by score in descending order.
+
         """
         scores = await self.score(query, candidates)
         score_map = dict(zip(candidates, scores))
@@ -52,5 +51,6 @@ class Reranker(ABC):
         Returns:
             list[float]:
                 A list of scores corresponding to each candidate.
+
         """
         raise NotImplementedError

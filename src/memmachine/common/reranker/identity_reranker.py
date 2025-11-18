@@ -1,6 +1,4 @@
-"""
-Identity reranker implementation.
-"""
+"""Identity reranker implementation."""
 
 from .reranker import Reranker
 

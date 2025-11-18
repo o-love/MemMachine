@@ -10,17 +10,13 @@ from collections.abc import Iterable
 
 
 class MetricsFactory(ABC):
-    """
-    Abstract base class for a metrics factory.
-    """
+    """Abstract base class for a metrics factory."""
 
     class Counter(ABC):
-        """
-        Abstract base class for a counter metric.
-        """
+        """Abstract base class for a counter metric."""
 
         @abstractmethod
-        def increment(self, value: float = 1, labels: dict[str, str] = {}):
+        def increment(self, value: float = 1, labels: dict[str, str] = {}) -> None:
             """
             Increment the counter by a specified value.
 
@@ -32,16 +28,15 @@ class MetricsFactory(ABC):
                     Label name-value pairs
                     to associate with the increment.
                     If empty, no labels are used.
+
             """
             raise NotImplementedError
 
     class Gauge(ABC):
-        """
-        Abstract base class for a gauge metric.
-        """
+        """Abstract base class for a gauge metric."""
 
         @abstractmethod
-        def set(self, value: float, labels: dict[str, str] = {}):
+        def set(self, value: float, labels: dict[str, str] = {}) -> None:
             """
             Set the gauge to a specified value.
 
@@ -52,16 +47,15 @@ class MetricsFactory(ABC):
                     Label name-value pairs
                     to associate with the setting.
                     If empty, no labels are used.
+
             """
             raise NotImplementedError
 
     class Histogram(ABC):
-        """
-        Abstract base class for a histogram metric.
-        """
+        """Abstract base class for a histogram metric."""
 
         @abstractmethod
-        def observe(self, value: float, labels: dict[str, str] = {}):
+        def observe(self, value: float, labels: dict[str, str] = {}) -> None:
             """
             Observe a value and record it in the histogram.
 
@@ -72,16 +66,15 @@ class MetricsFactory(ABC):
                     Label name-value pairs
                     to associate with the observation.
                     If empty, no labels are used.
+
             """
             raise NotImplementedError
 
     class Summary(ABC):
-        """
-        Abstract base class for a summary metric.
-        """
+        """Abstract base class for a summary metric."""
 
         @abstractmethod
-        def observe(self, value: float, labels: dict[str, str] = {}):
+        def observe(self, value: float, labels: dict[str, str] = {}) -> None:
             """
             Observe a value and record it in the summary.
 
@@ -92,6 +85,7 @@ class MetricsFactory(ABC):
                     Label name-value pairs
                     to associate with the observation.
                     If empty, no labels are used.
+
             """
             raise NotImplementedError
 
@@ -117,6 +111,7 @@ class MetricsFactory(ABC):
         Returns:
             Counter:
                 An instance of the Counter metric.
+
         """
         raise NotImplementedError
 
@@ -142,6 +137,7 @@ class MetricsFactory(ABC):
         Returns:
             Gauge:
                 An instance of the Gauge metric.
+
         """
         raise NotImplementedError
 
@@ -167,6 +163,7 @@ class MetricsFactory(ABC):
         Returns:
             Histogram:
                 An instance of the Histogram metric.
+
         """
         raise NotImplementedError
 
@@ -192,5 +189,6 @@ class MetricsFactory(ABC):
         Returns:
             Summary:
                 An instance of the Summary metric.
+
         """
         raise NotImplementedError

@@ -4,8 +4,7 @@ from memmachine import MemMachineClient
 
 
 class MemMachineTools:
-    """
-    Tools for integrating MemMachine memory operations into LangGraph.
+    """Tools for integrating MemMachine memory operations into LangGraph.
 
     This class provides static methods that can be used as tools in LangGraph workflows.
     """
@@ -19,8 +18,7 @@ class MemMachineTools:
         user_id: str = "default_user",
         session_id: str | None = None,
     ):
-        """
-        Initialize MemMachine tools.
+        """Initialize MemMachine tools.
 
         Args:
             client: Optional MemMachineClient instance. If not provided, creates a new one.
@@ -29,6 +27,7 @@ class MemMachineTools:
             agent_id: Default agent ID for memory operations
             user_id: Default user ID for memory operations
             session_id: Optional session ID. If not provided, will be auto-generated.
+
         """
         self.client = client or MemMachineClient(base_url=base_url)
         self.group_id = group_id
@@ -43,8 +42,7 @@ class MemMachineTools:
         group_id: str | None = None,
         session_id: str | None = None,
     ):
-        """
-        Get or create a memory instance for the specified context.
+        """Get or create a memory instance for the specified context.
 
         Args:
             user_id: User ID (overrides default)
@@ -54,6 +52,7 @@ class MemMachineTools:
 
         Returns:
             Memory instance
+
         """
         return self.client.memory(
             group_id=group_id or self.group_id,
@@ -72,8 +71,7 @@ class MemMachineTools:
         episode_type: str = "text",
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Add a memory to MemMachine.
+        """Add a memory to MemMachine.
 
         This tool stores important information about the user or conversation into memory.
         Use this automatically whenever the user shares new facts, preferences, plans,
@@ -90,6 +88,7 @@ class MemMachineTools:
 
         Returns:
             Dictionary with success status and message
+
         """
         try:
             memory = self.get_memory(user_id, agent_id, group_id, session_id)
@@ -104,15 +103,14 @@ class MemMachineTools:
                     "message": f"Memory added successfully: {content[:50]}...",
                     "content": content,
                 }
-            else:
-                return {
-                    "status": "error",
-                    "message": "Failed to add memory",
-                }
+            return {
+                "status": "error",
+                "message": "Failed to add memory",
+            }
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Error adding memory: {str(e)}",
+                "message": f"Error adding memory: {e!s}",
             }
 
     def search_memory(
@@ -125,8 +123,7 @@ class MemMachineTools:
         limit: int = 5,
         filter_dict: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Search for memories in MemMachine.
+        """Search for memories in MemMachine.
 
         This tool retrieves relevant context, memories or profile for a user whenever
         context is missing or unclear. Use this whenever you need to recall what has been
@@ -145,6 +142,7 @@ class MemMachineTools:
 
         Returns:
             Dictionary containing search results and relevant memories
+
         """
         try:
             memory = self.get_memory(user_id, agent_id, group_id, session_id)
@@ -163,7 +161,7 @@ class MemMachineTools:
 
             if results:
                 # Extract episodic memories
-                if "episodic_memory" in results and results["episodic_memory"]:
+                if results.get("episodic_memory"):
                     episodic = results["episodic_memory"]
                     if isinstance(episodic, list) and len(episodic) > 0:
                         if isinstance(episodic[0], list):
@@ -183,18 +181,18 @@ class MemMachineTools:
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Error searching memory: {str(e)}",
+                "message": f"Error searching memory: {e!s}",
             }
 
     def _format_search_summary(self, results: dict[str, Any]) -> str:
-        """
-        Format search results into a readable summary.
+        """Format search results into a readable summary.
 
         Args:
             results: Search results dictionary
 
         Returns:
             Formatted summary string
+
         """
         summary_parts = []
 
@@ -221,8 +219,7 @@ class MemMachineTools:
         group_id: str | None = None,
         session_id: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Get the current memory context.
+        """Get the current memory context.
 
         Args:
             user_id: User ID (overrides default)
@@ -232,6 +229,7 @@ class MemMachineTools:
 
         Returns:
             Dictionary containing context information
+
         """
         memory = self.get_memory(user_id, agent_id, group_id, session_id)
         return memory.get_context()
@@ -244,14 +242,14 @@ class MemMachineTools:
 
 # Convenience functions for LangGraph tool creation
 def create_add_memory_tool(tools: MemMachineTools):
-    """
-    Create an add_memory tool function for LangGraph.
+    """Create an add_memory tool function for LangGraph.
 
     Args:
         tools: MemMachineTools instance
 
     Returns:
         Tool function that can be used in LangGraph
+
     """
 
     def add_memory_tool(
@@ -259,8 +257,7 @@ def create_add_memory_tool(tools: MemMachineTools):
         user_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Tool to add a memory to MemMachine.
+        """Tool to add a memory to MemMachine.
 
         Args:
             content: The content to store in memory
@@ -269,6 +266,7 @@ def create_add_memory_tool(tools: MemMachineTools):
 
         Returns:
             Result dictionary with status and message
+
         """
         return tools.add_memory(
             content=content,
@@ -280,14 +278,14 @@ def create_add_memory_tool(tools: MemMachineTools):
 
 
 def create_search_memory_tool(tools: MemMachineTools):
-    """
-    Create a search_memory tool function for LangGraph.
+    """Create a search_memory tool function for LangGraph.
 
     Args:
         tools: MemMachineTools instance
 
     Returns:
         Tool function that can be used in LangGraph
+
     """
 
     def search_memory_tool(
@@ -295,8 +293,7 @@ def create_search_memory_tool(tools: MemMachineTools):
         user_id: str | None = None,
         limit: int = 5,
     ) -> dict[str, Any]:
-        """
-        Tool to search memories in MemMachine.
+        """Tool to search memories in MemMachine.
 
         Args:
             query: Search query string
@@ -305,6 +302,7 @@ def create_search_memory_tool(tools: MemMachineTools):
 
         Returns:
             Result dictionary with search results
+
         """
         return tools.search_memory(
             query=query,

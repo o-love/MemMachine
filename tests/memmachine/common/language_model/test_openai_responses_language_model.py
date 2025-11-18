@@ -1,5 +1,4 @@
-"""
-Unit tests for OpenAIResponsesLanguageModel.
+"""Unit tests for OpenAIResponsesLanguageModel.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -1,6 +1,4 @@
-"""
-Declarative memory system for storing and retrieving episodic memory.
-"""
+"""Declarative memory system for storing and retrieving episodic memory."""
 
 import asyncio
 import datetime
@@ -44,6 +42,7 @@ class DeclarativeMemoryParams(BaseModel):
             Embedder instance for creating embeddings.
         reranker (Reranker):
             Reranker instance for reranking search results.
+
     """
 
     session_id: str = Field(
@@ -65,17 +64,16 @@ class DeclarativeMemoryParams(BaseModel):
 
 
 class DeclarativeMemory:
-    """
-    Declarative memory system.
-    """
+    """Declarative memory system."""
 
-    def __init__(self, params: DeclarativeMemoryParams):
+    def __init__(self, params: DeclarativeMemoryParams) -> None:
         """
         Initialize a DeclarativeMemory with the provided parameters.
 
         Args:
             params (DeclarativeMemoryParams):
                 Parameters for the DeclarativeMemory.
+
         """
         session_id = params.session_id
 
@@ -91,7 +89,7 @@ class DeclarativeMemory:
     async def add_episodes(
         self,
         episodes: Iterable[Episode],
-    ):
+    ) -> None:
         """
         Add episodes.
 
@@ -100,8 +98,8 @@ class DeclarativeMemory:
 
         Args:
             episodes (Iterable[Episode]): The episodes to add.
-        """
 
+        """
         episodes = sorted(
             episodes, key=lambda episode: (episode.timestamp, episode.uuid),
         )
@@ -206,6 +204,7 @@ class DeclarativeMemory:
 
         Returns:
             list[Derivative]: A list of derived derivatives.
+
         """
         match episode.content_type:
             case ContentType.MESSAGE:
@@ -268,6 +267,7 @@ class DeclarativeMemory:
         Returns:
             list[Episode]:
                 A list of episodes relevant to the query, ordered chronologically.
+
         """
         if property_filter is None:
             property_filter = {}
@@ -437,9 +437,7 @@ class DeclarativeMemory:
         return episode_context_scores
 
     def string_from_episode_context(self, episode_context: Iterable[Episode]) -> str:
-        """
-        Format episode context as a string.
-        """
+        """Format episode context as a string."""
         context_string = ""
 
         for episode in episode_context:
@@ -459,22 +457,16 @@ class DeclarativeMemory:
 
     @staticmethod
     def _format_date(date: datetime.date) -> str:
-        """
-        Format the date as a string.
-        """
+        """Format the date as a string."""
         return date.strftime("%A, %B %d, %Y")
 
     @staticmethod
     def _format_time(time: datetime.time) -> str:
-        """
-        Format the time as a string.
-        """
+        """Format the time as a string."""
         return time.strftime("%I:%M %p")
 
     async def get_episodes(self, uuids: Iterable[UUID]) -> list[Episode]:
-        """
-        Get episodes by their UUIDs.
-        """
+        """Get episodes by their UUIDs."""
         episode_nodes = await self._vector_graph_store.get_nodes(
             collection=self._episode_collection,
             node_uuids=uuids,
@@ -491,9 +483,7 @@ class DeclarativeMemory:
         self,
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
     ) -> list[Episode]:
-        """
-        Filter episodes by their properties.
-        """
+        """Filter episodes by their properties."""
         if property_filter is None:
             property_filter = {}
 
@@ -512,10 +502,8 @@ class DeclarativeMemory:
 
         return matching_episodes
 
-    async def delete_episodes(self, uuids: Iterable[UUID]):
-        """
-        Delete episodes by their UUIDs.
-        """
+    async def delete_episodes(self, uuids: Iterable[UUID]) -> None:
+        """Delete episodes by their UUIDs."""
         search_derived_derivative_nodes_tasks = [
             self._vector_graph_store.search_related_nodes(
                 relation=self._derived_from_relation,
@@ -569,7 +557,7 @@ class DeclarativeMemory:
 
             if len(episode_set) >= max_num_episodes:
                 break
-            elif (len(episode_set) + len(context)) <= max_num_episodes:
+            if (len(episode_set) + len(context)) <= max_num_episodes:
                 # It is impossible that the context exceeds the limit.
                 episode_set.update(context)
             else:
@@ -585,8 +573,7 @@ class DeclarativeMemory:
                     if proximity >= 0:
                         # Forward recall is better than backward recall.
                         return (proximity - 0.5) / 2
-                    else:
-                        return -proximity
+                    return -proximity
 
                 nuclear_context = sorted(
                     context,
@@ -613,20 +600,20 @@ class DeclarativeMemory:
     @staticmethod
     def _episode_from_episode_node(episode_node: Node) -> Episode:
         return Episode(
-            uuid=UUID(cast(str, episode_node.properties["uuid"])),
-            timestamp=cast(datetime.datetime, episode_node.properties["timestamp"]),
-            source=cast(str, episode_node.properties["source"]),
+            uuid=UUID(cast("str", episode_node.properties["uuid"])),
+            timestamp=cast("datetime.datetime", episode_node.properties["timestamp"]),
+            source=cast("str", episode_node.properties["source"]),
             content_type=ContentType(episode_node.properties["content_type"]),
             content=episode_node.properties["content"],
             filterable_properties={
                 demangle_filterable_property_key(key): cast(
-                    FilterablePropertyValue, value,
+                    "FilterablePropertyValue", value,
                 )
                 for key, value in episode_node.properties.items()
                 if is_mangled_filterable_property_key(key)
             },
             user_metadata=json.loads(
-                cast(str, episode_node.properties["user_metadata"]),
+                cast("str", episode_node.properties["user_metadata"]),
             ),
         )
 
@@ -642,5 +629,6 @@ class DeclarativeMemory:
 
         Returns:
             str: A standardized property name for the embedding.
+
         """
         return f"embedding_{model_id}_{dimensions}d"

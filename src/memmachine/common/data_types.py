@@ -1,6 +1,4 @@
-"""
-Common data types for MemMachine.
-"""
+"""Common data types for MemMachine."""
 
 from enum import Enum
 
@@ -11,6 +9,8 @@ JSONValue = JsonValue
 
 
 class SimilarityMetric(Enum):
+    """Similarity metrics supported by embedding operations."""
+
     COSINE = "cosine"
     DOT = "dot"
     EUCLIDEAN = "euclidean"
@@ -18,7 +18,4 @@ class SimilarityMetric(Enum):
 
 
 class ExternalServiceAPIError(Exception):
-    """
-    Raised when an API error occurs for an external service.
-    """
-
+    """Raised when an API error occurs for an external service."""

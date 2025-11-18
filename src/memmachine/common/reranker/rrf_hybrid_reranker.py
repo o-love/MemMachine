@@ -1,6 +1,4 @@
-"""
-RRF hybrid reranker implementation.
-"""
+"""RRF hybrid reranker implementation."""
 
 import asyncio
 from collections import defaultdict
@@ -19,6 +17,7 @@ class RRFHybridRerankerParams(BaseModel):
             List of rerankers to combine.
         k (int):
             The k parameter for Reciprocal Rank Fusion (default: 60).
+
     """
 
     rerankers: list[InstanceOf[Reranker]] = Field(
@@ -33,13 +32,14 @@ class RRFHybridReranker(Reranker):
     using Reciprocal Rank Fusion (RRF).
     """
 
-    def __init__(self, params: RRFHybridRerankerParams):
+    def __init__(self, params: RRFHybridRerankerParams) -> None:
         """
         Initialize a RRFHybridReranker with the provided parameters.
 
         Args:
             params (RRFHybridRerankerParams):
                 Parameters for the RRFHybridReranker.
+
         """
         super().__init__()
 

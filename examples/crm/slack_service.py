@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class SlackService:
-    """
-    Thin async wrapper around Slack Web API for the operations we need.
+    """Thin async wrapper around Slack Web API for the operations we need.
     """
 
     def __init__(self, token: str | None = None):
@@ -20,8 +19,7 @@ class SlackService:
         self.client = AsyncWebClient(token=self.token)
 
     async def get_user_display_name(self, user_id: str) -> str:
-        """
-        Resolve a Slack user ID to a human-friendly display name.
+        """Resolve a Slack user ID to a human-friendly display name.
         Fallback order: profile.display_name -> real_name -> user_id
         """
         try:
@@ -43,8 +41,7 @@ class SlackService:
     async def post_message(
         self, channel: str, text: str, thread_ts: str | None = None,
     ) -> str | None:
-        """
-        Post a message to a channel (optionally in a thread). Returns ts if successful.
+        """Post a message to a channel (optionally in a thread). Returns ts if successful.
         """
         try:
             resp = await self.client.chat_postMessage(
@@ -63,8 +60,7 @@ class SlackService:
     async def get_channel_history(
         self, channel: str, limit: int = 1000,
     ) -> list[dict[str, Any]]:
-        """
-        Fetch historical messages from a Slack channel.
+        """Fetch historical messages from a Slack channel.
         Returns list of message objects with metadata.
         """
         try:
@@ -107,8 +103,7 @@ class SlackService:
             return []
 
     async def get_all_channels(self) -> list[dict[str, Any]]:
-        """
-        Get list of all channels the bot has access to.
+        """Get list of all channels the bot has access to.
         """
         try:
             channels = []

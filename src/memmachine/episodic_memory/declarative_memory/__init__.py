@@ -5,8 +5,8 @@ from .data_types import (
 from .declarative_memory import DeclarativeMemory, DeclarativeMemoryParams
 
 __all__ = [
+    "ContentType",
     "DeclarativeMemory",
     "DeclarativeMemoryParams",
-    "ContentType",
     "Episode",
 ]

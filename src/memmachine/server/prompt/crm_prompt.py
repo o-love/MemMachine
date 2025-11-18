@@ -1,6 +1,6 @@
 """
 CRM-specific prompts for Intelligent Memory System
-Handles company profiles with direct feature/value pairs (no tags)
+Handles company profiles with direct feature/value pairs (no tags).
 """
 
 import zoneinfo
@@ -71,11 +71,11 @@ def _features_inline_list() -> str:
     return ", ".join(CRM_FEATURES)
 
 
-def _enum_list(enum_values) -> str:
+def _enum_list(enum_values: list[str]) -> str:
     return ", ".join(f'"{v}"' for v in enum_values)
 
 
-def _current_date_dow(tz="America/Los_Angeles") -> str:
+def _current_date_dow(tz: str = "America/Los_Angeles") -> str:
     dt = datetime.now(zoneinfo.ZoneInfo(tz))
     return f"{dt.strftime('%Y-%m-%d')}[{dt.strftime('%a')}]"
 

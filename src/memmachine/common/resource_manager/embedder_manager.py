@@ -6,7 +6,7 @@ from memmachine.common.embedder import Embedder
 
 
 class EmbedderManager:
-    def __init__(self, conf: EmbedderConf):
+    def __init__(self, conf: EmbedderConf) -> None:
         self.conf = conf
         self._embedders: dict[str, Embedder] = {}
 
@@ -46,12 +46,11 @@ class EmbedderManager:
     def _build_embedder(self, name: str) -> Embedder:
         if name in self.conf.amazon_bedrock:
             return self._build_amazon_bedrock_embedders(name)
-        elif name in self.conf.openai:
+        if name in self.conf.openai:
             return self._build_openai_embedders(name)
-        elif name in self.conf.sentence_transformer:
+        if name in self.conf.sentence_transformer:
             return self._build_sentence_transformer_embedders(name)
-        else:
-            raise ValueError(f"Embedder with name {name} not found.")
+        raise ValueError(f"Embedder with name {name} not found.")
 
     def _build_amazon_bedrock_embedders(self, name: str) -> Embedder:
         conf = self.conf.amazon_bedrock[name]

@@ -1,6 +1,4 @@
-"""
-BM25-based reranker implementation.
-"""
+"""BM25-based reranker implementation."""
 
 import asyncio
 from collections.abc import Callable
@@ -24,6 +22,7 @@ class BM25RerankerParams(BaseModel):
             BM25 epsilon parameter (default: 0.25).
         tokenize (Callable[[str], list[str]]):
             Tokenizer function to split text into tokens.
+
     """
 
     k1: float = Field(1.5, description="BM25 k1 parameter")
@@ -40,13 +39,14 @@ class BM25Reranker(Reranker):
     based on their relevance to the query.
     """
 
-    def __init__(self, params: BM25RerankerParams):
+    def __init__(self, params: BM25RerankerParams) -> None:
         """
         Initialize a BM25Reranker with the provided parameters.
 
         Args:
             params (BM25RerankerParams):
                 Parameters for the BM25Reranker.
+
         """
         super().__init__()
 

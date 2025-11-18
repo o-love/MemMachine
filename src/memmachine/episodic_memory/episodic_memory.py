@@ -38,12 +38,14 @@ logger = logging.getLogger(__name__)
 class EpisodicMemoryParams(BaseModel):
     """
     Parameters for configuring the EpisodicMemory.
+
     Attributes:
         session_key (str): The unique identifier for the session.
         metrics_factory (MetricsFactory): The metrics factory.
         long_term_memory (LongTermMemory): The long-term memory.
         short_term_memory (ShortTermMemory): The short-term memory.
         enabled (bool): Whether the episodic memory is enabled.
+
     """
 
     session_key: str = Field(
@@ -63,7 +65,7 @@ class EpisodicMemoryParams(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_memory_params(self):
+    def validate_memory_params(self) -> "EpisodicMemoryParams":
         if not self.enabled:
             return self
         if self.short_term_memory is None and self.long_term_memory is None:
@@ -88,12 +90,13 @@ class EpisodicMemory:
     def __init__(
         self,
         params: EpisodicMemoryParams,
-    ):
+    ) -> None:
         """
         Initialize a EpisodicMemory instance.
 
         Args:
             params (EpisodicMemoryParams): Parameters for the EpisodicMemory.
+
         """
         self._closed = False
 
@@ -133,7 +136,7 @@ class EpisodicMemory:
         return self._short_term_memory
 
     @short_term_memory.setter
-    def short_term_memory(self, value: ShortTermMemory | None):
+    def short_term_memory(self, value: ShortTermMemory | None) -> None:
         """
         Set the short-term memory of the episodic memory instance
         This makes the short term memory can be injected
@@ -152,7 +155,7 @@ class EpisodicMemory:
         return self._long_term_memory
 
     @long_term_memory.setter
-    def long_term_memory(self, value: LongTermMemory | None):
+    def long_term_memory(self, value: LongTermMemory | None) -> None:
         """
         Set the long-term memory of the episodic memory instance
         This makes the long term memory can be injected
@@ -170,7 +173,7 @@ class EpisodicMemory:
         """
         return self._session_key
 
-    async def add_memory_episode(self, episode: Episode):
+    async def add_memory_episode(self, episode: Episode) -> None:
         """
         Adds a new memory episode to both session and declarative memory.
 
@@ -188,6 +191,7 @@ class EpisodicMemory:
 
         Returns:
             True if the episode was added successfully, False otherwise.
+
         """
         if not self._enabled:
             return
@@ -209,7 +213,7 @@ class EpisodicMemory:
         self._ingestion_latency_summary.observe(delta)
         self._ingestion_counter.increment()
 
-    async def close(self):
+    async def close(self) -> None:
         """
         Decrements the reference count and closes the instance if it reaches
         zero.
@@ -228,8 +232,8 @@ class EpisodicMemory:
             tasks.append(self._long_term_memory.close())
         await asyncio.gather(*tasks)
 
-    async def delete_episodes(self, uuids: Iterable[UUID]):
-        """Delete one episode by uuid"""
+    async def delete_episodes(self, uuids: Iterable[UUID]) -> None:
+        """Delete one episode by uuid."""
         if not self._enabled:
             return
 
@@ -242,7 +246,7 @@ class EpisodicMemory:
             tasks.append(self._long_term_memory.delete_episodes(uuids))
         await asyncio.gather(*tasks)
 
-    async def delete_session_episodes(self):
+    async def delete_session_episodes(self) -> None:
         """
         Deletes all data from both session and declarative memory for this
         context.
@@ -282,6 +286,7 @@ class EpisodicMemory:
             A tuple containing a list of short term memory Episode objects,
             a list of long term memory Episode objects, and a
             list of summary strings.
+
         """
         if not self._enabled:
             return [], [], []
@@ -293,7 +298,7 @@ class EpisodicMemory:
         if self._short_term_memory is None:
             short_episode: list[Episode] = []
             short_summary = ""
-            long_episode = await cast(LongTermMemory, self._long_term_memory).search(
+            long_episode = await cast("LongTermMemory", self._long_term_memory).search(
                 query,
                 search_limit,
                 property_filter,
@@ -351,6 +356,7 @@ class EpisodicMemory:
 
         Returns:
             A new query string enriched with context.
+
         """
         short_memory, long_memory, summary = await self.query_memory(
             query, limit, property_filter,

@@ -1,22 +1,12 @@
+"""Reranker configuration models."""
+
 from typing import Self
 
 from pydantic import BaseModel, Field, SecretStr
 
 
 class BM25RerankerConf(BaseModel):
-    """
-    Parameters for BM25Reranker.
-
-    Attributes:
-        k1 (float):
-            BM25 k1 parameter (default: 1.5).
-        b (float):
-            BM25 b parameter (default: 0.75).
-        epsilon (float):
-            BM25 epsilon parameter (default: 0.25).
-        tokenizer (str):
-            Tokenizer function to split text into tokens ('default' | 'simple') (default: 'default').
-    """
+    """Parameters for BM25Reranker."""
 
     k1: float = Field(default=1.5, description="BM25 k1 parameter")
     b: float = Field(default=0.75, description="BM25 b parameter")
@@ -84,6 +74,8 @@ class RRFHybridRerankerConf(BaseModel):
 
 
 class RerankerConf(BaseModel):
+    """Top-level configuration for available rerankers."""
+
     bm25: dict[str, BM25RerankerConf] = {}
     amazon_bedrock: dict[str, AmazonBedrockRerankerConf] = {}
     cross_encoder: dict[str, CrossEncoderRerankerConf] = {}
@@ -93,6 +85,7 @@ class RerankerConf(BaseModel):
 
     @classmethod
     def parse_reranker_conf(cls, input_dict: dict) -> Self:
+        """Parse reranker configuration from a raw mapping."""
         reranker = input_dict
         if "reranker" in input_dict:
             reranker = input_dict.get("reranker")

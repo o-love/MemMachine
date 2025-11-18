@@ -1,4 +1,5 @@
-"""Rename semantic type to semantic category
+"""
+Rename semantic type to semantic category.
 
 Revision ID: 843f6d216d10
 Revises: 3d6aaebdc526

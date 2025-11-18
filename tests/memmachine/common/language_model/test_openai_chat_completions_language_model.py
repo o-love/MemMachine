@@ -1,5 +1,4 @@
-"""
-Unit tests for OpenAIChatCompletionsLanguageModel.
+"""Unit tests for OpenAIChatCompletionsLanguageModel.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch

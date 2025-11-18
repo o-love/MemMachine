@@ -1,20 +1,22 @@
-from typing import Any
+from typing import Generic, TypeVar
 
+K = TypeVar("K")
+V = TypeVar("V")
 
-class Node:
+class Node(Generic[K, V]):
     """
     Node for the doubly linked list.
     Each node stores a key-value pair.
     """
 
-    def __init__(self, key: Any, value: Any):
+    def __init__(self, key: K | None, value: V | None) -> None:
         self.key = key
         self.value = value
         self.prev: Node | None = None
         self.next: Node | None = None
 
 
-class LRUCache:
+class LRUCache(Generic[K, V]):
     """
     A Least Recently Used (LRU) Cache implementation.
 
@@ -23,19 +25,20 @@ class LRUCache:
         cache (dict): A dictionary mapping keys to Node objects for O(1) lookups.
         head (Node): A sentinel head node for the doubly linked list.
         tail (Node): A sentinel tail node for the doubly linked list.
+
     """
 
-    def __init__(self, capacity: int):
+    def __init__(self, capacity: int) -> None:
         if capacity <= 0:
             raise ValueError("Capacity must be a positive integer")
         self.capacity = capacity
-        self.cache: dict[Any, Any] = {}  # Stores key -> Node
+        self.cache: dict[K, Node[K, V]] = {}  # Stores key -> Node
 
         # Initialize sentinel head and tail nodes for the doubly linked list.
         # head.next points to the most recently used item.
         # tail.prev points to the least recently used item.
-        self.head = Node(None, None)
-        self.tail = Node(None, None)
+        self.head: Node[K, V] = Node(None, None)
+        self.tail: Node[K, V] = Node(None, None)
         self.head.next = self.tail
         self.tail.prev = self.head
 
@@ -62,16 +65,14 @@ class LRUCache:
         self.head.next = self.tail
         self.tail.prev = self.head
 
-    def erase(self, key: Any) -> None:
-        """
-        Removes an item from the cache.
-        """
+    def erase(self, key: K) -> None:
+        """Removes an item from the cache."""
         if key in self.cache:
             node = self.cache[key]
             self._remove_node(node)
             del self.cache[key]
 
-    def get(self, key: Any) -> Any:
+    def get(self, key: K) -> V | None:
         """
         Retrieves an item from the cache.
         Returns the value if the key exists, otherwise -1 (or None/raise KeyError).
@@ -86,7 +87,7 @@ class LRUCache:
             return node.value
         return None
 
-    def put(self, key: Any, value: Any) -> None:
+    def put(self, key: K, value: V) -> None:
         """
         Adds or updates an item in the cache.
         If the key exists, its value is updated and it's moved to the front.

@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionService:
-    """Processes un-ingested history for each set_id and updates semantic features.
+    """
+    Processes un-ingested history for each set_id and updates semantic features.
 
     The service pulls pending messages, invokes the LLM to generate mutation commands,
     applies the resulting changes, and optionally consolidates redundant memories.
@@ -44,7 +45,7 @@ class IngestionService:
         consolidated_threshold: int = 20
         debug_fail_loudly: bool = False
 
-    def __init__(self, params: Params):
+    def __init__(self, params: Params) -> None:
         self._semantic_storage = params.semantic_storage
         self._history_store = params.history_store
         self._resource_retriever = params.resource_retriever
@@ -61,7 +62,7 @@ class IngestionService:
         if len(errors) > 0:
             raise ExceptionGroup("Failed to process set ids", errors)
 
-    async def _process_single_set(self, set_id: str):
+    async def _process_single_set(self, set_id: str) -> None:
         resources = self._resource_retriever.get_resources(set_id)
 
         history_ids = await self._semantic_storage.get_history_messages(
@@ -90,7 +91,7 @@ class IngestionService:
 
         async def process_semantic_type(
             semantic_category: InstanceOf[SemanticCategory],
-        ):
+        ) -> None:
             for message in messages:
                 if message.uuid is None:
                     raise ValueError(
@@ -157,7 +158,7 @@ class IngestionService:
         category_name: str,
         citation_id: EpisodeIdT | None,
         embedder: InstanceOf[Embedder],
-    ):
+    ) -> None:
         for command in commands:
             match command.command:
                 case SemanticCommandType.ADD:
@@ -191,8 +192,8 @@ class IngestionService:
         *,
         set_id: SetIdT,
         resources: InstanceOf[Resources],
-    ):
-        async def _consolidate_type(semantic_category: InstanceOf[SemanticCategory]):
+    ) -> None:
+        async def _consolidate_type(semantic_category: InstanceOf[SemanticCategory]) -> None:
             features = await self._semantic_storage.get_feature_set(
                 set_ids=[set_id],
                 category_names=[semantic_category.name],
@@ -230,7 +231,7 @@ class IngestionService:
         memories: list[SemanticFeature],
         semantic_category: InstanceOf[SemanticCategory],
         resources: InstanceOf[Resources],
-    ):
+    ) -> None:
         try:
             consolidate_resp = await llm_consolidate_features(
                 features=memories,
@@ -270,7 +271,7 @@ class IngestionService:
             [c_id for c_id in merged_citations],
         )
 
-        async def _add_feature(f: LLMReducedFeature):
+        async def _add_feature(f: LLMReducedFeature) -> None:
             value_embedding = (await resources.embedder.ingest_embed([f.value]))[0]
 
             f_id = await self._semantic_storage.add_feature(

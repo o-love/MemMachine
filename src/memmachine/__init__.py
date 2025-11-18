@@ -1,9 +1,11 @@
+"""Public package exports and utilities for MemMachine."""
+
 # Export REST client classes for convenient import
 from memmachine.rest_client import MemMachineClient, Memory
 
 
-def setup_nltk():
-    """Checks for and downloads required NLTK data packages."""
+def setup_nltk() -> None:
+    """Check for and download required NLTK data packages."""
     import nltk
 
     print("Checking for required NLTK data...")
@@ -22,4 +24,4 @@ def setup_nltk():
     print("\nNLTK data setup is complete. ✨")
 
 
-__all__ = ["setup_nltk", "MemMachineClient", "Memory"]
+__all__ = ["MemMachineClient", "Memory", "setup_nltk"]

@@ -24,12 +24,12 @@ class Episode:
     )
     user_metadata: JSONValue = None
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Episode):
             return False
         return self.uuid == other.uuid
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.uuid)
 
 
@@ -44,12 +44,12 @@ class Derivative:
         default_factory=dict,
     )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Derivative):
             return False
         return self.uuid == other.uuid
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.uuid)
 
 

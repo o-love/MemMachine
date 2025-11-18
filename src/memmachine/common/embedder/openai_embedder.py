@@ -1,6 +1,4 @@
-"""
-OpenAI-based embedder implementation.
-"""
+"""OpenAI-based embedder implementation."""
 
 import asyncio
 import logging
@@ -20,29 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIEmbedderParams(BaseModel):
-    """
-    Parameters for OpenAIEmbedder.
-
-    Attributes:
-        client (openai.AsyncOpenAI):
-            AsyncOpenAI client to use for making API calls.
-        model (str):
-            Name of the OpenAI embedding model to use
-            (e.g. 'text-embedding-3-small').
-        dimensions (int):
-            Dimensionality of the embedding vectors
-            produced by the OpenAI embedding model
-        max_retry_interval_seconds (int):
-            Maximal retry interval in seconds when retrying API calls
-            (default: 120).
-        metrics_factory (MetricsFactory | None):
-            An instance of MetricsFactory
-            for collecting usage metrics
-            (default: None).
-        user_metrics_labels (dict[str, str]):
-            Labels to attach to the collected metrics
-            (default: {}).
-    """
+    """Parameters for OpenAIEmbedder."""
 
     client: InstanceOf[openai.AsyncOpenAI] = Field(
         ...,
@@ -78,19 +54,10 @@ class OpenAIEmbedderParams(BaseModel):
 
 
 class OpenAIEmbedder(Embedder):
-    """
-    Embedder that uses OpenAI's embedding models
-    to generate embeddings for inputs and queries.
-    """
+    """Embedder that uses OpenAI embedding models."""
 
-    def __init__(self, params: OpenAIEmbedderParams):
-        """
-        Initialize an OpenAIEmbedder with the provided parameters.
-
-        Args:
-            params (OpenAIEmbedderParams):
-                Parameters for the OpenAIEmbedder.
-        """
+    def __init__(self, params: OpenAIEmbedderParams) -> None:
+        """Initialize the OpenAI embedder with configuration parameters."""
         super().__init__()
 
         self._client = params.client
@@ -132,6 +99,7 @@ class OpenAIEmbedder(Embedder):
         inputs: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
+        """Embed the provided inputs with retries."""
         return await self._embed(inputs, max_attempts)
 
     async def search_embed(
@@ -139,6 +107,7 @@ class OpenAIEmbedder(Embedder):
         queries: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
+        """Embed search queries with retries."""
         return await self._embed(queries, max_attempts)
 
     async def _embed(
@@ -146,6 +115,7 @@ class OpenAIEmbedder(Embedder):
         inputs: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
+        """Shared retrying embed logic."""
         if not inputs:
             return []
         if max_attempts <= 0:
@@ -269,13 +239,16 @@ class OpenAIEmbedder(Embedder):
 
     @property
     def model_id(self) -> str:
+        """Return the embedding model identifier."""
         return self._model
 
     @property
     def dimensions(self) -> int:
+        """Return the embedding dimensionality."""
         return self._dimensions
 
     @property
     def similarity_metric(self) -> SimilarityMetric:
+        """Return the similarity metric used by this embedder."""
         # https://platform.openai.com/docs/guides/embeddings
         return SimilarityMetric.COSINE

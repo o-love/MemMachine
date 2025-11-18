@@ -1,6 +1,4 @@
-"""
-Sentence transformer-based embedder implementation.
-"""
+"""Sentence transformer-based embedder implementation."""
 
 import asyncio
 import logging
@@ -19,15 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class SentenceTransformerEmbedderParams(BaseModel):
-    """
-    Parameters for SentenceTransformerEmbedder.
-
-    Attributes:
-        model_name (str):
-            The name of the sentence transformer model.
-        sentence_transformer (SentenceTransformer):
-            The sentence transformer model to use for generating embeddings.
-    """
+    """Parameters for SentenceTransformerEmbedder."""
 
     model_name: str = Field(
         ..., description="The name of the sentence transformer model.",
@@ -39,19 +29,10 @@ class SentenceTransformerEmbedderParams(BaseModel):
 
 
 class SentenceTransformerEmbedder(Embedder):
-    """
-    Embedder that uses a sentence transformer model
-    to generate embeddings for inputs and queries.
-    """
+    """Embedder powered by a sentence transformer model."""
 
-    def __init__(self, params: SentenceTransformerEmbedderParams):
-        """
-        Initialize a SentenceTransformerEmbedder with the provided parameters.
-
-        Args:
-            params (SentenceTransformerEmbedderParams):
-                Parameters for the SentenceTransformerEmbedder.
-        """
+    def __init__(self, params: SentenceTransformerEmbedderParams) -> None:
+        """Initialize the sentence transformer embedder."""
         super().__init__()
 
         self._model_name = params.model_name
@@ -82,6 +63,7 @@ class SentenceTransformerEmbedder(Embedder):
         inputs: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
+        """Embed input documents using the sentence transformer."""
         return await self._embed(inputs, max_attempts)
 
     async def search_embed(
@@ -89,6 +71,7 @@ class SentenceTransformerEmbedder(Embedder):
         queries: list[Any],
         max_attempts: int = 1,
     ) -> list[list[float]]:
+        """Embed search queries using the sentence transformer."""
         return await self._embed(queries, max_attempts, prompt_name="query")
 
     async def _embed(
@@ -97,6 +80,7 @@ class SentenceTransformerEmbedder(Embedder):
         max_attempts: int = 1,
         prompt_name: str | None = None,
     ) -> list[list[float]]:
+        """Generate embeddings with retry logic."""
         if not inputs:
             return []
         if max_attempts <= 0:
@@ -140,12 +124,15 @@ class SentenceTransformerEmbedder(Embedder):
 
     @property
     def model_id(self) -> str:
+        """Return the underlying model identifier."""
         return self._model_name
 
     @property
     def dimensions(self) -> int:
+        """Return the embedding dimensionality."""
         return self._dimensions
 
     @property
     def similarity_metric(self) -> SimilarityMetric:
+        """Return the similarity metric used."""
         return self._similarity_metric

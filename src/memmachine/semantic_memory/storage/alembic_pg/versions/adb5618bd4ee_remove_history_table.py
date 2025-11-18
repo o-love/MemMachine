@@ -1,4 +1,5 @@
-"""Remove history table
+"""
+Remove history table.
 
 Revision ID: adb5618bd4ee
 Revises: 843f6d216d10

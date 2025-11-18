@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 class ShortTermMemoryParams(BaseModel):
     """
     Parameters for configuring the short-term memory.
+
     Attributes:
         session_key (str): The unique identifier for the session.
         llm_model (LanguageModel): The language model to use for summarization.
@@ -34,6 +35,7 @@ class ShortTermMemoryParams(BaseModel):
         summary_prompt_system (str): The system prompt for the summarization.
         summary_prompt_user (str): The user prompt for the summarization.
         message_capacity (int): The maximum number of messages to summarize.
+
     """
 
     session_key: str = Field(..., description="Session identifier", min_length=1)
@@ -54,7 +56,7 @@ class ShortTermMemoryParams(BaseModel):
     )
 
     @field_validator("summary_prompt_user")
-    def validate_summary_user_prompt(cls, v):
+    def validate_summary_user_prompt(cls, v: str) -> str:
         fields = [fname for _, fname, _, _ in string.Formatter().parse(v) if fname]
         if len(fields) != 3:
             raise ValueError(f"Expect 3 fields in {v}")
@@ -82,12 +84,10 @@ class ShortTermMemory:
         param: ShortTermMemoryParams,
         summary: str = "",
         episodes: list[Episode] | None = None,
-    ):
+    ) -> None:
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-positional-arguments
-        """
-        Initializes the ShortTermMemory instance.
-        """
+        """Initializes the ShortTermMemory instance."""
         self._model: LanguageModel = param.llm_model
         self._data_manager: SessionDataManager | None = param.data_manager
         self._summary_user_prompt = param.summary_prompt_user
@@ -109,9 +109,7 @@ class ShortTermMemory:
 
     @classmethod
     async def create(cls, params: ShortTermMemoryParams) -> "ShortTermMemory":
-        """
-        Creates a new ShortTermMemory instance.
-        """
+        """Creates a new ShortTermMemory instance."""
         if params.data_manager is not None:
             try:
                 await params.data_manager.create_tables()
@@ -138,6 +136,7 @@ class ShortTermMemory:
 
         Returns:
             True if the memory is full, False otherwise.
+
         """
         result = self._current_message_len + len(self._summary) > self._max_message_len
         return result
@@ -152,6 +151,7 @@ class ShortTermMemory:
         Returns:
             True if the memory is full after adding the event, False
             otherwise.
+
         """
         async with self._lock:
             if self._closed:
@@ -165,7 +165,7 @@ class ShortTermMemory:
                 await self._do_evict()
             return full
 
-    async def _do_evict(self):
+    async def _do_evict(self) -> None:
         """
         The eviction make a copy of the episode to create summary
         asynchronously. It clears the stats. It keeps as many episode
@@ -195,7 +195,7 @@ class ShortTermMemory:
             await self._summary_task
         self._summary_task = asyncio.create_task(self._create_summary(result))
 
-    async def close(self):
+    async def close(self) -> None:
         """
         Clears all events and the summary from the short-term memory.
 
@@ -213,10 +213,8 @@ class ShortTermMemory:
             self._current_message_len = 0
             self._summary = ""
 
-    async def clear_memory(self):
-        """
-        Clear all events and summary. Reset the message length to zero.
-        """
+    async def clear_memory(self) -> None:
+        """Clear all events and summary. Reset the message length to zero."""
         async with self._lock:
             if self._closed:
                 return
@@ -228,8 +226,8 @@ class ShortTermMemory:
             self._current_message_len = 0
             self._summary = ""
 
-    async def delete_episode(self, uuid: uuid.UUID):
-        """Delete one episode by uuid"""
+    async def delete_episode(self, uuid: uuid.UUID) -> bool:
+        """Delete one episode by uuid."""
         async with self._lock:
             for e in self._memory:
                 if e.uuid == uuid:
@@ -239,7 +237,7 @@ class ShortTermMemory:
                     return True
             return False
 
-    async def _create_summary(self, episodes: list[Episode]):
+    async def _create_summary(self, episodes: list[Episode]) -> None:
         """
         Generates a new summary of the events currently in memory.
 
@@ -261,7 +259,7 @@ class ShortTermMemory:
                         meta += f"[{k}: {v}] "
                 else:
                     meta = repr(entry.metadata)
-                episode_content += f"[{str(entry.uuid)} : {meta} : {entry.content}]"
+                episode_content += f"[{entry.uuid!s} : {meta} : {entry.content}]"
             msg = self._summary_user_prompt.format(
                 episodes=episode_content,
                 summary=self._summary,
@@ -289,7 +287,7 @@ class ShortTermMemory:
 
     async def get_short_term_memory_context(
         self,
-        query,
+        query: str,
         limit: int = 0,
         max_message_length: int = 0,
         filter: dict[str, str] | None = None,
@@ -307,8 +305,8 @@ class ShortTermMemory:
 
         Returns:
             A tuple containing a list of episodes and the current summary.
-        """
 
+        """
         logger.debug("Get session for %s", query)
         async with self._lock:
             if self._closed:
@@ -345,9 +343,7 @@ class ShortTermMemory:
             return list(episodes), self._summary
 
     def _compute_episode_length(self, episode: Episode) -> int:
-        """
-        Computes the message length in an episodes.
-        """
+        """Computes the message length in an episodes."""
         result = 0
         if episode.content is None:
             return 0

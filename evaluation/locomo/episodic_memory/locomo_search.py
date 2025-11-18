@@ -90,7 +90,7 @@ async def process_question(
 ):
     memory_start = time.time()
     memory = cast(
-        EpisodicMemory,
+        "EpisodicMemory",
         await memory_manager.get_episodic_memory_instance(
             group_id=group_id,
             session_id=group_id,

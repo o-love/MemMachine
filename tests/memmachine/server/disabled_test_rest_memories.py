@@ -22,8 +22,7 @@ client = TestClient(app, raise_server_exceptions=False)
 
 @pytest.fixture(autouse=True)
 def mock_memory_managers(monkeypatch):
-    """
-    This fixture isolates the API from its dependencies.
+    """This fixture isolates the API from its dependencies.
 
     The key to this fix is patching `AsyncEpisodicMemory` where it is *used*
     (in the `app` module), not where it is defined. This ensures the mock
@@ -206,8 +205,7 @@ def test_post_memories_without_session(valid_post_payload_without_session):
 
 
 def test_post_episodic_memories_valid_string_content(valid_post_payload):
-    """
-    Test episodic memory ingestion.
+    """Test episodic memory ingestion.
     """
     response = client.post("/v1/memories/episodic", json=valid_post_payload)
     assert response.status_code in (200, 201, 204)
@@ -234,8 +232,7 @@ def test_post_episodic_memories_without_session(valid_post_payload_without_sessi
 
 
 def test_post_profile_memories_valid_string_content(valid_post_payload):
-    """
-    Test profile memory ingestion.
+    """Test profile memory ingestion.
     """
     valid_post_payload["episode_type"] = "embedding"
     response = client.post("/v1/memories/profile", json=valid_post_payload)
@@ -331,8 +328,7 @@ def test_post_memories_null_metadata(valid_post_payload):
 
 # --- Test memory query /v1/memories/search ---
 def test_memory_search_valid(valid_query_payload):
-    """
-    Test query both episodic and profile memories.
+    """Test query both episodic and profile memories.
     """
     response = client.post("/v1/memories/search", json=valid_query_payload)
     assert response.status_code in (200, 201, 204)
@@ -366,8 +362,7 @@ def test_memory_search_without_session(query_payload_without_session):
 
 # --- Test episodic memory query /v1/memories/episodic/search ---
 def test_episodic_memory_search_valid(valid_query_payload):
-    """
-    Test episodic memory query.
+    """Test episodic memory query.
     """
     response = client.post("/v1/memories/episodic/search", json=valid_query_payload)
     assert response.status_code in (200, 201, 204)
@@ -401,8 +396,7 @@ def test_episodic_memory_search_without_session(query_payload_without_session):
 
 # --- Test profile memory query /v1/memories/profile/search ---
 def test_profile_memory_search_valid(valid_query_payload):
-    """
-    Test profile memory query.
+    """Test profile memory query.
     """
     response = client.post("/v1/memories/profile/search", json=valid_query_payload)
     assert response.status_code in (200, 201, 204)

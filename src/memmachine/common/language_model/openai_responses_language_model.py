@@ -1,12 +1,10 @@
-"""
-OpenAI-based language model implementation.
-"""
+"""OpenAI-based language model implementation."""
 
 import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, TypeVar
 from uuid import uuid4
 
 import openai
@@ -16,6 +14,8 @@ from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.metrics_factory import MetricsFactory
 
 from .language_model import LanguageModel
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ class OpenAIResponsesLanguageModelParams(BaseModel):
         user_metrics_labels (dict[str, str]):
             Labels to attach to the collected metrics
             (default: {}).
+
     """
 
     client: InstanceOf[openai.AsyncOpenAI] = Field(
@@ -71,14 +72,14 @@ class OpenAIResponsesLanguageModel(LanguageModel):
     to generate responses based on prompts and tools.
     """
 
-    def __init__(self, params: OpenAIResponsesLanguageModelParams):
+    def __init__(self, params: OpenAIResponsesLanguageModelParams) -> None:
         """
-        Initialize an OpenAIResponsesLanguageModel
-        with the provided parameters.
+        Initialize the responses language model with configuration.
 
         Args:
             params (OpenAIResponsesLanguageModelParams):
                 Parameters for the OpenAIResponsesLanguageModel.
+
         """
         super().__init__()
 
@@ -132,11 +133,12 @@ class OpenAIResponsesLanguageModel(LanguageModel):
 
     async def generate_parsed_response(
         self,
-        output_format: Any,
+        output_format: type[T],
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         max_attempts: int = 1,
-    ) -> Any:
+    ) -> T:
+        """Generate a structured response parsed into the given model."""
         if max_attempts <= 0:
             raise ValueError("max_attempts must be a positive integer")
 
@@ -184,6 +186,7 @@ class OpenAIResponsesLanguageModel(LanguageModel):
         tool_choice: str | dict[str, str] | None = None,
         max_attempts: int = 1,
     ) -> tuple[str, Any]:
+        """Generate a raw text response (and optional tool call)."""
         if max_attempts <= 0:
             raise ValueError("max_attempts must be a positive integer")
 
@@ -291,7 +294,7 @@ class OpenAIResponsesLanguageModel(LanguageModel):
             function_calls_arguments,
         )
 
-    def _collect_metrics(self, response, start_time, end_time):
+    def _collect_metrics(self, response: object, start_time: float, end_time: float) -> None:
         if self._should_collect_metrics:
             if response.usage is not None:
                 self._input_tokens_usage_counter.increment(

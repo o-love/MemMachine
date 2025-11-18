@@ -1,4 +1,5 @@
 import logging
+from types import TracebackType
 from typing import Any
 from weakref import WeakSet
 
@@ -42,6 +43,7 @@ class MemMachineClient:
         # Search memories
         results = memory.search("What do I like to eat?")
         ```
+
     """
 
     def __init__(
@@ -50,8 +52,8 @@ class MemMachineClient:
         base_url: str | None = None,
         timeout: int = 30,
         max_retries: int = 3,
-        **kwargs,
-    ):
+        **kwargs: dict[str, Any],
+    ) -> None:
         """
         Initialize the MemMachine client.
 
@@ -65,6 +67,7 @@ class MemMachineClient:
 
         Raises:
             ValueError: If base_url is not provided
+
         """
         self.api_key = api_key
         # base_url is required
@@ -108,7 +111,7 @@ class MemMachineClient:
         agent_id: str | list[str] | None = None,
         user_id: str | list[str] | None = None,
         session_id: str | None = None,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> Memory:
         """
         Create a Memory instance for a specific context.
@@ -122,6 +125,7 @@ class MemMachineClient:
 
         Returns:
             Memory instance configured for the specified context
+
         """
         memory = Memory(
             client=self,
@@ -144,6 +148,7 @@ class MemMachineClient:
 
         Raises:
             requests.RequestException: If the health check fails
+
         """
         try:
             response = self._session.get(
@@ -155,7 +160,7 @@ class MemMachineClient:
             logger.error(f"Health check failed: {e}")
             raise
 
-    def close(self):
+    def close(self) -> None:
         """Close the client and clean up resources."""
         if self._closed:
             return
@@ -173,13 +178,18 @@ class MemMachineClient:
         if hasattr(self, "_session"):
             self._session.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "MemMachineClient":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Context manager exit."""
         self.close()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MemMachineClient(base_url='{self.base_url}')"

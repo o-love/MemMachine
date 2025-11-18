@@ -1,11 +1,9 @@
-"""
-Amazon Bedrock-based language model implementation.
-"""
+"""Amazon Bedrock-based language model implementation."""
 
 import asyncio
 import logging
 import time
-from typing import Any
+from typing import Any, TypeVar
 from uuid import uuid4
 
 import instructor
@@ -15,6 +13,8 @@ from memmachine.common.data_types import ExternalServiceAPIError
 from memmachine.common.metrics_factory import MetricsFactory
 
 from .language_model import LanguageModel
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ class AmazonBedrockConverseInferenceConfig(BaseModel):
         top_p (float | None):
             The percentage of probability mass to consider for the next token
             (default: None).
+
     """
 
     max_tokens: int | None = Field(
@@ -103,6 +104,7 @@ class AmazonBedrockLanguageModelParams(BaseModel):
         user_metrics_labels (dict[str, str]):
             Labels to attach to the collected metrics
             (default: {}).
+
     """
 
     client: Any = Field(
@@ -160,15 +162,16 @@ class AmazonBedrockLanguageModel(LanguageModel):
     to generate responses based on prompts and tools.
     """
 
-    def __init__(self, params: AmazonBedrockLanguageModelParams):
+    def __init__(self, params: AmazonBedrockLanguageModelParams) -> None:
         """
-        Initialize an AmazonBedrockLanguageModel
-        with the provided parameters.
-        See https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html
+        Initialize with Bedrock client parameters.
+
+        See https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html.
 
         Args:
             params (AmazonBedrockLanguageModelParams):
                 Parameters for the language model.
+
         """
         super().__init__()
 
@@ -236,11 +239,12 @@ class AmazonBedrockLanguageModel(LanguageModel):
 
     async def generate_parsed_response(
         self,
-        output_format: Any,
+        output_format: type[T],
         system_prompt: str | None = None,
         user_prompt: str | None = None,
         max_attempts: int = 1,
-    ):
+    ) -> T:
+        """Generate a structured response parsed into the given Pydantic model."""
         client = instructor.from_bedrock(self._client, async_client=True)
 
         if max_attempts <= 0:
@@ -280,6 +284,7 @@ class AmazonBedrockLanguageModel(LanguageModel):
         tool_choice: str | dict[str, str] | None = None,
         max_attempts: int = 1,
     ) -> tuple[str, Any]:
+        """Generate a raw text response (and optional tool call) from Bedrock."""
         if max_attempts <= 0:
             raise ValueError("max_attempts must be a positive integer")
 
@@ -396,7 +401,7 @@ class AmazonBedrockLanguageModel(LanguageModel):
             function_calls_arguments,
         )
 
-    def _collect_metrics(self, response, start_time, end_time):
+    def _collect_metrics(self, response: dict[str, Any], start_time: float, end_time: float) -> None:
         if self._should_collect_metrics:
             if (response_usage := response.get("usage")) is not None:
                 self._input_tokens_usage_counter.increment(
@@ -456,11 +461,10 @@ class AmazonBedrockLanguageModel(LanguageModel):
             # Convert from OpenAI format.
             if tool_choice.get("type") == "function" and "name" in tool_choice:
                 return {"tool": {"name": tool_choice["name"]}}
-            else:
-                raise ValueError(
-                    "Tool choice must be in OpenAI format "
-                    "with 'type' field equal to 'function' and 'name' specified",
-                )
+            raise ValueError(
+                "Tool choice must be in OpenAI format "
+                "with 'type' field equal to 'function' and 'name' specified",
+            )
 
         # tool_choice should be a string here.
         match tool_choice:

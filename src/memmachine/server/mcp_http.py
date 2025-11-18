@@ -10,7 +10,7 @@ from memmachine.server.app import global_memory_lifespan, mcp
 logger = logging.getLogger(__name__)
 
 
-async def run_mcp_http(host: str, port: int):
+async def run_mcp_http(host: str, port: int) -> None:
     """Run MCP server in HTTP mode."""
     try:
         logger.info(f"Starting MemMachine MCP HTTP server at http://{host}:{port}")
@@ -24,7 +24,7 @@ async def run_mcp_http(host: str, port: int):
         logger.info("MemMachine MCP HTTP server stopped")
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse and validate command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Start MemMachine MCP server in HTTP mode.",
@@ -59,7 +59,7 @@ def parse_args():
     return args
 
 
-def main():
+def main() -> None:
     args = parse_args()
     try:
         asyncio.run(run_mcp_http(args.host, args.port))

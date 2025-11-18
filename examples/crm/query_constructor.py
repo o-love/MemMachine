@@ -1,5 +1,4 @@
-"""
-CRM Query Constructor for agent query prompt for Intelligent Memory System
+"""CRM Query Constructor for agent query prompt for Intelligent Memory System
 Optimized for text rendering in Slack with structured prompt templates
 """
 

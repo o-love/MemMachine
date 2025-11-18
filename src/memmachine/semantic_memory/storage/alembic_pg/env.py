@@ -23,7 +23,7 @@ target_metadata = BaseSemanticStorage.metadata
 load_dotenv()  # Loads variables from .env file
 
 
-def pg_server():
+def pg_server() -> URL:
     host = os.environ.get("POSTGRES_HOST")
     port = os.environ.get("POSTGRES_PORT")
     user = os.environ.get("POSTGRES_USER")
@@ -44,7 +44,8 @@ def pg_server():
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """
+    Run migrations in 'offline' mode.
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
@@ -75,11 +76,11 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    """In this scenario we need to create an Engine
+    """
+    In this scenario we need to create an Engine
     and associate a connection with the context.
 
     """
-
     config.set_main_option(
         "sqlalchemy.url", pg_server().render_as_string(hide_password=False),
     )

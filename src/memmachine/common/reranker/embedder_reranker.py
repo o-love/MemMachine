@@ -1,6 +1,4 @@
-"""
-Embedder-based reranker implementation.
-"""
+"""Embedder-based reranker implementation."""
 
 import numpy as np
 from pydantic import BaseModel, Field, InstanceOf
@@ -18,6 +16,7 @@ class EmbedderRerankerParams(BaseModel):
     Attributes:
         embedder (Embedder):
             Embedder instance.
+
     """
 
     embedder: InstanceOf[Embedder] = Field(
@@ -31,13 +30,14 @@ class EmbedderReranker(Reranker):
     to score relevance of candidates to a query.
     """
 
-    def __init__(self, params: EmbedderRerankerParams):
+    def __init__(self, params: EmbedderRerankerParams) -> None:
         """
         Initialize an EmbedderReranker with the provided configuration.
 
         Args:
             params (EmbedderRerankerParams):
                 Parameters for the EmbedderReranker.
+
         """
         super().__init__()
 

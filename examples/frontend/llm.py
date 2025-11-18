@@ -70,7 +70,7 @@ def chat(messages, persona):
         )
 
         return text, dt, total_tok, (total_tok / dt if dt else total_tok)
-    elif provider == "anthropic":
+    if provider == "anthropic":
         print("Using anthropic: ", MODEL_STRING)
         t0 = time.time()
 
@@ -101,7 +101,7 @@ def chat(messages, persona):
         total_tok = len(text.split())
 
         return text, dt, total_tok, (total_tok / dt if dt else total_tok)
-    elif provider == "deepseek":
+    if provider == "deepseek":
         print("Using deepseek: ", MODEL_STRING)
         t0 = time.time()
 
@@ -132,7 +132,7 @@ def chat(messages, persona):
         total_tok = len(text.split())
 
         return text, dt, total_tok, (total_tok / dt if dt else total_tok)
-    elif provider == "meta":
+    if provider == "meta":
         print("Using meta (LLaMA): ", MODEL_STRING)
         t0 = time.time()
 
@@ -160,7 +160,7 @@ def chat(messages, persona):
         total_tok = len(text.split())
 
         return text, dt, total_tok, (total_tok / dt if dt else total_tok)
-    elif provider == "mistral":
+    if provider == "mistral":
         print("Using mistral: ", MODEL_STRING)
         t0 = time.time()
 

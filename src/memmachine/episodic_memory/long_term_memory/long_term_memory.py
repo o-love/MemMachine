@@ -35,6 +35,7 @@ class LongTermMemoryParams(BaseModel):
             Embedder instance for creating embeddings.
         reranker (Reranker):
             Reranker instance for reranking search results.
+
     """
 
     session_id: str = Field(
@@ -56,7 +57,7 @@ class LongTermMemoryParams(BaseModel):
 
 
 class LongTermMemory:
-    def __init__(self, params: LongTermMemoryParams):
+    def __init__(self, params: LongTermMemoryParams) -> None:
         self._declarative_memory = DeclarativeMemory(
             DeclarativeMemoryParams(
                 session_id=params.session_id,
@@ -66,7 +67,7 @@ class LongTermMemory:
             ),
         )
 
-    async def add_episodes(self, episodes: Iterable[Episode]):
+    async def add_episodes(self, episodes: Iterable[Episode]) -> None:
         declarative_memory_episodes = [
             DeclarativeMemoryEpisode(
                 uuid=episode.uuid,
@@ -100,7 +101,7 @@ class LongTermMemory:
         query: str,
         num_episodes_limit: int,
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
-    ):
+    ) -> list[Episode]:
         declarative_memory_episodes = await self._declarative_memory.search(
             query,
             max_num_episodes=num_episodes_limit,
@@ -138,13 +139,13 @@ class LongTermMemory:
             for declarative_memory_episode in declarative_memory_episodes
         ]
 
-    async def delete_episodes(self, uuids: Iterable[UUID]):
+    async def delete_episodes(self, uuids: Iterable[UUID]) -> None:
         await self._declarative_memory.delete_episodes(uuids)
 
     async def delete_matching_episodes(
         self,
         property_filter: Mapping[str, FilterablePropertyValue] | None = None,
-    ):
+    ) -> None:
         self._declarative_memory.delete_episodes(
             episode.uuid
             for episode in await self._declarative_memory.get_matching_episodes(
@@ -152,7 +153,7 @@ class LongTermMemory:
             )
         )
 
-    async def close(self):
+    async def close(self) -> None:
         # Do nothing.
         pass
 
@@ -181,16 +182,16 @@ class LongTermMemory:
         return Episode(
             uuid="declarative-" + str(declarative_memory_episode.uuid),
             sequence_num=cast(
-                int,
+                "int",
                 declarative_memory_episode.filterable_properties.get("sequence_num", 0),
             ),
             session_key=cast(
-                str,
+                "str",
                 declarative_memory_episode.filterable_properties.get("session_key", ""),
             ),
             episode_type=EpisodeType(
                 cast(
-                    str,
+                    "str",
                     declarative_memory_episode.filterable_properties.get(
                         "episode_type", "",
                     ),
@@ -198,7 +199,7 @@ class LongTermMemory:
             ),
             content_type=ContentType(
                 cast(
-                    str,
+                    "str",
                     declarative_memory_episode.filterable_properties.get(
                         "content_type", "",
                     ),
@@ -207,17 +208,17 @@ class LongTermMemory:
             content=declarative_memory_episode.content,
             created_at=declarative_memory_episode.timestamp,
             producer_id=cast(
-                str,
+                "str",
                 declarative_memory_episode.filterable_properties.get("producer_id", ""),
             ),
             producer_role=cast(
-                str,
+                "str",
                 declarative_memory_episode.filterable_properties.get(
                     "producer_role", "",
                 ),
             ),
             produced_for_id=cast(
-                str | None,
+                "str | None",
                 declarative_memory_episode.filterable_properties.get("produced_for_id"),
             ),
             metadata=declarative_memory_episode.user_metadata,

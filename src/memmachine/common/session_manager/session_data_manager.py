@@ -10,35 +10,29 @@ class SessionDataManager(ABC):
     """
 
     @classmethod
-    async def close(self):
-        """
-        Closes the database connection.
-        """
+    async def close(self) -> None:
+        """Closes the database connection."""
         raise NotImplementedError
 
     @abstractmethod
-    async def create_tables(self):
-        """
-        Creates the necessary tables in the database.
-        """
+    async def create_tables(self) -> None:
+        """Creates the necessary tables in the database."""
         raise NotImplementedError
 
     @abstractmethod
-    async def drop_tables(self):
-        """
-        Drops all created tables from the database.
-        """
+    async def drop_tables(self) -> None:
+        """Drops all created tables from the database."""
         raise NotImplementedError
 
     @abstractmethod
     async def create_new_session(
         self,
         session_key: str,
-        configuration: dict,
+        configuration: dict[str, object],
         param: EpisodicMemoryConf,
         description: str,
-        metadata: dict,
-    ):
+        metadata: dict[str, object],
+    ) -> None:
         """
         Creates a new session entry in the database.
 
@@ -51,16 +45,18 @@ class SessionDataManager(ABC):
 
         Raises:
             ValueError: If a session with the given session_key already exists.
+
         """
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_session(self, session_key: str):
+    async def delete_session(self, session_key: str) -> None:
         """
         Deletes a session entry from the database.
 
         Args:
             session_key: The unique identifier of the session to delete.
+
         """
         raise NotImplementedError
 
@@ -81,6 +77,7 @@ class SessionDataManager(ABC):
 
         Raises:
             ValueError: If the session with the given session_key does not exist.
+
         """
         raise NotImplementedError
 
@@ -91,13 +88,14 @@ class SessionDataManager(ABC):
 
         Returns:
             A list of session keys.
+
         """
         raise NotImplementedError
 
     @abstractmethod
     async def save_short_term_memory(
-        self, session_key: str, summary: str, last_seq, episode_num: int,
-    ):
+        self, session_key: str, summary: str, last_seq: int, episode_num: int,
+    ) -> None:
         """
         Saves or updates the short-term memory data for a session.
 
@@ -108,6 +106,7 @@ class SessionDataManager(ABC):
 
         Raises:
             ValueError: If the session with the given session_key does not exist.
+
         """
         raise NotImplementedError
 
@@ -120,5 +119,6 @@ class SessionDataManager(ABC):
             session_key: The unique identifier for the session
         Returns:
             A tuple containing the summary string and the number of episodes and the last sequence number.
+
         """
         raise NotImplementedError

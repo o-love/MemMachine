@@ -383,15 +383,14 @@ async def test_multiple_sets_processed_independently(
                     value="value_a",
                 ),
             ]
-        else:
-            return [
-                SemanticCommand(
-                    command=SemanticCommandType.ADD,
-                    feature="trait_b",
-                    tag="traits",
-                    value="value_b",
-                ),
-            ]
+        return [
+            SemanticCommand(
+                command=SemanticCommandType.ADD,
+                feature="trait_b",
+                tag="traits",
+                value="value_b",
+            ),
+        ]
 
     monkeypatch.setattr(
         "memmachine.semantic_memory.semantic_ingestion.llm_feature_update",

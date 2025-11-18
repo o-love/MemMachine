@@ -12,7 +12,8 @@ from memmachine.semantic_memory.semantic_session_resource import (
 
 
 class SemanticSessionManager:
-    """Maps high-level session operations onto set_ids managed by `SemanticService`.
+    """
+    Maps high-level session operations onto set_ids managed by `SemanticService`.
 
     The manager persists conversation history, resolves the relevant set_ids from
     `SessionData`, and dispatches calls to `SemanticService`.
@@ -21,7 +22,7 @@ class SemanticSessionManager:
     def __init__(
         self,
         semantic_service: SemanticService,
-    ):
+    ) -> None:
         self._semantic_service: SemanticService = semantic_service
 
     async def add_message(
@@ -29,7 +30,7 @@ class SemanticSessionManager:
         history_ids: list[EpisodeIdT],
         session_data: SessionData,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-    ):
+    ) -> None:
         if len(history_ids) == 0:
             return
 
@@ -134,7 +135,7 @@ class SemanticSessionManager:
         value: str | None = None,
         tag: str | None = None,
         metadata: dict[str, str] | None = None,
-    ):
+    ) -> None:
         await self._semantic_service.update_feature(
             feature_id,
             category_name=category_name,
@@ -144,7 +145,7 @@ class SemanticSessionManager:
             metadata=metadata,
         )
 
-    async def delete_features(self, feature_ids: list[FeatureIdT]):
+    async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         await self._semantic_service.delete_features(feature_ids)
 
     async def get_set_features(
@@ -175,7 +176,7 @@ class SemanticSessionManager:
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
         tags: list[str] | None = None,
-    ):
+    ) -> None:
         set_ids = self._get_set_ids(session_data, memory_type)
 
         search_opts: dict[str, Any] = {

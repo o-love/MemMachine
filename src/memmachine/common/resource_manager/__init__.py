@@ -11,10 +11,10 @@ from memmachine.common.vector_graph_store import VectorGraphStore
 
 @runtime_checkable
 class CommonResourceManager(Protocol):
-    async def build(self):
+    async def build(self) -> None:
         raise NotImplementedError
 
-    async def close(self):
+    async def close(self) -> None:
         raise NotImplementedError
 
     async def get_sql_engine(self, name: str) -> AsyncEngine:

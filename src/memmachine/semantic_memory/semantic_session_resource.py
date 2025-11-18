@@ -40,7 +40,7 @@ class SessionIdIsolationTypeChecker(Protocol):
 class SessionIdManager:
     """Generates namespaced set_ids and reports which isolation scope they belong to."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     _SESSION_ID_PREFIX: Final[str] = "mem_session_"
@@ -57,10 +57,16 @@ class SessionIdManager:
         class _SessionDataImpl:
             """Lightweight `SessionData` implementation backed by generated set_ids."""
 
-            def __init__(self, *, _user_profile_id, _role_profile_id, _session_id):
-                self._user_id = _user_profile_id
-                self._role_id = _role_profile_id
-                self._session_id = _session_id
+            def __init__(
+                self,
+                *,
+                _user_profile_id: str | None,
+                _role_profile_id: str | None,
+                _session_id: str | None,
+            ) -> None:
+                self._user_id: str | None = _user_profile_id
+                self._role_id: str | None = _role_profile_id
+                self._session_id: str | None = _session_id
 
             def user_profile_id(self) -> str | None:
                 return self._user_id
@@ -80,12 +86,11 @@ class SessionIdManager:
     def set_id_isolation_type(self, set_id: SetIdT) -> IsolationType:
         if self.is_session_id(set_id):
             return IsolationType.SESSION
-        elif self.is_producer_id(set_id):
+        if self.is_producer_id(set_id):
             return IsolationType.USER
-        elif self.is_role_id(set_id):
+        if self.is_role_id(set_id):
             return IsolationType.ROLE
-        else:
-            raise ValueError(f"Invalid id: {set_id}")
+        raise ValueError(f"Invalid id: {set_id}")
 
     def is_session_id(self, _id: str) -> bool:
         return _id.startswith(self._SESSION_ID_PREFIX)
@@ -104,7 +109,7 @@ class SessionResourceRetriever:
         self,
         session_id_manager: SessionIdIsolationTypeChecker,
         default_resources: dict[IsolationType, Resources],
-    ):
+    ) -> None:
         self._session_id_manager = session_id_manager
         self._default_resources = default_resources
 
