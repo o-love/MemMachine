@@ -4,9 +4,9 @@ import boto3
 from pydantic import InstanceOf
 from typing_extensions import runtime_checkable
 
-from ..configuration.reranker_conf import RerankerConf
-from ..embedder import Embedder
-from ..reranker import Reranker
+from memmachine.common.configuration.reranker_conf import RerankerConf
+from memmachine.common.embedder import Embedder
+from memmachine.common.reranker import Reranker
 
 
 @runtime_checkable
@@ -72,7 +72,7 @@ class RerankerManager:
             self.rerankers[name] = AmazonBedrockReranker(params)
 
     async def _build_embedder_rerankers(self, embedder_factory: EmbedderFactory):
-        from ..reranker.embedder_reranker import (
+        from memmachine.common.reranker.embedder_reranker import (
             EmbedderReranker,
             EmbedderRerankerParams,
         )
@@ -85,7 +85,7 @@ class RerankerManager:
 
     def _build_identity_rerankers(self):
         for name, conf in self.conf.identity.items():
-            from ..reranker.identity_reranker import IdentityReranker
+            from memmachine.common.reranker.identity_reranker import IdentityReranker
 
             self.rerankers[name] = IdentityReranker()
 
@@ -95,7 +95,7 @@ class RerankerManager:
         This method must be called after all individual rerankers have been built,
         """
         for name, conf in self.conf.rrf_hybrid.items():
-            from ..reranker.rrf_hybrid_reranker import (
+            from memmachine.common.reranker.rrf_hybrid_reranker import (
                 RRFHybridReranker,
                 RRFHybridRerankerParams,
             )

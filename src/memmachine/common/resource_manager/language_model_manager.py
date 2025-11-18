@@ -59,7 +59,7 @@ class LanguageModelManager:
     def _build_openai_responses_language_models(self, name: str) -> LanguageModel:
         import openai
 
-        from ..language_model.openai_responses_language_model import (
+        from memmachine.common.language_model.openai_responses_language_model import (
             OpenAIResponsesLanguageModel,
             OpenAIResponsesLanguageModelParams,
         )
@@ -84,7 +84,7 @@ class LanguageModelManager:
     ) -> LanguageModel:
         import openai
 
-        from ..language_model.openai_chat_completions_language_model import (
+        from memmachine.common.language_model.openai_chat_completions_language_model import (
             OpenAIChatCompletionsLanguageModel,
             OpenAIChatCompletionsLanguageModelParams,
         )
@@ -108,7 +108,7 @@ class LanguageModelManager:
         import boto3
         import botocore
 
-        from ..language_model.amazon_bedrock_language_model import (
+        from memmachine.common.language_model.amazon_bedrock_language_model import (
             AmazonBedrockLanguageModel,
             AmazonBedrockLanguageModelParams,
         )

@@ -59,7 +59,7 @@ class EmbedderManager:
         import botocore
         from langchain_aws import BedrockEmbeddings
 
-        from ..embedder.amazon_bedrock_embedder import (
+        from memmachine.common.embedder.amazon_bedrock_embedder import (
             AmazonBedrockEmbedder,
             AmazonBedrockEmbedderParams,
         )
@@ -90,7 +90,10 @@ class EmbedderManager:
 
         import openai
 
-        from ..embedder.openai_embedder import OpenAIEmbedder, OpenAIEmbedderParams
+        from memmachine.common.embedder.openai_embedder import (
+            OpenAIEmbedder,
+            OpenAIEmbedderParams,
+        )
 
         params = OpenAIEmbedderParams(
             client=openai.AsyncOpenAI(
@@ -110,7 +113,7 @@ class EmbedderManager:
 
         from sentence_transformers import SentenceTransformer
 
-        from ..embedder.sentence_transformer_embedder import (
+        from memmachine.common.embedder.sentence_transformer_embedder import (
             SentenceTransformerEmbedder,
             SentenceTransformerEmbedderParams,
         )

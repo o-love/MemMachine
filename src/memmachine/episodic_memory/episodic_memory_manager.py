@@ -5,13 +5,13 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field, InstanceOf
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
+from memmachine.common.resource_manager import CommonResourceManager
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.service_locator import (
     epsiodic_memory_params_from_config,
 )
 
-from ..common.resource_manager import CommonResourceManager
 from .instance_lru_cache import MemoryInstanceCache
 
 

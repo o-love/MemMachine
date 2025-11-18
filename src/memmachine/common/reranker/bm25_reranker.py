@@ -8,7 +8,8 @@ from collections.abc import Callable
 
 from rank_bm25 import BM25Okapi
 
-from ..configuration.reranker_conf import BM25RerankerConf
+from memmachine.common.configuration.reranker_conf import BM25RerankerConf
+
 from .reranker import Reranker
 
 

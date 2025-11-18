@@ -13,8 +13,9 @@ from typing import Any
 import numpy as np
 from pydantic import BaseModel, InstanceOf, validate_call
 
-from ..episode_store.episode_model import EpisodeIdT
-from ..episode_store.episode_storage import EpisodeStorage
+from memmachine.episode_store.episode_model import EpisodeIdT
+from memmachine.episode_store.episode_storage import EpisodeStorage
+
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
 from .semantic_tracker import SemanticUpdateTrackerManager

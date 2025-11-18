@@ -4,6 +4,10 @@ from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
+from memmachine.common.language_model.openai_compatible_language_model import (
+    OpenAICompatibleLanguageModel,
+)
+from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from neo4j import AsyncGraphDatabase
 from sqlalchemy import StaticPool
 from sqlalchemy.engine import URL
@@ -23,10 +27,6 @@ from memmachine.common.language_model import LanguageModel
 from memmachine.common.language_model.amazon_bedrock_language_model import (
     AmazonBedrockLanguageModel,
 )
-from memmachine.common.language_model.openai_compatible_language_model import (
-    OpenAICompatibleLanguageModel,
-)
-from memmachine.common.language_model.openai_language_model import OpenAILanguageModel
 from memmachine.episode_store.episode_sqlalchemy_store import (
     BaseHistoryStore,
     SqlAlchemyEpisodeStore,

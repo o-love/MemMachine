@@ -5,7 +5,8 @@ Cross-encoder based reranker implementation.
 import asyncio
 from typing import Any
 
-from ..configuration.reranker_conf import CrossEncoderRerankerConf
+from memmachine.common.configuration.reranker_conf import CrossEncoderRerankerConf
+
 from .reranker import Reranker
 
 
