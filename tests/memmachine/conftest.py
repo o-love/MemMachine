@@ -12,7 +12,7 @@ from testcontainers.neo4j import Neo4jContainer
 from testcontainers.postgres import PostgresContainer
 
 from memmachine.common.configuration.model_conf import (
-    AwsBedrockModelConf,
+    AmazonBedrockModelConf,
     OpenAIModelConf,
 )
 from memmachine.common.embedder.openai_embedder import (
@@ -155,7 +155,7 @@ def bedrock_integration_config():
 @pytest.fixture(scope="session")
 def bedrock_llm_model(bedrock_integration_config):
     return AmazonBedrockLanguageModel(
-        AwsBedrockModelConf(
+        AmazonBedrockModelConf(
             aws_access_key_id=bedrock_integration_config["aws_access_key_id"],
             aws_secret_access_key=bedrock_integration_config["aws_secret_access_key"],
             model_id=bedrock_integration_config["model"],

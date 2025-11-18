@@ -2,7 +2,7 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 from memmachine.common.configuration.model_conf import (
-    AwsBedrockModelConf,
+    AmazonBedrockModelConf,
     LanguageModelConf,
     OpenAICompatibleModelConf,
     OpenAIModelConf,
@@ -59,7 +59,7 @@ def test_valid_openai_model(openai_model_conf):
 
 
 def test_valid_aws_model(aws_model_conf):
-    conf = AwsBedrockModelConf(**aws_model_conf)
+    conf = AmazonBedrockModelConf(**aws_model_conf)
     assert conf.region == "us-west-2"
     assert conf.aws_access_key_id == SecretStr("aws-key-id")
     assert conf.aws_secret_access_key == SecretStr("aws-secret-key")
