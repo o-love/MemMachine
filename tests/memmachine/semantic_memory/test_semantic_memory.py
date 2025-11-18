@@ -88,7 +88,7 @@ def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
 
 @pytest.fixture
 def resources(
-    spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticCategory
+    spy_embedder: SpyEmbedder, mock_llm_model, semantic_type: SemanticCategory,
 ):
     return Resources(
         embedder=spy_embedder,
@@ -148,7 +148,7 @@ async def test_add_new_feature_stores_entry(
 
     # When retrieving the stored features
     features = await semantic_service.get_set_features(
-        SemanticService.FeatureSearchOpts(set_ids=["user-123"])
+        SemanticService.FeatureSearchOpts(set_ids=["user-123"]),
     )
 
     # Then the feature is persisted with embeddings recorded
@@ -187,7 +187,7 @@ async def test_get_set_features_filters_by_tag(
         SemanticService.FeatureSearchOpts(
             set_ids=["user-42"],
             tags=["writing_style"],
-        )
+        ),
     )
 
     # Then only matching features are returned
@@ -276,12 +276,12 @@ async def test_delete_feature_set_applies_filters(
         SemanticService.FeatureSearchOpts(
             set_ids=["user-88"],
             tags=["writing_style"],
-        )
+        ),
     )
 
     # Then only the non-matching feature remains
     remaining = await semantic_service.get_set_features(
-        SemanticService.FeatureSearchOpts(set_ids=["user-88"])
+        SemanticService.FeatureSearchOpts(set_ids=["user-88"]),
     )
     assert len(remaining) == 1
     assert remaining[0].feature_name == "favorite_color"
@@ -294,7 +294,7 @@ async def test_add_messages_tracks_uningested_counts(
 ):
     # Given a stored history message
     history_id = await add_history(
-        history_storage=episode_storage, content="Alpha memory"
+        history_storage=episode_storage, content="Alpha memory",
     )
 
     # When associating the message to a set
@@ -305,7 +305,7 @@ async def test_add_messages_tracks_uningested_counts(
 
     # When the message is marked ingested
     await semantic_storage.mark_messages_ingested(
-        set_id="user-21", history_ids=[history_id]
+        set_id="user-21", history_ids=[history_id],
     )
 
     # Then the uningested count drops to zero
@@ -319,7 +319,7 @@ async def test_add_message_to_sets_supports_multiple_targets(
 ):
     # Given a history entry
     history_id = await add_history(
-        history_storage=episode_storage, content="Alpha shared memory"
+        history_storage=episode_storage, content="Alpha shared memory",
     )
 
     # When linking the message to multiple sets

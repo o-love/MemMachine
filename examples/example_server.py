@@ -38,7 +38,7 @@ async def store_data(user_id: str, query: str):
         }
 
         response = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000
+            f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000,
         )
         response.raise_for_status()
         return {"status": "success", "data": response.json()}
@@ -64,12 +64,12 @@ async def get_data(query: str, user_id: str, timestamp: str):
         }
 
         logging.debug(
-            f"Sending POST request to {MEMORY_BACKEND_URL}/v1/memories/search"
+            f"Sending POST request to {MEMORY_BACKEND_URL}/v1/memories/search",
         )
         logging.debug(f"Search data: {search_data}")
 
         response = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000
+            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
         )
 
         logging.debug(f"Response status: {response.status_code}")
@@ -104,7 +104,7 @@ async def get_data(query: str, user_id: str, timestamp: str):
                 context_str = str(episodic_memory)
 
         formatted_query = query_constructor.create_query(
-            profile=profile_str, context=context_str, query=query
+            profile=profile_str, context=context_str, query=query,
         )
 
         return {
@@ -141,7 +141,7 @@ async def store_and_search_data(user_id: str, query: str):
         }
 
         resp = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000
+            f"{MEMORY_BACKEND_URL}/v1/memories", json=episode_data, timeout=1000,
         )
 
         logging.debug(f"Store-and-search response status: {resp.status_code}")
@@ -160,13 +160,13 @@ async def store_and_search_data(user_id: str, query: str):
         }
 
         search_resp = requests.post(
-            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000
+            f"{MEMORY_BACKEND_URL}/v1/memories/search", json=search_data, timeout=1000,
         )
 
         logging.debug(f"Store-and-search response status: {search_resp.status_code}")
         if search_resp.status_code != 200:
             logging.error(
-                f"Search failed with {search_resp.status_code}: {search_resp.text}"
+                f"Search failed with {search_resp.status_code}: {search_resp.text}",
             )
             return {
                 "status": "error",
@@ -196,7 +196,7 @@ async def store_and_search_data(user_id: str, query: str):
                 context_str = str(episodic_memory)
 
         formatted_response = query_constructor.create_query(
-            profile=profile_str, context=context_str, query=query
+            profile=profile_str, context=context_str, query=query,
         )
 
         if profile_memory and episodic_memory:

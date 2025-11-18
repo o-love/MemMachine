@@ -17,7 +17,7 @@ from tests.memmachine.common.reranker.fake_embedder import FakeEmbedder
         SimilarityMetric.DOT,
         SimilarityMetric.EUCLIDEAN,
         SimilarityMetric.MANHATTAN,
-    ]
+    ],
 )
 def embedder(request):
     return FakeEmbedder(similarity_metric=request.param)
@@ -39,7 +39,7 @@ def query(request):
         ["Apples are fruits.", "Tomatoes are red.", ""],
         [""],
         [],
-    ]
+    ],
 )
 def candidates(request):
     return request.param

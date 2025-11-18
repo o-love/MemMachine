@@ -35,7 +35,7 @@ class StorageManager:
             )
             if validate:
                 await asyncio.gather(
-                    self._validate_neo4j(), self._validate_sql_engines()
+                    self._validate_neo4j(), self._validate_sql_engines(),
                 )
         return self
 
@@ -80,7 +80,7 @@ class StorageManager:
                 neo4j_uri = f"bolt://{neo4j_host}:{neo4j_port}"
 
             driver = AsyncGraphDatabase.driver(
-                neo4j_uri, auth=(conf.user, conf.password)
+                neo4j_uri, auth=(conf.user, conf.password),
             )
             params = Neo4jVectorGraphStoreParams(
                 driver=driver,
@@ -96,7 +96,7 @@ class StorageManager:
                     record = await result.single()
                     if not record or record["ok"] != 1:
                         raise ConnectionError(
-                            f"Verification failed for Neo4J config '{name}'"
+                            f"Verification failed for Neo4J config '{name}'",
                         )
             except Exception as e:
                 await driver.close()
@@ -121,9 +121,9 @@ class StorageManager:
                     row = result.fetchone()
                     if not row or row[0] != 1:
                         raise ConnectionError(
-                            f"Verification failed for SQLite config '{name}'"
+                            f"Verification failed for SQLite config '{name}'",
                         )
             except Exception as e:
                 raise ConnectionError(
-                    f"SQLite config '{name}' failed verification: {e}"
+                    f"SQLite config '{name}' failed verification: {e}",
                 )

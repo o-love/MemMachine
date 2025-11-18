@@ -83,7 +83,7 @@ def upgrade() -> None:
     op.drop_index(op.f("idx_feature_set_id_semantic_type"), table_name="feature")
     op.drop_index(op.f("idx_feature_set_semantic_type_tag"), table_name="feature")
     op.drop_index(
-        op.f("idx_feature_set_semantic_type_tag_feature"), table_name="feature"
+        op.f("idx_feature_set_semantic_type_tag_feature"), table_name="feature",
     )
     op.create_index(
         "idx_feature_set_id_semantic_category",

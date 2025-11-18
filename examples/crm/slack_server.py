@@ -17,7 +17,7 @@ load_dotenv()
 # Setup balanced logging - informative but not overwhelming
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper() or "INFO"
 logging.basicConfig(
-    level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ async def slack_events(
     request: Request,
     x_slack_signature: str | None = Header(default=None, alias="X-Slack-Signature"),
     x_slack_request_timestamp: str | None = Header(
-        default=None, alias="X-Slack-Request-Timestamp"
+        default=None, alias="X-Slack-Request-Timestamp",
     ),
 ):
     signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
@@ -72,7 +72,7 @@ async def slack_events(
         not x_slack_signature
         or not x_slack_request_timestamp
         or not verify_slack_signature(
-            signing_secret, x_slack_request_timestamp, x_slack_signature, raw_body
+            signing_secret, x_slack_request_timestamp, x_slack_signature, raw_body,
         )
     ):
         logger.warning("[SLACK] Invalid signature")
@@ -94,7 +94,7 @@ async def slack_events(
     # Only log important events, not every message
     if event_type == "message" and not subtype and not bot_id:
         logger.debug(
-            f"[SLACK] Processing message from user {user} in channel {channel}"
+            f"[SLACK] Processing message from user {user} in channel {channel}",
         )
 
     if event_type != "message" or subtype is not None or bot_id:
@@ -111,7 +111,7 @@ async def slack_events(
     if low.startswith("*q") or low.startswith("*q "):
         query_text = stripped[2:].lstrip()
         asyncio.create_task(
-            process_query_and_reply(channel, ts, thread_ts, user, query_text)
+            process_query_and_reply(channel, ts, thread_ts, user, query_text),
         )
         return PlainTextResponse(content="ok")
 
@@ -121,7 +121,7 @@ async def slack_events(
 
 
 def verify_slack_signature(
-    secret: str, timestamp: str, signature: str, body: bytes
+    secret: str, timestamp: str, signature: str, body: bytes,
 ) -> bool:
     try:
         req_ts = int(timestamp)
@@ -137,7 +137,7 @@ def verify_slack_signature(
 
 
 async def process_memory_post(
-    channel: str, ts: str, thread_ts: str | None, user: str, text: str
+    channel: str, ts: str, thread_ts: str | None, user: str, text: str,
 ) -> bool:
     """Post all messages to memory system with efficient deduplication
 
@@ -184,7 +184,7 @@ async def process_memory_post(
 
 
 async def process_query_and_reply(
-    channel: str, ts: str, thread_ts: str | None, user: str, query_text: str
+    channel: str, ts: str, thread_ts: str | None, user: str, query_text: str,
 ):
     """Handle *Q queries by searching memory and using OpenAI chat completion"""
     logger.info(f"[SLACK] Processing query from user {user}: {query_text[:50]}...")
@@ -208,7 +208,7 @@ async def process_query_and_reply(
                     formatted_query = data.get("formatted_query", "")
 
                     response_text = await generate_openai_response(
-                        formatted_query, query_text
+                        formatted_query, query_text,
                     )
                 else:
                     response_text = (
@@ -222,7 +222,7 @@ async def process_query_and_reply(
         response_text = f"⚠️ Error searching memory: {str(e)}"
 
     await slack_service.post_message(
-        channel=channel, text=response_text, thread_ts=thread_ts or ts
+        channel=channel, text=response_text, thread_ts=thread_ts or ts,
     )
     logger.info("[SLACK] Query response posted")
 
@@ -250,7 +250,7 @@ async def generate_openai_response(formatted_query: str, original_query: str) ->
         logger.debug(f"[OPENAI] Sending request with {len(formatted_query)} characters")
 
         response = await client.chat.completions.create(
-            model="gpt-4o-mini", messages=messages, max_tokens=1000, temperature=0.7
+            model="gpt-4o-mini", messages=messages, max_tokens=1000, temperature=0.7,
         )
 
         response_text = response.choices[0].message.content
@@ -326,7 +326,7 @@ async def main():
     print(f"{'=' * 50}")
 
     historical_task = asyncio.create_task(
-        ingest_historical_messages_with_limit(message_limit)
+        ingest_historical_messages_with_limit(message_limit),
     )
 
     try:
@@ -344,7 +344,7 @@ async def main():
 async def ingest_historical_messages_with_limit(message_limit: int):
     """Ingest historical messages with the specified limit"""
     logger.info(
-        f"[SLACK] Starting historical message ingestion with limit: {message_limit}"
+        f"[SLACK] Starting historical message ingestion with limit: {message_limit}",
     )
 
     reset_counters()
@@ -352,7 +352,7 @@ async def ingest_historical_messages_with_limit(message_limit: int):
     enable_historical = os.getenv("SLACK_ENABLE_HISTORICAL", "true").lower() == "true"
     if not enable_historical:
         logger.info(
-            "[SLACK] Historical ingestion disabled via SLACK_ENABLE_HISTORICAL=false"
+            "[SLACK] Historical ingestion disabled via SLACK_ENABLE_HISTORICAL=false",
         )
         return
 
@@ -360,7 +360,7 @@ async def ingest_historical_messages_with_limit(message_limit: int):
         channels = await slack_service.get_all_channels()
         if not channels:
             logger.warning(
-                "[SLACK] No accessible channels found for historical ingestion"
+                "[SLACK] No accessible channels found for historical ingestion",
             )
             print("❌ No accessible channels found")
             return
@@ -386,7 +386,7 @@ async def ingest_historical_messages_with_limit(message_limit: int):
             print(f"  #{channel_name}...", end=" ", flush=True)
 
             messages = await slack_service.get_channel_history(
-                channel_id, limit=message_limit
+                channel_id, limit=message_limit,
             )
 
             if not messages:
@@ -406,7 +406,7 @@ async def ingest_historical_messages_with_limit(message_limit: int):
                     continue
 
                 was_skipped = await process_memory_post(
-                    channel_id, ts, thread_ts, user, text
+                    channel_id, ts, thread_ts, user, text,
                 )
 
                 if was_skipped:
@@ -417,7 +417,7 @@ async def ingest_historical_messages_with_limit(message_limit: int):
                 await asyncio.sleep(0.1)
 
             logger.info(
-                f"[SLACK] Processed {channel_processed} messages, skipped {channel_skipped} messages from channel {channel_name}"
+                f"[SLACK] Processed {channel_processed} messages, skipped {channel_skipped} messages from channel {channel_name}",
             )
             if channel_skipped > 0:
                 print(f"✅ {channel_processed} processed, {channel_skipped} skipped")
@@ -429,14 +429,14 @@ async def ingest_historical_messages_with_limit(message_limit: int):
         print("INGESTION COMPLETE")
         print(f"{'=' * 50}")
         print(
-            f"Total: {counters['processed']} processed, {counters['skipped']} skipped"
+            f"Total: {counters['processed']} processed, {counters['skipped']} skipped",
         )
         if counters["errors"] > 0:
             print(f"❌ Errors: {counters['errors']}")
         print(f"{'=' * 50}")
 
         logger.info(
-            f"[SLACK] Historical ingestion complete. Processed: {counters['processed']}, Skipped: {counters['skipped']}, Errors: {counters['errors']}"
+            f"[SLACK] Historical ingestion complete. Processed: {counters['processed']}, Skipped: {counters['skipped']}, Errors: {counters['errors']}",
         )
 
     except Exception as e:

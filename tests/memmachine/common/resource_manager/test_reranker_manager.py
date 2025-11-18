@@ -20,14 +20,14 @@ def mock_conf():
         rrf_hybrid={
             "my_reranker_id": RRFHybridRerankerConf(
                 reranker_ids=["bm_ranker_id", "ce_ranker_id", "id_ranker_id"],
-            )
+            ),
         },
         identity={"id_ranker_id": {}},
         bm25={"bm_ranker_id": BM25RerankerConf(tokenize="simple")},
         cross_encoder={
             "ce_ranker_id": CrossEncoderRerankerConf(
                 model_name="cross-encoder/qnli-electra-base",
-            )
+            ),
         },
         amazon_bedrock={
             "aws_reranker_id": AmazonBedrockRerankerConf(
@@ -35,7 +35,7 @@ def mock_conf():
                 aws_access_key_id=SecretStr("<AWS_ACCESS_KEY_ID>"),
                 aws_secret_access_key=SecretStr("<AWS_SECRET_ACCESS_KEY>"),
                 region="us-east-1",
-            )
+            ),
         },
     )
     return conf
@@ -73,7 +73,7 @@ async def test_lazy_initialization(reranker_manager):
 @pytest.mark.asyncio
 async def test_reranker_not_found(reranker_manager):
     with pytest.raises(
-        ValueError, match="Reranker with name unknown_reranker_id not found."
+        ValueError, match="Reranker with name unknown_reranker_id not found.",
     ):
         await reranker_manager.get_reranker("unknown_reranker_id")
 

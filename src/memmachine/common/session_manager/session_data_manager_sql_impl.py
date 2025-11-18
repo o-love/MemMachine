@@ -66,7 +66,7 @@ class SessionDataManagerSQL(SessionDataManager):
         user_metadata: Mapped[JSONColumn]
         __table_args__ = (PrimaryKeyConstraint("session_key"),)
         short_term_memory_data = relationship(
-            "ShortTermMemoryData", cascade="all, delete-orphan"
+            "ShortTermMemoryData", cascade="all, delete-orphan",
         )
 
     class ShortTermMemoryData(Base):  # pylint: disable=too-few-public-methods
@@ -94,7 +94,7 @@ class SessionDataManagerSQL(SessionDataManager):
         """
         self._engine = engine
         self._async_session = async_sessionmaker(
-            bind=self._engine, expire_on_commit=False
+            bind=self._engine, expire_on_commit=False,
         )
         if schema:
             for table in Base.metadata.tables.values():
@@ -147,8 +147,8 @@ class SessionDataManagerSQL(SessionDataManager):
             # Query for an existing session with the same ID
             sessions = await dbsession.execute(
                 select(self.SessionConfig).where(
-                    self.SessionConfig.session_key == session_key
-                )
+                    self.SessionConfig.session_key == session_key,
+                ),
             )
             session = sessions.first()
             if session is not None:
@@ -181,7 +181,7 @@ class SessionDataManagerSQL(SessionDataManager):
             return
 
     async def get_session_info(
-        self, session_key: str
+        self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """Retrieves a session's data from the database.
 
@@ -198,8 +198,8 @@ class SessionDataManagerSQL(SessionDataManager):
         async with self._async_session() as dbsession:
             sessions = await dbsession.execute(
                 select(self.SessionConfig).where(
-                    self.SessionConfig.session_key == session_key
-                )
+                    self.SessionConfig.session_key == session_key,
+                ),
             )
             session = sessions.scalars().first()
             if session is None:
@@ -232,7 +232,7 @@ class SessionDataManagerSQL(SessionDataManager):
 
         else:
             raise NotImplementedError(
-                f"json_contains not supported for dialect '{self._engine.dialect.name}'"
+                f"json_contains not supported for dialect '{self._engine.dialect.name}'",
             )
 
     async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
@@ -245,14 +245,14 @@ class SessionDataManagerSQL(SessionDataManager):
             stmt = select(self.SessionConfig.session_key)
         else:
             stmt = select(self.SessionConfig.session_key).where(
-                self._json_contains(self.SessionConfig.user_metadata, filter)
+                self._json_contains(self.SessionConfig.user_metadata, filter),
             )
         async with self._async_session() as dbsession:
             sessions = await dbsession.execute(stmt)
             return list(sessions.scalars().all())
 
     async def save_short_term_memory(
-        self, session_key: str, summary: str, last_seq: int, episode_num: int
+        self, session_key: str, summary: str, last_seq: int, episode_num: int,
     ):
         """Saves or updates the short-term memory data for a session.
 
@@ -266,16 +266,16 @@ class SessionDataManagerSQL(SessionDataManager):
             # Query for an existing session with the same ID
             sessions = await dbsession.execute(
                 select(self.SessionConfig).where(
-                    self.SessionConfig.session_key == session_key
-                )
+                    self.SessionConfig.session_key == session_key,
+                ),
             )
             session = sessions.first()
             if session is None:
                 raise ValueError(f"""Session {session_key} does not exists""")
             short_term_datas = await dbsession.execute(
                 select(self.ShortTermMemoryData).where(
-                    self.ShortTermMemoryData.session_key == session_key
-                )
+                    self.ShortTermMemoryData.session_key == session_key,
+                ),
             )
             short_term_data = short_term_datas.scalars().first()
             if short_term_data is not None:
@@ -318,8 +318,8 @@ class SessionDataManagerSQL(SessionDataManager):
                 (
                     await dbsession.execute(
                         select(self.ShortTermMemoryData).where(
-                            self.ShortTermMemoryData.session_key == session_key
-                        )
+                            self.ShortTermMemoryData.session_key == session_key,
+                        ),
                     )
                 )
                 .scalars()
@@ -327,7 +327,7 @@ class SessionDataManagerSQL(SessionDataManager):
             )
             if short_term_data is None:
                 raise ValueError(
-                    f"""session {session_key} does not have short term memory"""
+                    f"""session {session_key} does not have short term memory""",
                 )
             return (
                 short_term_data.summary,

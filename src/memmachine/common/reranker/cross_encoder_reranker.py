@@ -20,7 +20,7 @@ class CrossEncoderRerankerParams(BaseModel):
     """
 
     cross_encoder: InstanceOf[CrossEncoder] = Field(
-        ..., description="The cross-encoder model to use for reranking"
+        ..., description="The cross-encoder model to use for reranking",
     )
 
 

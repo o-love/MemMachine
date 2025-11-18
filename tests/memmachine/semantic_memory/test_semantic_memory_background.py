@@ -163,7 +163,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
             feature="favorite_color",
             tag="preferences",
             value="blue",
-        )
+        ),
     ]
 
     async def mock_llm_update(*args, **kwargs):
@@ -180,7 +180,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     await service.add_messages(set_id="user-123", history_ids=[msg1])
 
     msg2 = await add_history(
-        history_storage=episode_storage, content="Blue is my favorite"
+        history_storage=episode_storage, content="Blue is my favorite",
     )
     await service.add_messages(set_id="user-123", history_ids=[msg2])
 
@@ -238,7 +238,7 @@ async def test_background_ingestion_with_time_based_trigger(
             feature="activity",
             tag="hobbies",
             value="reading",
-        )
+        ),
     ]
 
     async def mock_llm_update(*args, **kwargs):
@@ -251,7 +251,7 @@ async def test_background_ingestion_with_time_based_trigger(
 
     # Add a single message
     msg1 = await add_history(
-        history_storage=episode_storage, content="I enjoy reading books"
+        history_storage=episode_storage, content="I enjoy reading books",
     )
     await service.add_messages(set_id="user-456", history_ids=[msg1])
 
@@ -381,7 +381,7 @@ async def test_multiple_sets_processed_independently(
                     feature="trait_a",
                     tag="traits",
                     value="value_a",
-                )
+                ),
             ]
         else:
             return [
@@ -390,7 +390,7 @@ async def test_multiple_sets_processed_independently(
                     feature="trait_b",
                     tag="traits",
                     value="value_b",
-                )
+                ),
             ]
 
     monkeypatch.setattr(
@@ -401,20 +401,20 @@ async def test_multiple_sets_processed_independently(
     # Add messages for two different sets
     # Need to add them separately so tracker counts each one
     msg_a1 = await add_history(
-        history_storage=episode_storage, content="user-a message 1"
+        history_storage=episode_storage, content="user-a message 1",
     )
     await service.add_messages(set_id="user-a", history_ids=[msg_a1])
     msg_a2 = await add_history(
-        history_storage=episode_storage, content="user-a message 2"
+        history_storage=episode_storage, content="user-a message 2",
     )
     await service.add_messages(set_id="user-a", history_ids=[msg_a2])
 
     msg_b1 = await add_history(
-        history_storage=episode_storage, content="user-b message 1"
+        history_storage=episode_storage, content="user-b message 1",
     )
     await service.add_messages(set_id="user-b", history_ids=[msg_b1])
     msg_b2 = await add_history(
-        history_storage=episode_storage, content="user-b message 2"
+        history_storage=episode_storage, content="user-b message 2",
     )
     await service.add_messages(set_id="user-b", history_ids=[msg_b2])
 

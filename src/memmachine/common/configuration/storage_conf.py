@@ -9,10 +9,10 @@ class Neo4JConf(BaseModel):
     port: int = Field(default=7687, description="neo4j connection port")
     user: str = Field(default="neo4j", description="neo4j username")
     password: SecretStr = Field(
-        default=SecretStr("neo4j_password"), description="neo4j database password"
+        default=SecretStr("neo4j_password"), description="neo4j database password",
     )
     force_exact_similarity_search: bool = Field(
-        default=False, description="Whether to force exact similarity search"
+        default=False, description="Whether to force exact similarity search",
     )
 
 
@@ -67,7 +67,7 @@ class StorageConf(BaseModel):
                 )
             else:
                 raise ValueError(
-                    f"Unknown provider '{provider}' for storage_id '{storage_id}'"
+                    f"Unknown provider '{provider}' for storage_id '{storage_id}'",
                 )
 
         return cls(

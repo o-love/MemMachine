@@ -68,10 +68,10 @@ class SemanticResourceManager:
         simple_session_id_manager = self.simple_semantic_session_id_manager
 
         default_embedder = await self._resource_manager.get_embedder(
-            self._conf.embedding_model
+            self._conf.embedding_model,
         )
         default_model = await self._resource_manager.get_language_model(
-            self._conf.llm_model
+            self._conf.llm_model,
         )
 
         class SemanticResourceRetriever:
@@ -106,7 +106,7 @@ class SemanticResourceManager:
                 semantic_storage=semantic_storage,
                 history_storage=history_store,
                 resource_retriever=resource_retriever,
-            )
+            ),
         )
         return self._semantic_service
 

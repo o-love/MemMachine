@@ -99,7 +99,7 @@ def test_init_with_full_config(mock_async_openai, full_config):
     """Test successful initialization with all optional parameters."""
     _ = OpenAIResponsesLanguageModel(full_config)
     mock_async_openai.assert_called_once_with(
-        api_key="test_api_key", base_url="http://localhost:8080"
+        api_key="test_api_key", base_url="http://localhost:8080",
     )
 
 
@@ -109,7 +109,7 @@ def test_init_missing_client():
         OpenAIResponsesLanguageModel(
             OpenAIResponsesLanguageModelParams(
                 model="test-model",
-            )
+            ),
         )
 
 
@@ -121,7 +121,7 @@ def test_init_missing_model():
                 client=openai.AsyncOpenAI(
                     api_key="test_api_key",
                 ),
-            )
+            ),
         )
 
 
@@ -187,7 +187,7 @@ async def test_generate_response_success(mock_async_openai, minimal_config):
 
     lm = OpenAIResponsesLanguageModel(minimal_config)
     content, tool_calls = await lm.generate_response(
-        system_prompt="System prompt", user_prompt="User prompt"
+        system_prompt="System prompt", user_prompt="User prompt",
     )
     assert content == "Hello, world!"
     assert tool_calls == []
@@ -219,7 +219,7 @@ async def test_generate_response_with_tool_calls(mock_async_openai, minimal_conf
 
     lm = OpenAIResponsesLanguageModel(minimal_config)
     content, tool_calls = await lm.generate_response(
-        system_prompt="System prompt", user_prompt="User prompt"
+        system_prompt="System prompt", user_prompt="User prompt",
     )
 
     assert content is None
@@ -230,13 +230,13 @@ async def test_generate_response_with_tool_calls(mock_async_openai, minimal_conf
                 "name": "get_weather",
                 "arguments": {"location": "Boston"},
             },
-        }
+        },
     ]
 
 
 @pytest.mark.asyncio
 async def test_generate_response_tool_call_json_error(
-    mock_async_openai, minimal_config
+    mock_async_openai, minimal_config,
 ):
     """Test handling of invalid JSON in tool call arguments."""
     mock_tool_call = MagicMock()
@@ -256,14 +256,14 @@ async def test_generate_response_tool_call_json_error(
     lm = OpenAIResponsesLanguageModel(minimal_config)
     with pytest.raises(ValueError, match="JSON decode error"):
         await lm.generate_response(
-            system_prompt="System prompt", user_prompt="User prompt"
+            system_prompt="System prompt", user_prompt="User prompt",
         )
 
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
 async def test_generate_response_retry_on_rate_limit(
-    mock_sleep, mock_async_openai, minimal_config
+    mock_sleep, mock_async_openai, minimal_config,
 ):
     """Test retry logic on RateLimitError."""
     mock_response = MagicMock()
@@ -288,7 +288,7 @@ async def test_generate_response_retry_on_rate_limit(
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
 async def test_generate_response_retry_on_rate_limit_with_max_retry_interval_seconds(
-    mock_sleep, mock_async_openai, max_retry_interval_seconds_config
+    mock_sleep, mock_async_openai, max_retry_interval_seconds_config,
 ):
     """Test retry logic on RateLimitError."""
     mock_response = MagicMock()
@@ -298,7 +298,7 @@ async def test_generate_response_retry_on_rate_limit_with_max_retry_interval_sec
 
     mock_client = mock_async_openai.return_value
     mock_client.responses.create.side_effect = openai.RateLimitError(
-        "rate limited", response=MagicMock(), body=None
+        "rate limited", response=MagicMock(), body=None,
     )
 
     lm = OpenAIResponsesLanguageModel(max_retry_interval_seconds_config)
@@ -313,14 +313,14 @@ async def test_generate_response_retry_on_rate_limit_with_max_retry_interval_sec
             ((4,),),
             ((4,),),
             ((4,),),
-        ]
+        ],
     )
 
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
 async def test_generate_response_fail_after_max_retries(
-    mock_sleep, mock_async_openai, minimal_config
+    mock_sleep, mock_async_openai, minimal_config,
 ):
     """Test that an IOError is raised after max_attempts are exhausted."""
     mock_client = mock_async_openai.return_value
@@ -348,7 +348,7 @@ async def test_generate_response_fail_after_max_retries(
     ],
 )
 async def test_generate_response_runtime_exception_mapping(
-    mock_async_openai, minimal_config, exception
+    mock_async_openai, minimal_config, exception,
 ):
     """Test that OpenAI exceptions are correctly mapped to generic
     exceptions.

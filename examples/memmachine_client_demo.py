@@ -296,7 +296,7 @@ def main():
     base_url = os.getenv("MEMORY_BACKEND_URL", "http://localhost:8080")
     print("\nConfiguration:")
     print(
-        f"  MEMORY_BACKEND_URL: {os.getenv('MEMORY_BACKEND_URL', 'not set (using default)')}"
+        f"  MEMORY_BACKEND_URL: {os.getenv('MEMORY_BACKEND_URL', 'not set (using default)')}",
     )
     print(f"  Using base_url: {base_url}")
     print(f"\nMake sure MemMachine server is running on {base_url}")

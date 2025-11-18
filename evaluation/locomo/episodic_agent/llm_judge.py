@@ -51,7 +51,7 @@ def evaluate_llm_judge(question, gold_answer, generated_answer):
                     gold_answer=gold_answer,
                     generated_answer=generated_answer,
                 ),
-            }
+            },
         ],
         response_format={"type": "json_object"},
         temperature=0.0,
@@ -105,7 +105,7 @@ def main():
                     "response": generated_answer,
                     "category": category,
                     "llm_label": label,
-                }
+                },
             )
 
             # Save intermediate results
@@ -118,7 +118,7 @@ def main():
                 if results:  # Only print if there are results for this category
                     print(
                         f"  Category {cat}: {np.mean(results):.4f} "
-                        f"({sum(results)}/{len(results)})"
+                        f"({sum(results)}/{len(results)})",
                     )
             print("------------------------------------------")
         index += 1

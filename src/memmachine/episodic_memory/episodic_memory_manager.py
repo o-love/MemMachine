@@ -26,7 +26,7 @@ class EpisodicMemoryManagerParams(BaseModel):
     """
 
     instance_cache_size: int = Field(
-        default=100, gt=0, description="The maximum number of instances to cache"
+        default=100, gt=0, description="The maximum number of instances to cache",
     )
     max_life_time: int = Field(
         default=600,
@@ -34,10 +34,10 @@ class EpisodicMemoryManagerParams(BaseModel):
         description="The maximum idle lifetime of an instance in seconds",
     )
     resource_manager: InstanceOf[CommonResourceManager] = Field(
-        ..., description="Resource manager"
+        ..., description="Resource manager",
     )
     session_data_manager: InstanceOf[SessionDataManager] = Field(
-        ..., description="Session data manager"
+        ..., description="Session data manager",
     )
 
 
@@ -60,7 +60,7 @@ class EpisodicMemoryManager:
             params: The configuration parameters for the manager.
         """
         self._instance_cache: MemoryInstanceCache = MemoryInstanceCache(
-            params.instance_cache_size, params.max_life_time
+            params.instance_cache_size, params.max_life_time,
         )
         self._resource_manager = params.resource_manager
         self._session_data_manager = params.session_data_manager
@@ -68,7 +68,7 @@ class EpisodicMemoryManager:
         self._lock = asyncio.Lock()
         self._closed = False
         self._check_instance_task = asyncio.create_task(
-            self._check_instance_life_time()
+            self._check_instance_life_time(),
         )
 
     async def _check_instance_life_time(self):
@@ -79,7 +79,7 @@ class EpisodicMemoryManager:
 
     @asynccontextmanager
     async def open_episodic_memory(
-        self, session_key: str
+        self, session_key: str,
     ) -> AsyncIterator[EpisodicMemory]:
         """
         Asynchronously provides a SemanticMemory instance for a given session key.
@@ -113,7 +113,7 @@ class EpisodicMemoryManager:
                     episodic_memory_config,
                 ) = await self._session_data_manager.get_session_info(session_key)
                 episodic_memory_params = await epsiodic_memory_params_from_config(
-                    episodic_memory_config, self._resource_manager
+                    episodic_memory_config, self._resource_manager,
                 )
                 instance = EpisodicMemory(episodic_memory_params)
                 await self._instance_cache.add(session_key, instance)
@@ -153,10 +153,10 @@ class EpisodicMemoryManager:
                 raise RuntimeError(f"Memory is closed {session_key}")
 
             await self._session_data_manager.create_new_session(
-                session_key, config, episodic_memory_config, description, metadata
+                session_key, config, episodic_memory_config, description, metadata,
             )
             episodic_memory_params = await epsiodic_memory_params_from_config(
-                episodic_memory_config, self._resource_manager
+                episodic_memory_config, self._resource_manager,
             )
             instance = EpisodicMemory(episodic_memory_params)
             await self._instance_cache.add(session_key, instance)
@@ -195,7 +195,7 @@ class EpisodicMemoryManager:
                     episodic_memory_config,
                 ) = await self._session_data_manager.get_session_info(session_key)
                 params = await epsiodic_memory_params_from_config(
-                    episodic_memory_config, self._resource_manager
+                    episodic_memory_config, self._resource_manager,
                 )
                 instance = EpisodicMemory(params)
             await instance.delete_session_episodes()
@@ -203,7 +203,7 @@ class EpisodicMemoryManager:
             await self._session_data_manager.delete_session(session_key)
 
     async def get_episodic_memory_keys(
-        self, filter: dict[str, str] | None
+        self, filter: dict[str, str] | None,
     ) -> list[str]:
         """
         Retrieves a list of all available episodic memory session keys.
@@ -214,7 +214,7 @@ class EpisodicMemoryManager:
         return await self._session_data_manager.get_sessions(filter)
 
     async def get_session_configuration(
-        self, session_key: str
+        self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """
         Retrieves the configuration, description, and metadata for a given session.

@@ -33,7 +33,7 @@ class SlackService:
             return display or real or user_id
         except SlackApiError as e:
             logger.error(
-                f"[SLACK] users.info failed: {e.response['error'] if hasattr(e, 'response') else str(e)}"
+                f"[SLACK] users.info failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return user_id
         except Exception:
@@ -41,19 +41,19 @@ class SlackService:
             return user_id
 
     async def post_message(
-        self, channel: str, text: str, thread_ts: str | None = None
+        self, channel: str, text: str, thread_ts: str | None = None,
     ) -> str | None:
         """
         Post a message to a channel (optionally in a thread). Returns ts if successful.
         """
         try:
             resp = await self.client.chat_postMessage(
-                channel=channel, text=text, thread_ts=thread_ts, mrkdwn=True
+                channel=channel, text=text, thread_ts=thread_ts, mrkdwn=True,
             )
             return resp.get("ts")
         except SlackApiError as e:
             logger.error(
-                f"[SLACK] chat.postMessage failed: {e.response['error'] if hasattr(e, 'response') else str(e)}"
+                f"[SLACK] chat.postMessage failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return None
         except Exception:
@@ -61,7 +61,7 @@ class SlackService:
             return None
 
     async def get_channel_history(
-        self, channel: str, limit: int = 1000
+        self, channel: str, limit: int = 1000,
     ) -> list[dict[str, Any]]:
         """
         Fetch historical messages from a Slack channel.
@@ -73,7 +73,7 @@ class SlackService:
 
             while True:
                 resp = await self.client.conversations_history(
-                    channel=channel, limit=min(limit, 200), cursor=cursor
+                    channel=channel, limit=min(limit, 200), cursor=cursor,
                 )
 
                 batch_messages = resp.get("messages", [])
@@ -93,13 +93,13 @@ class SlackService:
                     break
 
             logger.info(
-                f"[SLACK] Fetched {len(messages)} historical messages from channel {channel}"
+                f"[SLACK] Fetched {len(messages)} historical messages from channel {channel}",
             )
             return messages
 
         except SlackApiError as e:
             logger.error(
-                f"[SLACK] conversations.history failed: {e.response['error'] if hasattr(e, 'response') else str(e)}"
+                f"[SLACK] conversations.history failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return []
         except Exception:
@@ -116,7 +116,7 @@ class SlackService:
 
             while True:
                 resp = await self.client.conversations_list(
-                    types="public_channel,private_channel", cursor=cursor, limit=200
+                    types="public_channel,private_channel", cursor=cursor, limit=200,
                 )
 
                 batch_channels = resp.get("channels", [])
@@ -140,7 +140,7 @@ class SlackService:
 
         except SlackApiError as e:
             logger.error(
-                f"[SLACK] conversations.list failed: {e.response['error'] if hasattr(e, 'response') else str(e)}"
+                f"[SLACK] conversations.list failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
             )
             return []
         except Exception:

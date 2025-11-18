@@ -53,7 +53,7 @@ def vector_graph_store(neo4j_driver):
         Neo4jVectorGraphStoreParams(
             driver=neo4j_driver,
             force_exact_similarity_search=True,
-        )
+        ),
     )
 
 
@@ -68,7 +68,7 @@ def vector_graph_store_ann(neo4j_driver):
             range_index_hierarchies=[["group", "session"]],
             range_index_creation_threshold=0,
             vector_index_creation_threshold=0,
-        )
+        ),
     )
 
 
@@ -79,7 +79,7 @@ async def db_cleanup(neo4j_driver):
 
     # Drop all constraints.
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW CONSTRAINTS YIELD name RETURN name"
+        "SHOW CONSTRAINTS YIELD name RETURN name",
     )
     drop_constraint_tasks = [
         neo4j_driver.execute_query(f"DROP CONSTRAINT {record['name']} IF EXISTS")
@@ -88,7 +88,7 @@ async def db_cleanup(neo4j_driver):
 
     # Drop all range indexes.
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW RANGE INDEXES YIELD name RETURN name"
+        "SHOW RANGE INDEXES YIELD name RETURN name",
     )
     drop_range_index_tasks = [
         neo4j_driver.execute_query(f"DROP INDEX {record['name']} IF EXISTS")
@@ -97,7 +97,7 @@ async def db_cleanup(neo4j_driver):
 
     # Drop all vector indexes.
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW VECTOR INDEXES YIELD name RETURN name"
+        "SHOW VECTOR INDEXES YIELD name RETURN name",
     )
     drop_vector_index_tasks = [
         neo4j_driver.execute_query(f"DROP INDEX {record['name']} IF EXISTS")
@@ -137,7 +137,7 @@ async def test_add_nodes(neo4j_driver, vector_graph_store):
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
                     SimilarityMetric.COSINE,
-                )
+                ),
             },
         ),
     ]
@@ -170,7 +170,7 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
                     SimilarityMetric.COSINE,
-                )
+                ),
             },
         ),
     ]
@@ -208,7 +208,7 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
                 "embedding_name": (
                     [0.4, 0.5, 0.6],
                     SimilarityMetric.DOT,
-                )
+                ),
             },
         ),
     ]
@@ -229,7 +229,7 @@ async def test_add_edges(neo4j_driver, vector_graph_store):
     ]
 
     await vector_graph_store.add_edges(
-        "RELATED_TO", "Entity", "Entity", related_to_edges
+        "RELATED_TO", "Entity", "Entity", related_to_edges,
     )
     await vector_graph_store.add_edges("IS", "Entity", "Entity", is_edges)
 
@@ -510,7 +510,7 @@ async def test_search_related_nodes(vector_graph_store):
 
     await vector_graph_store.add_nodes("Entity", nodes)
     await vector_graph_store.add_edges(
-        "RELATED_TO", "Entity", "Entity", related_to_edges
+        "RELATED_TO", "Entity", "Entity", related_to_edges,
     )
     await vector_graph_store.add_edges("RELATED_TO", "Entity", "Entity", is_edges)
 
@@ -711,7 +711,7 @@ async def test_search_directional_nodes(vector_graph_store):
 
 @pytest.mark.asyncio
 async def test_search_directional_nodes_multiple_by_properties(
-    neo4j_driver, vector_graph_store
+    neo4j_driver, vector_graph_store,
 ):
     time = datetime.now(tz=UTC)
     delta = timedelta(days=1)
@@ -1105,7 +1105,7 @@ async def test_get_nodes(vector_graph_store):
     await vector_graph_store.add_nodes("Entity", nodes)
 
     fetched_nodes = await vector_graph_store.get_nodes(
-        "Entity", [node.uuid for node in nodes]
+        "Entity", [node.uuid for node in nodes],
     )
     assert len(fetched_nodes) == 3
 
@@ -1113,7 +1113,7 @@ async def test_get_nodes(vector_graph_store):
         assert fetched_node.uuid in {node.uuid for node in nodes}
 
     fetched_nodes = await vector_graph_store.get_nodes(
-        "Entity", [nodes[0].uuid, uuid4()]
+        "Entity", [nodes[0].uuid, uuid4()],
     )
     assert len(fetched_nodes) == 1
     assert fetched_nodes[0] == nodes[0]
@@ -1198,16 +1198,16 @@ def vector_graph_store_indexing(neo4j_driver):
             range_index_hierarchies=[["group", "session"]],
             range_index_creation_threshold=10,
             vector_index_creation_threshold=10,
-        )
+        ),
     )
 
 
 @pytest.mark.asyncio
 async def test__create_unique_constraint_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing
+    neo4j_driver, vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW CONSTRAINTS YIELD name RETURN name"
+        "SHOW CONSTRAINTS YIELD name RETURN name",
     )
     existing_constraints = {record["name"] for record in records}
 
@@ -1269,7 +1269,7 @@ async def test__create_unique_constraint_if_not_exists(
     await asyncio.gather(*create_unique_constraint_tasks)
 
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW CONSTRAINTS YIELD name RETURN name"
+        "SHOW CONSTRAINTS YIELD name RETURN name",
     )
 
     updated_constraints = {record["name"] for record in records}
@@ -1279,10 +1279,10 @@ async def test__create_unique_constraint_if_not_exists(
 
 @pytest.mark.asyncio
 async def test__create_range_index_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing
+    neo4j_driver, vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW RANGE INDEXES YIELD name RETURN name"
+        "SHOW RANGE INDEXES YIELD name RETURN name",
     )
     existing_indexes = {record["name"] for record in records}
 
@@ -1376,7 +1376,7 @@ async def test__create_range_index_if_not_exists(
     await asyncio.gather(*create_range_index_tasks)
 
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW RANGE INDEXES YIELD name RETURN name"
+        "SHOW RANGE INDEXES YIELD name RETURN name",
     )
 
     updated_indexes = {record["name"] for record in records}
@@ -1386,10 +1386,10 @@ async def test__create_range_index_if_not_exists(
 
 @pytest.mark.asyncio
 async def test__create_vector_index_if_not_exists(
-    neo4j_driver, vector_graph_store_indexing
+    neo4j_driver, vector_graph_store_indexing,
 ):
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW VECTOR INDEXES YIELD name RETURN name"
+        "SHOW VECTOR INDEXES YIELD name RETURN name",
     )
     existing_indexes = {record["name"] for record in records}
 
@@ -1469,7 +1469,7 @@ async def test__create_vector_index_if_not_exists(
     await asyncio.gather(*create_vector_index_tasks)
 
     records, _, _ = await neo4j_driver.execute_query(
-        "SHOW VECTOR INDEXES YIELD name RETURN name"
+        "SHOW VECTOR INDEXES YIELD name RETURN name",
     )
 
     updated_indexes = {record["name"] for record in records}
@@ -1533,12 +1533,12 @@ def test__index_name():
     for entity_type in entity_types:
         for collection_or_relation_name in collection_or_relation_names:
             sanitized_collection_or_relation = Neo4jVectorGraphStore._sanitize_name(
-                collection_or_relation_name
+                collection_or_relation_name,
             )
             for property_names in property_names_list:
                 if isinstance(property_names, str):
                     sanitized_property_names = Neo4jVectorGraphStore._sanitize_name(
-                        property_names
+                        property_names,
                     )
                 else:
                     sanitized_property_names = [
@@ -1578,7 +1578,7 @@ async def test__nodes_from_neo4j_nodes(neo4j_driver, vector_graph_store):
                 "embedding_name": (
                     [0.1, 0.2, 0.3],
                     SimilarityMetric.COSINE,
-                )
+                ),
             },
         ),
     ]

@@ -92,7 +92,7 @@ def full_reranker_input(
             "aws_reranker_id": amazon_bedrock_reranker_conf,
             "cross_encoder_id": cross_encoder_reranker_conf,
             "embedder_id": embedder_reranker_conf,
-        }
+        },
     }
 
 

@@ -130,7 +130,7 @@ class SemanticService:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
-                    set_id=set_id, history_id=h_id
+                    set_id=set_id, history_id=h_id,
                 )
                 for h_id in history_ids
             ],
@@ -146,7 +146,7 @@ class SemanticService:
         res = await asyncio.gather(
             *[
                 self._semantic_storage.add_history_to_set(
-                    set_id=set_id, history_id=history_id
+                    set_id=set_id, history_id=history_id,
                 )
                 for set_id in set_ids
             ],
@@ -160,7 +160,7 @@ class SemanticService:
     @validate_call
     async def number_of_uningested(self, set_ids: list[SetIdT]) -> int:
         return await self._semantic_storage.get_history_messages_count(
-            set_ids=set_ids, is_ingested=False
+            set_ids=set_ids, is_ingested=False,
         )
 
     @validate_call
@@ -195,10 +195,10 @@ class SemanticService:
 
     @validate_call
     async def get_feature(
-        self, feature_id: FeatureIdT, load_citations: bool
+        self, feature_id: FeatureIdT, load_citations: bool,
     ) -> SemanticFeature | None:
         return await self._semantic_storage.get_feature(
-            feature_id, load_citations=load_citations
+            feature_id, load_citations=load_citations,
         )
 
     class FeatureSearchOpts(BaseModel):
@@ -243,7 +243,7 @@ class SemanticService:
                 if original_feature is None or original_feature.set_id is None:
                     raise ValueError(
                         "Unable to deduce set_id, the feature_id may be incorrect. "
-                        "set_id is required to update a feature"
+                        "set_id is required to update a feature",
                     )
                 set_id = original_feature.set_id
 
@@ -283,7 +283,7 @@ class SemanticService:
                 semantic_storage=self._semantic_storage,
                 resource_retriever=self._resource_retriever,
                 history_store=self._history_storage,
-            )
+            ),
         )
 
         while not self._is_shutting_down:

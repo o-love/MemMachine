@@ -138,7 +138,7 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
 
         try:
             response = await self._client.with_options(
-                max_retries=max_attempts
+                max_retries=max_attempts,
             ).chat.completions.parse(
                 model=self._model,  # type: ignore[arg-type]
                 messages=input_prompts,  # type: ignore[arg-type]
@@ -257,14 +257,14 @@ class OpenAIChatCompletionsLanguageModel(LanguageModel):
                                 "function": {
                                     "name": tool_call.function.name,
                                     "arguments": json.loads(
-                                        tool_call.function.arguments
+                                        tool_call.function.arguments,
                                     ),
                                 },
-                            }
+                            },
                         )
                     else:
                         logger.info(
-                            "Unsupported tool call type: %s", type(tool_call).__name__
+                            "Unsupported tool call type: %s", type(tool_call).__name__,
                         )
         except json.JSONDecodeError as e:
             raise ValueError("JSON decode error") from e

@@ -27,7 +27,7 @@ async def main():
         locomo_data = json.load(f)
 
     memory_manager = EpisodicMemoryManager.create_episodic_memory_manager(
-        "locomo_config.yaml"
+        "locomo_config.yaml",
     )
 
     async def process_conversation(idx, item, memory_manager: EpisodicMemoryManager):
@@ -39,7 +39,7 @@ async def main():
         speaker_b = conversation["speaker_b"]
 
         print(
-            f"Processing conversation for group {idx} with speakers {speaker_a} and {speaker_b}..."
+            f"Processing conversation for group {idx} with speakers {speaker_a} and {speaker_b}...",
         )
 
         group_id = f"group_{idx}"
@@ -71,7 +71,7 @@ async def main():
                 message_text = message["text"]
 
                 context_messages.append(
-                    f"[{session_date_time}] {speaker}: {message_text}"
+                    f"[{session_date_time}] {speaker}: {message_text}",
                 )
 
                 await memory.add_memory_episode(

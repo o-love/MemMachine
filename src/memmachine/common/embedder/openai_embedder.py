@@ -221,7 +221,7 @@ class OpenAIEmbedder(Embedder):
                     type(e).__name__,
                 )
                 await asyncio.sleep(
-                    min(sleep_seconds, self._max_retry_interval_seconds)
+                    min(sleep_seconds, self._max_retry_interval_seconds),
                 )
                 sleep_seconds *= 2
                 continue

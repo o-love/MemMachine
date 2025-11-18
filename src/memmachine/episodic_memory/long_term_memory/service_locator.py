@@ -13,7 +13,7 @@ def long_term_memory_params_from_config(
     return LongTermMemoryParams(
         session_id=config.session_id,
         vector_graph_store=resource_manager.get_vector_graph_store(
-            config.vector_graph_store
+            config.vector_graph_store,
         ),
         embedder=resource_manager.get_embedder(config.embedder),
         reranker=resource_manager.get_reranker(config.reranker),

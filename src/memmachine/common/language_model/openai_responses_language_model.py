@@ -151,7 +151,7 @@ class OpenAIResponsesLanguageModel(LanguageModel):
 
         try:
             response = await self._client.with_options(
-                max_retries=max_attempts
+                max_retries=max_attempts,
             ).responses.parse(
                 model=self._model,  # type: ignore[arg-type]
                 input=input_prompts,  # type: ignore[arg-type]

@@ -37,7 +37,7 @@ async def with_multiple_features(semantic_storage: SemanticStorageBase):
                 {
                     "value": "sushi",
                 },
-            ]
+            ],
         },
     )
 

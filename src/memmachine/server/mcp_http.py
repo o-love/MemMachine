@@ -16,7 +16,7 @@ async def run_mcp_http(host: str, port: int):
         logger.info(f"Starting MemMachine MCP HTTP server at http://{host}:{port}")
         async with global_memory_lifespan():
             await uvicorn.Server(
-                uvicorn.Config(mcp.get_app(), host=host, port=int(port))
+                uvicorn.Config(mcp.get_app(), host=host, port=int(port)),
             ).serve()
     except Exception as e:
         logger.exception(f"MemMachine MCP HTTP server crashed: {e}")
@@ -27,7 +27,7 @@ async def run_mcp_http(host: str, port: int):
 def parse_args():
     """Parse and validate command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Start MemMachine MCP server in HTTP mode."
+        description="Start MemMachine MCP server in HTTP mode.",
     )
     parser.add_argument(
         "--host",

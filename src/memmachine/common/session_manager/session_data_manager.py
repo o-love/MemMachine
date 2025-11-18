@@ -66,7 +66,7 @@ class SessionDataManager(ABC):
 
     @abstractmethod
     async def get_session_info(
-        self, session_key: str
+        self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         """
         Retrieves the configuration, description, and metadata for a given
@@ -96,7 +96,7 @@ class SessionDataManager(ABC):
 
     @abstractmethod
     async def save_short_term_memory(
-        self, session_key: str, summary: str, last_seq, episode_num: int
+        self, session_key: str, summary: str, last_seq, episode_num: int,
     ):
         """
         Saves or updates the short-term memory data for a session.

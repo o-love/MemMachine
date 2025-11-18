@@ -103,7 +103,7 @@ class DeclarativeMemory:
         """
 
         episodes = sorted(
-            episodes, key=lambda episode: (episode.timestamp, episode.uuid)
+            episodes, key=lambda episode: (episode.timestamp, episode.uuid),
         )
         episode_nodes = [
             Node(
@@ -214,7 +214,7 @@ class DeclarativeMemory:
                     sentences.extend(sent_tokenize(line.strip()))
 
                 message_timestamp = episode.timestamp.strftime(
-                    "%A, %B %d, %Y at %I:%M %p"
+                    "%A, %B %d, %Y at %I:%M %p",
                 )
                 return [
                     Derivative(
@@ -237,11 +237,11 @@ class DeclarativeMemory:
                         content_type=ContentType.TEXT,
                         content=text_content,
                         filterable_properties=episode.filterable_properties,
-                    )
+                    ),
                 ]
             case _:
                 logger.warning(
-                    f"Unsupported content type for derivative derivation: {episode.content_type}"
+                    f"Unsupported content type for derivative derivation: {episode.content_type}",
                 )
                 return []
 
@@ -316,7 +316,7 @@ class DeclarativeMemory:
         source_episode_nodes = [
             episode_node
             for episode_nodes in await asyncio.gather(
-                *search_derivatives_source_episode_nodes_tasks
+                *search_derivatives_source_episode_nodes_tasks,
             )
             for episode_node in episode_nodes
         ]
@@ -339,7 +339,7 @@ class DeclarativeMemory:
 
         # Rerank episode contexts.
         episode_context_scores = await self._score_episode_contexts(
-            query, episode_contexts
+            query, episode_contexts,
         )
 
         reranked_anchored_episode_contexts = [
@@ -421,7 +421,7 @@ class DeclarativeMemory:
         return context
 
     async def _score_episode_contexts(
-        self, query: str, episode_contexts: Iterable[Iterable[Episode]]
+        self, query: str, episode_contexts: Iterable[Iterable[Episode]],
     ) -> list[float]:
         """
         Score episode node contexts
@@ -446,10 +446,10 @@ class DeclarativeMemory:
             match episode.content_type:
                 case ContentType.MESSAGE:
                     context_date = DeclarativeMemory._format_date(
-                        episode.timestamp.date()
+                        episode.timestamp.date(),
                     )
                     context_time = DeclarativeMemory._format_time(
-                        episode.timestamp.time()
+                        episode.timestamp.time(),
                     )
                     context_string += f"[{context_date} at {context_time}] {episode.source}: {episode.content}\n"
                 case ContentType.TEXT:
@@ -531,7 +531,7 @@ class DeclarativeMemory:
         derived_derivative_nodes = [
             derivative_node
             for derivative_nodes in await asyncio.gather(
-                *search_derived_derivative_nodes_tasks
+                *search_derived_derivative_nodes_tasks,
             )
             for derivative_node in derivative_nodes
         ]
@@ -620,13 +620,13 @@ class DeclarativeMemory:
             content=episode_node.properties["content"],
             filterable_properties={
                 demangle_filterable_property_key(key): cast(
-                    FilterablePropertyValue, value
+                    FilterablePropertyValue, value,
                 )
                 for key, value in episode_node.properties.items()
                 if is_mangled_filterable_property_key(key)
             },
             user_metadata=json.loads(
-                cast(str, episode_node.properties["user_metadata"])
+                cast(str, episode_node.properties["user_metadata"]),
             ),
         )
 

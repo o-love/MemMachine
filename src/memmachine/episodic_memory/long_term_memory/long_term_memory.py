@@ -63,7 +63,7 @@ class LongTermMemory:
                 vector_graph_store=params.vector_graph_store,
                 embedder=params.embedder,
                 reranker=params.reranker,
-            )
+            ),
         )
 
     async def add_episodes(self, episodes: Iterable[Episode]):
@@ -73,7 +73,7 @@ class LongTermMemory:
                 timestamp=episode.timestamp,
                 source=episode.producer_id,
                 content_type=LongTermMemory._declarative_memory_content_type_from_episode(
-                    episode
+                    episode,
                 ),
                 content=episode.content,
                 filterable_properties={
@@ -108,7 +108,7 @@ class LongTermMemory:
         )
         return [
             LongTermMemory._episode_from_declarative_memory_episode(
-                declarative_memory_episode
+                declarative_memory_episode,
             )
             for declarative_memory_episode in declarative_memory_episodes
         ]
@@ -117,7 +117,7 @@ class LongTermMemory:
         declarative_memory_episodes = await self._declarative_memory.get_episodes(uuids)
         return [
             LongTermMemory._episode_from_declarative_memory_episode(
-                declarative_memory_episode
+                declarative_memory_episode,
             )
             for declarative_memory_episode in declarative_memory_episodes
         ]
@@ -133,7 +133,7 @@ class LongTermMemory:
         )
         return [
             LongTermMemory._episode_from_declarative_memory_episode(
-                declarative_memory_episode
+                declarative_memory_episode,
             )
             for declarative_memory_episode in declarative_memory_episodes
         ]
@@ -148,7 +148,7 @@ class LongTermMemory:
         self._declarative_memory.delete_episodes(
             episode.uuid
             for episode in await self._declarative_memory.get_matching_episodes(
-                property_filter=property_filter
+                property_filter=property_filter,
             )
         )
 
@@ -192,17 +192,17 @@ class LongTermMemory:
                 cast(
                     str,
                     declarative_memory_episode.filterable_properties.get(
-                        "episode_type", ""
+                        "episode_type", "",
                     ),
-                )
+                ),
             ),
             content_type=ContentType(
                 cast(
                     str,
                     declarative_memory_episode.filterable_properties.get(
-                        "content_type", ""
+                        "content_type", "",
                     ),
-                )
+                ),
             ),
             content=declarative_memory_episode.content,
             created_at=declarative_memory_episode.timestamp,
@@ -213,7 +213,7 @@ class LongTermMemory:
             producer_role=cast(
                 str,
                 declarative_memory_episode.filterable_properties.get(
-                    "producer_role", ""
+                    "producer_role", "",
                 ),
             ),
             produced_for_id=cast(

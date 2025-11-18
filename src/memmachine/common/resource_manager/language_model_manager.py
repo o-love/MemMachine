@@ -78,7 +78,7 @@ class LanguageModelManager:
                 max_retry_interval_seconds=conf.max_retry_interval_seconds,
                 metrics_factory=conf.get_metrics_factory(),
                 user_metrics_labels=conf.user_metrics_labels,
-            )
+            ),
         )
 
     def _build_openai_chat_completions_language_model(self, name: str) -> LanguageModel:
@@ -101,7 +101,7 @@ class LanguageModelManager:
                 max_retry_interval_seconds=conf.max_retry_interval_seconds,
                 metrics_factory=conf.get_metrics_factory(),
                 user_metrics_labels=conf.user_metrics_labels,
-            )
+            ),
         )
 
     def _build_amazon_bedrock_language_model(self, name: str) -> LanguageModel:
@@ -130,7 +130,7 @@ class LanguageModelManager:
                 retries={
                     "total_max_attempts": 1,
                     "mode": "standard",
-                }
+                },
             ),
         )
 
@@ -143,5 +143,5 @@ class LanguageModelManager:
                 max_retry_interval_seconds=conf.max_retry_interval_seconds,
                 metrics_factory=conf.get_metrics_factory(),
                 user_metrics_labels=conf.user_metrics_labels,
-            )
+            ),
         )

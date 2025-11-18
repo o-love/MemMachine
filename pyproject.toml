@@ -79,23 +79,38 @@ plugins = ['pydantic.mypy']
 
 [tool.ruff.lint]
 select = [
+    "A",
+    "ANN",
+    "ASYNC",
+    "B",
+    "C4",
+    "C90",
+    "COM",
+    "DTZ",
     "E",
     "F",
+    "FA",
+    "G",
     "I",
-    "W",
-    "UP",
+    "ICN",
+    "INP",
+    "INT",
+    "ISC",
+#    "LOG", Enable in future PR
+    "PIE",
+    "PT",
+    "PYI",
+    "T20",
     "TID",
-    "C90",
-    "DTZ",
-    "ASYNC",
-    "ANN",
+    "UP",
+    "W",
 ]
 ignore = ["E501", "UP015"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ASYNC251", "ANN"]
-"tools/**/*.py" = ["DTZ", "C9", "ANN"]
-"examples/**/*.py" = ["ASYNC210"]
+"tools/**/*.py" = ["DTZ", "C9", "ANN", "T201", "PT", "INP"]
+"examples/**/*.py" = ["ASYNC210", "T201"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

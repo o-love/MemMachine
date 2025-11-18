@@ -88,7 +88,7 @@ class Memory:
         # Validate required fields
         if not self.__user_id or not self.__agent_id:
             raise ValueError(
-                "Both user_id and agent_id are required and cannot be empty"
+                "Both user_id and agent_id are required and cannot be empty",
             )
 
         # Ensure group_id is non-empty to avoid server defaulting issues
@@ -170,11 +170,11 @@ class Memory:
         # we can safely use the first element
         if self.__user_id is None or len(self.__user_id) == 0:
             raise RuntimeError(
-                "user_id must not be None or empty. This should have been validated in __init__."
+                "user_id must not be None or empty. This should have been validated in __init__.",
             )
         if self.__agent_id is None or len(self.__agent_id) == 0:
             raise RuntimeError(
-                "agent_id must not be None or empty. This should have been validated in __init__."
+                "agent_id must not be None or empty. This should have been validated in __init__.",
             )
         if not producer:
             producer = self.__user_id[0]
@@ -188,12 +188,12 @@ class Memory:
         if producer not in self.__user_id and producer not in self.__agent_id:
             raise ValueError(
                 f"producer '{producer}' must be in user_id {self.__user_id} or agent_id {self.__agent_id}. "
-                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}"
+                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}",
             )
         if produced_for not in self.__user_id and produced_for not in self.__agent_id:
             raise ValueError(
                 f"produced_for '{produced_for}' must be in user_id {self.__user_id} or agent_id {self.__agent_id}. "
-                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}"
+                f"Current context: user_id={self.__user_id}, agent_id={self.__agent_id}",
             )
 
         episode_data = {
@@ -221,7 +221,7 @@ class Memory:
         logger.debug(
             f"Adding memory: producer={producer}, produced_for={produced_for}, "
             f"user_id={self.__user_id}, agent_id={self.__agent_id}, "
-            f"group_id={self.__group_id}, session_id={self.__session_id}"
+            f"group_id={self.__group_id}, session_id={self.__session_id}",
         )
 
         try:

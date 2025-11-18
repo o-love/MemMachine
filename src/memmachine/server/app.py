@@ -295,8 +295,8 @@ class RequestWithSession(BaseModel):
                         "loc": ["header", "session"],
                         "msg": "group_id or session_id cannot be empty",
                         "type": "value_error.missing",
-                    }
-                ]
+                    },
+                ],
             )
 
     def merge_and_validate_session(self, other: SessionData) -> None:
@@ -463,7 +463,6 @@ class AllSessionsResponse(BaseModel):
 class DeleteDataRequest(RequestWithSession):
     """Request model for deleting all data for a session."""
 
-    pass
 
 
 # === Globals ===
@@ -523,7 +522,7 @@ async def global_memory_lifespan():
 
 # Context variable to hold the current user for this request
 user_id_context_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "user_id_context", default=None
+    "user_id_context", default=None,
 )
 
 
@@ -651,7 +650,7 @@ class AddMemoryParam(UserIDWithEnv):
                 "User discussed plans to visit Shanghai next month. "
                 "They enjoy historical architecture and local cuisine. "
                 "Mentioned interest in the Yu Garden and traditional tea houses."
-            )
+            ),
         ],
     )
 
@@ -1317,7 +1316,7 @@ async def start():
     host_name = os.getenv("HOST", "0.0.0.0")
 
     await uvicorn.Server(
-        uvicorn.Config(app, host=host_name, port=int(port_num))
+        uvicorn.Config(app, host=host_name, port=int(port_num)),
     ).serve()
 
 

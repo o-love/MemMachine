@@ -28,7 +28,6 @@ from memmachine.episode_store.episode_storage import EpisodeIdT, EpisodeStorage
 class BaseHistoryStore(DeclarativeBase):
     """Base class for SQLAlchemy history store."""
 
-    pass
 
 
 JSON_AUTO = JSON().with_variant(JSONB, "postgresql")
@@ -48,7 +47,7 @@ class History(BaseHistoryStore):
 
     produced_for_id = mapped_column(String, nullable=True)
     episode_type = mapped_column(
-        SAEnum(EpisodeType, name="episode_type"), nullable=True
+        SAEnum(EpisodeType, name="episode_type"), nullable=True,
     )
 
     json_metadata = mapped_column(

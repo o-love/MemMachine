@@ -74,7 +74,7 @@ class EmbedderManager:
                 retries={
                     "total_max_attempts": 1,
                     "mode": "standard",
-                }
+                },
             ),
         )
         params = AmazonBedrockEmbedderParams(

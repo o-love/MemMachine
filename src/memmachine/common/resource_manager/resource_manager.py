@@ -38,13 +38,13 @@ class ResourceManagerImpl:
         self._storage_manager: StorageManager = StorageManager(self._conf.storage)
         self._embedder_manager: EmbedderManager = EmbedderManager(self._conf.embeder)
         self._model_manager: LanguageModelManager = LanguageModelManager(
-            self._conf.model
+            self._conf.model,
         )
         self._reranker_manager: RerankerManager = RerankerManager(
-            self._conf.reranker, embedder_factory=self._embedder_manager
+            self._conf.reranker, embedder_factory=self._embedder_manager,
         )
         self._metric_factory: dict[str, MetricsFactory] = {
-            "prometheus": PrometheusMetricsFactory
+            "prometheus": PrometheusMetricsFactory,
         }
 
         self._session_data_manager: SessionDataManager | None = None

@@ -46,7 +46,7 @@ def full_model_conf(openai_model_conf, aws_model_conf, ollama_model_conf) -> dic
             "openai_model": openai_model_conf,
             "aws_model": aws_model_conf,
             "ollama_model": ollama_model_conf,
-        }
+        },
     }
 
 

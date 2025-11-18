@@ -126,7 +126,7 @@ async def test_mcp_tool_description(mcp_client):
 @patch("memmachine.server.app._add_memory", new_callable=AsyncMock)
 async def test_add_memory_success(mock_add, add_param, mcp_client):
     result = await mcp_client.call_tool(
-        name="add_memory", arguments={"param": add_param}
+        name="add_memory", arguments={"param": add_param},
     )
     mock_add.assert_awaited_once()
     assert result.data is not None
@@ -142,7 +142,7 @@ async def test_add_memory_failure(mock_add, add_param, mcp_client):
     # Patch log_error_with_session on NewEpisode
     with patch.object(NewEpisode, "log_error_with_session") as mock_log:
         result = await mcp_client.call_tool(
-            name="add_memory", arguments={"param": add_param}
+            name="add_memory", arguments={"param": add_param},
         )
         mock_log.assert_called_once()
         assert result.data is not None
@@ -155,7 +155,7 @@ async def test_search_memory_failure(mock_search, search_param, mcp_client):
     mock_search.side_effect = HTTPException(status_code=404, detail="Not found")
 
     result = await mcp_client.call_tool(
-        name="search_memory", arguments={"param": search_param}
+        name="search_memory", arguments={"param": search_param},
     )
     mock_search.assert_awaited_once()
     assert result.data is not None
@@ -169,7 +169,7 @@ async def test_search_memory_variants(mock_search, search_param, mcp_client):
     content = {"ep": "Memory found"}
     mock_search.return_value = SearchResult(status=200, content=content)
     result = await mcp_client.call_tool(
-        name="search_memory", arguments={"param": search_param}
+        name="search_memory", arguments={"param": search_param},
     )
     mock_search.assert_awaited_once()
     assert result.data is not None

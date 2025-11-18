@@ -63,7 +63,7 @@ def locomo_count_conversations(infile, verbose=False):
 
 
 def load_locomo(
-    infile, start_time=None, conv_num=None, max_messages=None, verbose=False
+    infile, start_time=None, conv_num=None, max_messages=None, verbose=False,
 ):
     if not start_time:
         start_time = 0
@@ -126,7 +126,7 @@ def load_locomo(
                         try:
                             session_date_str = conversation[session_date_name]
                             session_date_obj = datetime.datetime.strptime(
-                                session_date_str, "%I:%M %p on %d %b, %Y"
+                                session_date_str, "%I:%M %p on %d %b, %Y",
                             )
                         except Exception:
                             pass
@@ -134,7 +134,7 @@ def load_locomo(
                         try:
                             session_date_str = conversation[session_date_name]
                             session_date_obj = datetime.datetime.strptime(
-                                session_date_str, "%I:%M %p on %d %B, %Y"
+                                session_date_str, "%I:%M %p on %d %B, %Y",
                             )
                         except Exception:
                             pass
@@ -213,7 +213,7 @@ def load_openai(
     lines = []
     if verbose:
         print(
-            f"lo: start_time={start_time} max_messages={max_messages}", file=sys.stderr
+            f"lo: start_time={start_time} max_messages={max_messages}", file=sys.stderr,
         )
     if verbose:
         print(f"lo: loading openai input file {infile}", file=sys.stderr)
@@ -317,7 +317,7 @@ def load_openai(
 def get_args():
     parser = argparse.ArgumentParser(description="Process chat history")
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="print debug info if available"
+        "-v", "--verbose", action="store_true", help="print debug info if available",
     )
     parser.add_argument(
         "-s",
@@ -371,7 +371,7 @@ def get_args():
             try:
                 # time is str
                 time_obj = datetime.datetime.strptime(
-                    args.start_time, "%Y-%m-%dT%H:%M:%S"
+                    args.start_time, "%Y-%m-%dT%H:%M:%S",
                 )
                 ts = time_obj.timestamp()
             except Exception:

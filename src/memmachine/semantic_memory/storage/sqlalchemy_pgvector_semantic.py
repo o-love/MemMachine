@@ -37,7 +37,6 @@ from memmachine.semantic_memory.storage.storage_base import (
 class BaseSemanticStorage(DeclarativeBase):
     """Declarative base for semantic memory SQLAlchemy models."""
 
-    pass
 
 
 citation_association_table = Table(
@@ -359,7 +358,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call()
     async def add_citations(
-        self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT]
+        self, feature_id: FeatureIdT, history_ids: list[EpisodeIdT],
     ):
         rows = [
             {"feature_id": int(feature_id), "history_id": str(hid)}
@@ -381,7 +380,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
         is_ingested: bool | None = None,
     ) -> list[EpisodeIdT]:
         stmt = select(SetIngestedHistory.history_id).order_by(
-            SetIngestedHistory.history_id.asc()
+            SetIngestedHistory.history_id.asc(),
         )
 
         stmt = self._apply_history_filter(
@@ -419,7 +418,7 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
 
     @validate_call
     async def mark_messages_ingested(
-        self, set_id: str, history_ids: list[EpisodeIdT]
+        self, set_id: str, history_ids: list[EpisodeIdT],
     ) -> None:
         if len(history_ids) == 0:
             raise ValueError("No ids provided")
@@ -495,15 +494,15 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorageBase):
                     threshold = 1 - vector_search_opts.min_distance
                     _stmt = _stmt.where(
                         Feature.embedding.cosine_distance(
-                            vector_search_opts.query_embedding
+                            vector_search_opts.query_embedding,
                         )
-                        <= threshold
+                        <= threshold,
                     )
 
                 _stmt = _stmt.order_by(
                     Feature.embedding.cosine_distance(
-                        vector_search_opts.query_embedding
-                    ).asc()
+                        vector_search_opts.query_embedding,
+                    ).asc(),
                 )
 
             return _stmt

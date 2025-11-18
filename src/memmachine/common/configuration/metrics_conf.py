@@ -44,6 +44,6 @@ class WithMetricsFactoryId(BaseModel):
         ret = self._factories[factory_id]
         if not isinstance(ret, MetricsFactory):
             raise TypeError(
-                f"Injected dependency with id {factory_id} is not a MetricsFactory"
+                f"Injected dependency with id {factory_id} is not a MetricsFactory",
             )
         return ret

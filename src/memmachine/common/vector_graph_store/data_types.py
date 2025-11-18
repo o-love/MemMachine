@@ -37,7 +37,7 @@ class Node:
     uuid: UUID
     properties: dict[str, PropertyValue] = field(default_factory=dict)
     embeddings: dict[str, tuple[list[float], SimilarityMetric]] = field(
-        default_factory=dict
+        default_factory=dict,
     )
 
     def __eq__(self, other):
@@ -60,7 +60,7 @@ class Edge:
     target_uuid: UUID
     properties: dict[str, PropertyValue] = field(default_factory=dict)
     embeddings: dict[str, tuple[list[float], SimilarityMetric]] = field(
-        default_factory=dict
+        default_factory=dict,
     )
 
     def __eq__(self, other):

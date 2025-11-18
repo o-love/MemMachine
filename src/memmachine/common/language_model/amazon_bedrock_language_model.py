@@ -299,7 +299,7 @@ class AmazonBedrockLanguageModel(LanguageModel):
 
         if tools is not None and len(tools) > 0:
             tool_config: dict[str, Any] = {
-                "tools": AmazonBedrockLanguageModel._format_tools(tools)
+                "tools": AmazonBedrockLanguageModel._format_tools(tools),
             }
             if tool_choice is not None:
                 tool_config["toolChoice"] = (
@@ -377,7 +377,7 @@ class AmazonBedrockLanguageModel(LanguageModel):
                             "name": tool_use_block["name"],
                             "arguments": tool_use_block["input"],
                         },
-                    }
+                    },
                 )
             else:
                 logger.info(
@@ -442,8 +442,8 @@ class AmazonBedrockLanguageModel(LanguageModel):
                             "inputSchema": {"json": tool["parameters"]}
                             if "parameters" in tool
                             else {},
-                        }
-                    }
+                        },
+                    },
                 )
 
         return bedrock_tools

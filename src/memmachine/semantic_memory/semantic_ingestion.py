@@ -80,7 +80,7 @@ class IngestionService:
             return
 
         raw_messages = await asyncio.gather(
-            *[self._history_store.get_history(h_id) for h_id in history_ids]
+            *[self._history_store.get_history(h_id) for h_id in history_ids],
         )
 
         if len(raw_messages) != len([m for m in raw_messages if m is not None]):
@@ -94,7 +94,7 @@ class IngestionService:
             for message in messages:
                 if message.uuid is None:
                     raise ValueError(
-                        "Message ID is None for message %s", message.model_dump()
+                        "Message ID is None for message %s", message.model_dump(),
                     )
 
                 features = await self._semantic_storage.get_feature_set(
@@ -146,7 +146,7 @@ class IngestionService:
         )
 
         await self._consolidate_set_memories_if_applicable(
-            set_id=set_id, resources=resources
+            set_id=set_id, resources=resources,
         )
 
     async def _apply_commands(
@@ -201,7 +201,7 @@ class IngestionService:
             )
 
             consolidation_sections: list[list[SemanticFeature]] = list(
-                SemanticFeature.group_features_by_tag(features).values()
+                SemanticFeature.group_features_by_tag(features).values(),
             )
 
             await asyncio.gather(
@@ -213,7 +213,7 @@ class IngestionService:
                         semantic_category=semantic_category,
                     )
                     for section_features in consolidation_sections
-                ]
+                ],
             )
 
         category_tasks = []
@@ -256,7 +256,7 @@ class IngestionService:
             and m.metadata.id not in consolidate_resp.keep_memories
         ]
         await self._semantic_storage.delete_features(
-            [m.metadata.id for m in memories_to_delete if m.metadata.id is not None]
+            [m.metadata.id for m in memories_to_delete if m.metadata.id is not None],
         )
 
         merged_citations: chain[EpisodeIdT] = itertools.chain.from_iterable(
@@ -264,10 +264,10 @@ class IngestionService:
                 m.metadata.citations
                 for m in memories_to_delete
                 if m.metadata.citations is not None
-            ]
+            ],
         )
         citation_ids = TypeAdapter(list[EpisodeIdT]).validate_python(
-            [c_id for c_id in merged_citations]
+            [c_id for c_id in merged_citations],
         )
 
         async def _add_feature(f: LLMReducedFeature):

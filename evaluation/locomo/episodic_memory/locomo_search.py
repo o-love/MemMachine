@@ -65,7 +65,7 @@ def format_memory(episodes, summary) -> str:
             [
                 f"[{episode.user_metadata['source_timestamp']}] {episode.user_metadata['source_speaker']}: {episode.content}{f' [ATTACHED: {episode.user_metadata["blip_caption"]}]' if episode.user_metadata.get('blip_caption') else ''}"
                 for episode in episodes
-            ]
+            ],
         )
         + "\n</LONG TERM MEMORY EPISODES>"
     )
@@ -109,7 +109,7 @@ async def process_question(
 
     formatted_context = format_memory(episodes, summary)
     prompt = ANSWER_PROMPT.format(
-        conversation_memories=formatted_context, question=question
+        conversation_memories=formatted_context, question=question,
     )
 
     llm_start = time.time()
@@ -130,7 +130,7 @@ async def process_question(
         f"Response: {rsp_text}\n"
         f"Memory retrieval time: {memory_end - memory_start:.2f} seconds\n"
         f"LLM response time: {llm_end - llm_start:.2f} seconds\n"
-        f"MEMORIES START\n{formatted_context}MEMORIES END\n"
+        f"MEMORIES START\n{formatted_context}MEMORIES END\n",
     )
     return {
         "question": question,
@@ -147,10 +147,10 @@ async def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--data-path", required=True, help="Path to the source data file"
+        "--data-path", required=True, help="Path to the source data file",
     )
     parser.add_argument(
-        "--target-path", required=True, help="Path to the target data file"
+        "--target-path", required=True, help="Path to the target data file",
     )
 
     args = parser.parse_args()
@@ -162,7 +162,7 @@ async def main():
         locomo_data = json.load(f)
 
     memory_manager = EpisodicMemoryManager.create_episodic_memory_manager(
-        "locomo_config.yaml"
+        "locomo_config.yaml",
     )
 
     model = AsyncOpenAI(

@@ -119,10 +119,10 @@ class SemanticSessionManager:
         )
 
     async def get_feature(
-        self, feature_id: FeatureIdT, load_citations: bool = False
+        self, feature_id: FeatureIdT, load_citations: bool = False,
     ) -> SemanticFeature | None:
         return await self._semantic_service.get_feature(
-            feature_id, load_citations=load_citations
+            feature_id, load_citations=load_citations,
         )
 
     async def update_feature(
@@ -164,7 +164,7 @@ class SemanticSessionManager:
                 category_names=category_names,
                 feature_names=feature_names,
                 tags=tag_names,
-            )
+            ),
         )
 
     async def delete_feature_set(
@@ -188,7 +188,7 @@ class SemanticSessionManager:
         return await self._semantic_service.delete_feature_set(
             SemanticService.FeatureSearchOpts(
                 **search_opts,
-            )
+            ),
         )
 
     @staticmethod

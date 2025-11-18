@@ -20,7 +20,7 @@ class Episode:
     content_type: ContentType
     content: Any
     filterable_properties: dict[str, FilterablePropertyValue] = field(
-        default_factory=dict
+        default_factory=dict,
     )
     user_metadata: JSONValue = None
 
@@ -41,7 +41,7 @@ class Derivative:
     content_type: ContentType
     content: Any
     filterable_properties: dict[str, FilterablePropertyValue] = field(
-        default_factory=dict
+        default_factory=dict,
     )
 
     def __eq__(self, other):

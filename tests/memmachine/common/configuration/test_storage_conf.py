@@ -26,7 +26,7 @@ def test_parse_valid_storage_dict():
                 "password": "pwd",
             },
             "local_sqlite": {"provider": "sqlite", "host": "local.db"},
-        }
+        },
     }
 
     storage_conf = StorageConf.parse_storage_conf(input_dict)
@@ -51,7 +51,7 @@ def test_parse_valid_storage_dict():
 
 def test_parse_unknown_provider_raises():
     input_dict = {
-        "storage": {"bad_storage": {"provider": "unknown_db", "host": "localhost"}}
+        "storage": {"bad_storage": {"provider": "unknown_db", "host": "localhost"}},
     }
     with pytest.raises(ValueError, match="Unknown provider 'unknown_db'"):
         StorageConf.parse_storage_conf(input_dict)

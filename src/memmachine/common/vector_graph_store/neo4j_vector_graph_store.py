@@ -77,10 +77,10 @@ class Neo4jVectorGraphStoreParams(BaseModel):
     """
 
     driver: InstanceOf[AsyncDriver] = Field(
-        ..., description="Async Neo4j driver instance"
+        ..., description="Async Neo4j driver instance",
     )
     force_exact_similarity_search: bool = Field(
-        False, description="Whether to force exact similarity search"
+        False, description="Whether to force exact similarity search",
     )
     filtered_similarity_search_fudge_factor: int = Field(
         4,
@@ -183,7 +183,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         if collection not in self._collection_node_counts.keys():
             # Not async-safe but it's not crucial if the count is off.
             self._collection_node_counts[collection] = await self._count_nodes(
-                collection
+                collection,
             )
 
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
@@ -195,7 +195,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 {
                     mangle_property_name(key): value
                     for key, value in node.properties.items()
-                }
+                },
             )
 
             for embedding_name, (
@@ -203,12 +203,12 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 similarity_metric,
             ) in node.embeddings.items():
                 sanitized_embedding_name = Neo4jVectorGraphStore._sanitize_name(
-                    mangle_embedding_name(embedding_name)
+                    mangle_embedding_name(embedding_name),
                 )
                 sanitized_similarity_metric_name = Neo4jVectorGraphStore._sanitize_name(
                     Neo4jVectorGraphStore._similarity_metric_property_name(
-                        embedding_name
-                    )
+                        embedding_name,
+                    ),
                 )
 
                 sanitized_embedding_names.add(sanitized_embedding_name)
@@ -241,7 +241,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 self._create_initial_indexes_if_not_exist(
                     EntityType.NODE,
                     sanitized_collection,
-                )
+                ),
             )
 
         if (
@@ -264,7 +264,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                             sanitized_embedding_name=sanitized_embedding_name,
                             dimensions=len(embedding),
                             similarity_metric=similarity_metric,
-                        )
+                        ),
                     )
 
     async def add_edges(
@@ -287,7 +287,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 {
                     mangle_property_name(key): value
                     for key, value in edge.properties.items()
-                }
+                },
             )
 
             for embedding_name, (
@@ -295,12 +295,12 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 similarity_metric,
             ) in edge.embeddings.items():
                 sanitized_embedding_name = Neo4jVectorGraphStore._sanitize_name(
-                    mangle_embedding_name(embedding_name)
+                    mangle_embedding_name(embedding_name),
                 )
                 sanitized_similarity_metric_name = Neo4jVectorGraphStore._sanitize_name(
                     Neo4jVectorGraphStore._similarity_metric_property_name(
-                        embedding_name
-                    )
+                        embedding_name,
+                    ),
                 )
 
                 sanitized_embedding_names.add(sanitized_embedding_name)
@@ -319,10 +319,10 @@ class Neo4jVectorGraphStore(VectorGraphStore):
             query_edges.append(query_edge)
 
         sanitized_source_collection = Neo4jVectorGraphStore._sanitize_name(
-            source_collection
+            source_collection,
         )
         sanitized_target_collection = Neo4jVectorGraphStore._sanitize_name(
-            target_collection
+            target_collection,
         )
         await self._driver.execute_query(
             "UNWIND $edges AS edge\n"
@@ -343,7 +343,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 self._create_initial_indexes_if_not_exist(
                     EntityType.EDGE,
                     sanitized_relation,
-                )
+                ),
             )
 
         if (
@@ -366,7 +366,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                             sanitized_embedding_name=sanitized_embedding_name,
                             dimensions=len(embedding),
                             similarity_metric=similarity_metric,
-                        )
+                        ),
                     )
 
     async def search_similar_nodes(
@@ -384,7 +384,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
         sanitized_embedding_name = Neo4jVectorGraphStore._sanitize_name(
-            mangle_embedding_name(embedding_name)
+            mangle_embedding_name(embedding_name),
         )
 
         do_exact_similarity_search = self._force_exact_similarity_search
@@ -440,7 +440,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     {
                         mangle_property_name(key): value
                         for key, value in required_properties.items()
-                    }
+                    },
                 ),
                 vector_index_name=vector_index_name,
             )
@@ -489,7 +489,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     {
                         mangle_property_name(key): value
                         for key, value in required_properties.items()
-                    }
+                    },
                 ),
             )
 
@@ -519,10 +519,10 @@ class Neo4jVectorGraphStore(VectorGraphStore):
             return []
 
         sanitized_this_collection = Neo4jVectorGraphStore._sanitize_name(
-            this_collection
+            this_collection,
         )
         sanitized_other_collection = Neo4jVectorGraphStore._sanitize_name(
-            other_collection
+            other_collection,
         )
         sanitized_relation = Neo4jVectorGraphStore._sanitize_name(relation)
 
@@ -557,13 +557,13 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 {
                     mangle_property_name(key): value
                     for key, value in required_edge_properties.items()
-                }
+                },
             ),
             required_node_properties=Neo4jVectorGraphStore._sanitize_properties(
                 {
                     mangle_property_name(key): value
                     for key, value in required_node_properties.items()
-                }
+                },
             ),
         )
 
@@ -592,7 +592,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
             raise ValueError(
                 "Lengths of "
                 "by_properties, starting_at, and order_ascending "
-                "must be equal and greater than 0."
+                "must be equal and greater than 0.",
             )
 
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
@@ -615,7 +615,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     + " AND ".join(
                         f"(n.{sanitized_by_property} = $starting_at[{index}])"
                         for index, sanitized_by_property in enumerate(
-                            sanitized_by_properties
+                            sanitized_by_properties,
                         )
                     )
                     + ")"
@@ -656,13 +656,13 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 {
                     mangle_property_name(key): value
                     for key, value in required_properties.items()
-                }
+                },
             ),
         )
 
         directional_proximal_neo4j_nodes = [record["n"] for record in records]
         return Neo4jVectorGraphStore._nodes_from_neo4j_nodes(
-            directional_proximal_neo4j_nodes
+            directional_proximal_neo4j_nodes,
         )
 
     @staticmethod
@@ -688,7 +688,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     + f"${starting_at_query_parameter}[{index}])"
                 )
                 if starting_at[index] is not None
-                else f"({entity_query_alias}.{sanitized_by_property} IS NOT NULL)"
+                else f"({entity_query_alias}.{sanitized_by_property} IS NOT NULL)",
             ]
 
             relational_requirements += [
@@ -696,7 +696,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 if starting_at[equal_index] is not None
                 else f"({entity_query_alias}.{sanitized_equal_property} IS NOT NULL)"
                 for equal_index, sanitized_equal_property in enumerate(
-                    sanitized_equal_properties
+                    sanitized_equal_properties,
                 )
             ]
 
@@ -705,7 +705,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
             )
 
             lexicographic_relational_requirements.append(
-                lexicographic_relational_requirement
+                lexicographic_relational_requirement,
             )
 
         query_lexicographic_relational_requirements = (
@@ -743,7 +743,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 {
                     mangle_property_name(key): value
                     for key, value in required_properties.items()
-                }
+                },
             ),
         )
 
@@ -794,7 +794,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         sanitized_collection = Neo4jVectorGraphStore._sanitize_name(collection)
 
         records, _, _ = await self._driver.execute_query(
-            f"MATCH (n:{sanitized_collection})\nRETURN count(n) AS node_count"
+            f"MATCH (n:{sanitized_collection})\nRETURN count(n) AS node_count",
         )
 
         return records[0]["node_count"]
@@ -807,7 +807,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         records, _, _ = await self._driver.execute_query(
             f"MATCH ()-[r:{sanitized_relation}]->()\n"
-            "RETURN count(r) AS relationship_count"
+            "RETURN count(r) AS relationship_count",
         )
 
         return records[0]["relationship_count"]
@@ -822,7 +822,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         async with self._populate_index_state_cache_lock:
             if not self._index_state_cache:
                 records, _, _ = await self._driver.execute_query(
-                    "SHOW INDEXES YIELD name RETURN name"
+                    "SHOW INDEXES YIELD name RETURN name",
                 )
 
                 # This ensures that all the indexes in records are online.
@@ -834,7 +834,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     {
                         record["name"]: Neo4jVectorGraphStore.CacheIndexState.ONLINE
                         for record in records
-                    }
+                    },
                 )
 
     async def _create_initial_indexes_if_not_exist(
@@ -858,7 +858,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 entity_type=entity_type,
                 sanitized_collection_or_relation=sanitized_collection_or_relation,
                 sanitized_property_name="uuid",
-            )
+            ),
         ]
         tasks += [
             self._create_range_index_if_not_exists(
@@ -866,7 +866,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                 sanitized_collection_or_relation=sanitized_collection_or_relation,
                 sanitized_property_names=[
                     Neo4jVectorGraphStore._sanitize_name(
-                        mangle_property_name(property_name)
+                        mangle_property_name(property_name),
                     )
                     for property_name in property_name_hierarchy
                 ],
@@ -942,7 +942,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         )
 
         await self._await_create_index_if_not_exists(
-            unique_constraint_name, create_constraint_task
+            unique_constraint_name, create_constraint_task,
         )
 
     async def _create_range_index_if_not_exists(
@@ -975,7 +975,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         await self._populate_index_state_cache()
 
         range_index_name = Neo4jVectorGraphStore._index_name(
-            entity_type, sanitized_collection_or_relation, sanitized_property_names
+            entity_type, sanitized_collection_or_relation, sanitized_property_names,
         )
 
         cached_index_state = self._index_state_cache.get(range_index_name)
@@ -1017,7 +1017,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         )
 
         await self._await_create_index_if_not_exists(
-            range_index_name, create_index_task
+            range_index_name, create_index_task,
         )
 
     async def _create_vector_index_if_not_exists(
@@ -1110,12 +1110,12 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         )
 
         await self._await_create_index_if_not_exists(
-            vector_index_name, create_index_task
+            vector_index_name, create_index_task,
         )
 
     @async_locked
     async def _await_create_index_if_not_exists(
-        self, index_name: str, create_index_task: Awaitable
+        self, index_name: str, create_index_task: Awaitable,
     ):
         """
         Execute the creation of node vector index if not exists
@@ -1240,9 +1240,9 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                         {
                             mangle_property_name(key): value
                             for key, value in required_properties.items()
-                        }
+                        },
                     ).keys()
-                ]
+                ],
             )
             or "TRUE"
         )
@@ -1318,14 +1318,14 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
             for neo4j_property_name, neo4j_property_value in neo4j_node.items():
                 desanitized_property_name = Neo4jVectorGraphStore._desanitize_name(
-                    neo4j_property_name
+                    neo4j_property_name,
                 )
 
                 if is_mangled_property_name(desanitized_property_name):
                     property_name = demangle_property_name(desanitized_property_name)
                     property_value = (
                         Neo4jVectorGraphStore._python_value_from_neo4j_value(
-                            neo4j_property_value
+                            neo4j_property_value,
                         )
                     )
                     node_properties[property_name] = property_value
@@ -1333,7 +1333,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     embedding_name = demangle_embedding_name(desanitized_property_name)
                     embedding_value = (
                         Neo4jVectorGraphStore._python_value_from_neo4j_value(
-                            neo4j_property_value
+                            neo4j_property_value,
                         )
                     )
                     similarity_metric = SimilarityMetric(
@@ -1341,11 +1341,11 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                             neo4j_node[
                                 Neo4jVectorGraphStore._sanitize_name(
                                     Neo4jVectorGraphStore._similarity_metric_property_name(
-                                        embedding_name
-                                    )
+                                        embedding_name,
+                                    ),
                                 )
-                            ]
-                        )
+                            ],
+                        ),
                     )
                     node_embeddings[embedding_name] = (
                         embedding_value,
@@ -1357,7 +1357,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     uuid=UUID(neo4j_node["uuid"]),
                     properties=node_properties,
                     embeddings=node_embeddings,
-                )
+                ),
             )
 
         return nodes

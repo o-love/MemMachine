@@ -22,7 +22,7 @@ class EmbedderFactory(Protocol):
 
 class RerankerManager:
     def __init__(
-        self, conf: RerankerConf, embedder_factory: InstanceOf[EmbedderFactory]
+        self, conf: RerankerConf, embedder_factory: InstanceOf[EmbedderFactory],
     ):
         self.conf = conf
         self.rerankers: dict[str, Reranker] = {}
@@ -126,7 +126,7 @@ class RerankerManager:
                 b=conf.b,
                 epsilon=conf.epsilon,
                 tokenize=get_tokenizer(conf.tokenizer, conf.language),
-            )
+            ),
         )
         return self.rerankers[name]
 
@@ -142,7 +142,7 @@ class RerankerManager:
 
         cross_encoder = CrossEncoder(conf.model_name)
         self.rerankers[name] = CrossEncoderReranker(
-            CrossEncoderRerankerParams(cross_encoder=cross_encoder)
+            CrossEncoderRerankerParams(cross_encoder=cross_encoder),
         )
         return self.rerankers[name]
 
@@ -206,7 +206,7 @@ class RerankerManager:
             except Exception as e:
                 raise ValueError(
                     f"Failed to get reranker with id {reranker_id} for "
-                    f"RRFHybridReranker {name}: {e}"
+                    f"RRFHybridReranker {name}: {e}",
                 ) from e
         params = RRFHybridRerankerParams(rerankers=rerankers, k=conf.k)
         self.rerankers[name] = RRFHybridReranker(params)

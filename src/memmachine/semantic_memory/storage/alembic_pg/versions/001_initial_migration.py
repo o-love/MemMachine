@@ -53,10 +53,10 @@ def upgrade() -> None:
     """)
     op.execute("CREATE INDEX IF NOT EXISTS history_user_idx ON history (user_id)")
     op.execute(
-        "CREATE INDEX IF NOT EXISTS history_user_ingested_idx ON history (user_id, ingested)"
+        "CREATE INDEX IF NOT EXISTS history_user_ingested_idx ON history (user_id, ingested)",
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS history_user_ingested_ts_desc ON history (user_id, ingested, create_at DESC)"
+        "CREATE INDEX IF NOT EXISTS history_user_ingested_ts_desc ON history (user_id, ingested, create_at DESC)",
     )
 
     # Create citations table

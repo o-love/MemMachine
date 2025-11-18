@@ -194,7 +194,7 @@ async def test_add_message_records_history_and_uningested_counts(
         producer_role="dev",
     )
     await session_manager.add_message(
-        session_data=session_data, history_ids=[history_id]
+        session_data=session_data, history_ids=[history_id],
     )
 
     # When inspecting storage for each isolation level
@@ -331,7 +331,7 @@ async def test_add_message_uses_all_isolations(
 ):
     history_id = "abc"
     await mock_session_manager.add_message(
-        session_data=session_data, history_ids=[history_id]
+        session_data=session_data, history_ids=[history_id],
     )
 
     mock_semantic_service.add_message_to_sets.assert_awaited_once_with(
@@ -397,7 +397,7 @@ async def test_number_of_uningested_messages_delegates(
     )
 
     mock_semantic_service.number_of_uningested.assert_awaited_once_with(
-        set_ids=[session_data.session_id()]
+        set_ids=[session_data.session_id()],
     )
     assert count == 7
 

@@ -100,7 +100,7 @@ def openai_embedder(openai_client, openai_integration_config):
             client=openai_client,
             model=openai_integration_config["embedding_model"],
             dimensions=1536,
-        )
+        ),
     )
 
 
@@ -134,7 +134,7 @@ def openai_compatible_llm_model(openai_compatible_llm_config):
             "base_url": openai_compatible_llm_config["api_url"],
             "model": openai_compatible_llm_config["model"],
             "api_key": openai_compatible_llm_config["api_key"],
-        }
+        },
     )
 
 
@@ -159,7 +159,7 @@ def bedrock_llm_model(bedrock_integration_config):
             aws_access_key_id=bedrock_integration_config["aws_access_key_id"],
             aws_secret_access_key=bedrock_integration_config["aws_secret_access_key"],
             model_id=bedrock_integration_config["model"],
-        )
+        ),
     )
 
 
@@ -168,7 +168,7 @@ def bedrock_llm_model(bedrock_integration_config):
         pytest.param("bedrock", marks=pytest.mark.integration),
         pytest.param("openai", marks=pytest.mark.integration),
         pytest.param("openai_compatible", marks=pytest.mark.integration),
-    ]
+    ],
 )
 def real_llm_model(request):
     match request.param:
@@ -218,7 +218,7 @@ async def sqlalchemy_pg_engine(pg_server):
             host=pg_server["host"],
             port=pg_server["port"],
             database=pg_server["database"],
-        )
+        ),
     )
 
     yield engine
@@ -240,7 +240,7 @@ async def sqlalchemy_sqlite_engine():
     params=[
         "sqlalchemy_sqlite_engine",
         pytest.param("sqlalchemy_pg_engine", marks=pytest.mark.integration),
-    ]
+    ],
 )
 def sqlalchemy_engine(request):
     return request.getfixturevalue(request.param)
@@ -273,7 +273,7 @@ def neo4j_container(pytestconfig):
     username = "neo4j"
     password = "password"
     with Neo4jContainer(
-        image="neo4j:5.23", username=username, password=password
+        image="neo4j:5.23", username=username, password=password,
     ) as container:
         yield {
             "uri": container.get_connection_url(),
@@ -307,7 +307,7 @@ async def neo4j_semantic_storage(neo4j_driver):
         pytest.param("pgvector_semantic_storage", marks=pytest.mark.integration),
         pytest.param("neo4j_semantic_storage", marks=pytest.mark.integration),
         "in_memory_semantic_storage",
-    ]
+    ],
 )
 def semantic_storage(request):
     return request.getfixturevalue(request.param)

@@ -92,7 +92,7 @@ class TestSemanticFeatureGrouping:
                 tag="hobby",
                 feature_name="activity",
                 value="reading",
-            )
+            ),
         ]
         grouped = SemanticFeature.group_features(features)
 
@@ -138,7 +138,7 @@ class TestSemanticFeatureGrouping:
                 tag="color",
                 feature_name="favorite",
                 value="blue",
-            )
+            ),
         ]
         grouped = SemanticFeature.group_features_by_tag(features)
 

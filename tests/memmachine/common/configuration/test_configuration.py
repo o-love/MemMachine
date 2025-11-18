@@ -95,7 +95,7 @@ def find_config_file(filename: str, start_path: Path = None) -> Path:
         current = current.parent
 
     raise FileNotFoundError(
-        f"Could not find '{filename}' in any parent 'sample_configs' folder."
+        f"Could not find '{filename}' in any parent 'sample_configs' folder.",
     )
 
 

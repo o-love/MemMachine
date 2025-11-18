@@ -286,7 +286,7 @@ async def feature_and_citations(
 
 @pytest.mark.asyncio
 async def test_add_feature_with_citations(
-    semantic_storage: SemanticStorageBase, feature_and_citations
+    semantic_storage: SemanticStorageBase, feature_and_citations,
 ):
     feature_id, citations = feature_and_citations
 
@@ -312,18 +312,18 @@ async def test_add_feature_with_citations(
 
 @pytest.mark.asyncio
 async def test_get_feature_without_citations(
-    semantic_storage: SemanticStorageBase, feature_and_citations
+    semantic_storage: SemanticStorageBase, feature_and_citations,
 ):
     feature_id, citations = feature_and_citations
     await semantic_storage.add_citations(feature_id, list(citations))
 
     without_citations = await semantic_storage.get_feature(
-        feature_id=feature_id, load_citations=False
+        feature_id=feature_id, load_citations=False,
     )
     assert without_citations.metadata.citations is None
 
     with_citations = await semantic_storage.get_feature(
-        feature_id=feature_id, load_citations=True
+        feature_id=feature_id, load_citations=True,
     )
     assert len(with_citations.metadata.citations) == len(citations)
 
@@ -339,7 +339,7 @@ async def test_delete_feature_with_citations(
     await semantic_storage.delete_features([feature_id])
 
     after_delete = await semantic_storage.get_feature(
-        feature_id=feature_id, load_citations=True
+        feature_id=feature_id, load_citations=True,
     )
     assert after_delete is None
 
@@ -436,7 +436,7 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorageBase):
     assert ("default", "food", "likes") not in grouped_after_delete
 
     await semantic_storage.delete_feature_set(
-        set_ids=["user"], category_names=["tenant_A"]
+        set_ids=["user"], category_names=["tenant_A"],
     )
     tenant_only = await semantic_storage.get_feature_set(
         set_ids=["user"],
@@ -552,22 +552,22 @@ async def test_history_ingestion_tracking(
         await semantic_storage.add_history_to_set(set_id="user", history_id=h_id)
 
     assert await semantic_storage.get_history_messages_count(
-        set_ids=["user"], is_ingested=False
+        set_ids=["user"], is_ingested=False,
     ) == len(history_ids)
 
     await semantic_storage.mark_messages_ingested(
-        set_id="user", history_ids=history_ids[:2]
+        set_id="user", history_ids=history_ids[:2],
     )
 
     assert (
         await semantic_storage.get_history_messages_count(
-            set_ids=["user"], is_ingested=False
+            set_ids=["user"], is_ingested=False,
         )
         == 1
     )
     assert (
         await semantic_storage.get_history_messages_count(
-            set_ids=["user"], is_ingested=True
+            set_ids=["user"], is_ingested=True,
         )
         == 2
     )

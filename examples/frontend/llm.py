@@ -88,7 +88,7 @@ def chat(messages, persona):
                     "messages": claude_messages,
                     "max_tokens": 500,
                     "temperature": 0.5,
-                }
+                },
             ),
         )
 
@@ -121,7 +121,7 @@ def chat(messages, persona):
                     "max_tokens": 500,
                     "temperature": 0.5,
                     "top_p": 0.9,
-                }
+                },
             ),
         )
 
@@ -150,7 +150,7 @@ def chat(messages, persona):
             contentType="application/json",
             accept="application/json",
             body=json.dumps(
-                {"prompt": formatted_prompt, "max_gen_len": 512, "temperature": 0.5}
+                {"prompt": formatted_prompt, "max_gen_len": 512, "temperature": 0.5},
             ),
         )
 
@@ -172,7 +172,7 @@ def chat(messages, persona):
             contentType="application/json",
             accept="application/json",
             body=json.dumps(
-                {"prompt": formatted_prompt, "max_tokens": 512, "temperature": 0.5}
+                {"prompt": formatted_prompt, "max_tokens": 512, "temperature": 0.5},
             ),
         )
 
@@ -204,7 +204,7 @@ def test_chat():
             {
                 "role": "user",
                 "content": "Hello! Please respond with just 'Test successful'.",
-            }
+            },
         ]
         text, latency, tokens, tps = chat(test_messages)
         print(f"Test passed!  {text}  {latency:.2f}s  {tokens} ⚡ {tps:.1f} tps")

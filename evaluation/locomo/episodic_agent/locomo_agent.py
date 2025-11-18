@@ -66,7 +66,7 @@ set_tracing_export_api_key(os.getenv("TRACE_API_KEY"))
 set_default_openai_key(os.getenv("OPENAI_API_KEY"))
 
 memory_manager = EpisodicMemoryManager.create_episodic_memory_manager(
-    "locomo_config.yaml"
+    "locomo_config.yaml",
 )
 
 
@@ -140,13 +140,13 @@ async def locomo_response(group_id: int, query: str, users: list[str], model: st
 
     class LocomoPrefetches(AgentHooks):
         async def on_start(
-            self, wrapper: RunContextWrapper[Memory], agent: Agent[Memory]
+            self, wrapper: RunContextWrapper[Memory], agent: Agent[Memory],
         ):
             wrapper.context.memory = search_result
             wrapper.context.turn += 1
 
     def executor_instructions(
-        wrapped_memory: RunContextWrapper[Memory], agent: Agent[Memory]
+        wrapped_memory: RunContextWrapper[Memory], agent: Agent[Memory],
     ) -> str:
         turns = wrapped_memory.context.turn
         return f"""{LOCOMO_EXECUTOR_INSTRUCTIONS.format(turns=turns)}

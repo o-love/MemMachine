@@ -20,18 +20,18 @@ def mock_conf():
                 aws_access_key_id=SecretStr("<AWS_ACCESS_KEY_ID>"),
                 aws_secret_access_key=SecretStr("<AWS_SECRET_ACCESS_KEY>"),
                 region="us-east-1",
-            )
+            ),
         },
         openai={
             "openai_embedder_id": OpenAIEmbedderConf(
                 model="text-embedding-ada-002",
                 api_key=SecretStr("<OPENAI_API_KEY>"),
-            )
+            ),
         },
         sentence_transformer={
             "sentence_transformer_id": SentenceTransformerEmbedderConfig(
                 model="sentence-transformers/all-MiniLM-L6-v2",
-            )
+            ),
         },
     )
     return conf

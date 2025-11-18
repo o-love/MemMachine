@@ -70,7 +70,7 @@ class MemMachineClient:
         # base_url is required
         if base_url is None:
             raise ValueError(
-                "base_url is required. Please provide it explicitly or set MEMORY_BACKEND_URL environment variable."
+                "base_url is required. Please provide it explicitly or set MEMORY_BACKEND_URL environment variable.",
             )
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -96,7 +96,7 @@ class MemMachineClient:
             {
                 "Content-Type": "application/json",
                 "User-Agent": "MemMachineClient/1.0.0",
-            }
+            },
         )
 
         if api_key:
@@ -147,7 +147,7 @@ class MemMachineClient:
         """
         try:
             response = self._session.get(
-                f"{self.base_url}/health", timeout=self.timeout
+                f"{self.base_url}/health", timeout=self.timeout,
             )
             response.raise_for_status()
             return response.json()

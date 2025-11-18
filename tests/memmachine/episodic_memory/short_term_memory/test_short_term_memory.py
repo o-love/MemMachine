@@ -53,7 +53,7 @@ class MockShortTermMemoryDataManager(SessionDataManager):
         pass
 
     async def save_short_term_memory(
-        self, session_key: str, summary: str, seq: int, num: int
+        self, session_key: str, summary: str, seq: int, num: int,
     ):
         self.data[session_key] = (summary, seq, num)
 
@@ -80,7 +80,7 @@ class MockShortTermMemoryDataManager(SessionDataManager):
         pass
 
     async def get_session_info(
-        self, session_key: str
+        self, session_key: str,
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         return {}, "", {}, EpisodicMemoryConf()
 
@@ -230,7 +230,7 @@ class TestSessionMemoryPublicAPI:
 
         # Test with message length limit that fits all
         episodes, summary = await memory.get_short_term_memory_context(
-            query="test", max_message_length=100
+            query="test", max_message_length=100,
         )
         assert len(episodes) == 3
         assert episodes == [ep1, ep2, ep3]
@@ -242,14 +242,14 @@ class TestSessionMemoryPublicAPI:
         # add ep2 (length 6), length=19. Now length >= 19, so loop breaks.
         # Should return [ep1, ep2]
         episodes, summary = await memory.get_short_term_memory_context(
-            query="test", max_message_length=19
+            query="test", max_message_length=19,
         )
         assert len(episodes) == 2
         assert episodes == [ep2, ep3]
 
         # Test with episode limit
         episodes, summary = await memory.get_short_term_memory_context(
-            query="test", limit=1
+            query="test", limit=1,
         )
         assert len(episodes) == 1
         assert episodes == [ep3]

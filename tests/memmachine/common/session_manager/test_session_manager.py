@@ -50,7 +50,7 @@ def mock_metrics_factory():
 def episodic_memory_params(mock_metrics_factory):
     """Fixture for a dummy EpisodicMemoryParams object."""
     return EpisodicMemoryParams(
-        session_key="test_session", metrics_factory=mock_metrics_factory, enabled=False
+        session_key="test_session", metrics_factory=mock_metrics_factory, enabled=False,
     )
 
 
@@ -83,11 +83,11 @@ async def test_create_new_session(
     metadata = {"user": "tester"}
 
     await session_manager.create_new_session(
-        session_key, config, episodic_memory_params, description, metadata
+        session_key, config, episodic_memory_params, description, metadata,
     )
 
     ret_config, ret_desc, ret_meta, ret_param = await session_manager.get_session_info(
-        session_key
+        session_key,
     )
 
     assert ret_config == config
@@ -104,12 +104,12 @@ async def test_create_existing_session_raises_error(
     """Test that creating a session that already exists raises a ValueError."""
     session_key = "session1"
     await session_manager.create_new_session(
-        session_key, {}, episodic_memory_params, "", {}
+        session_key, {}, episodic_memory_params, "", {},
     )
 
     with pytest.raises(ValueError, match=f"Session {session_key} already exists"):
         await session_manager.create_new_session(
-            session_key, {}, episodic_memory_params, "", {}
+            session_key, {}, episodic_memory_params, "", {},
         )
 
 
@@ -121,7 +121,7 @@ async def test_delete_session(
     """Test deleting an existing session."""
     session_key = "session_to_delete"
     await session_manager.create_new_session(
-        session_key, {}, episodic_memory_params, "", {}
+        session_key, {}, episodic_memory_params, "", {},
     )
 
     # Verify it exists
@@ -163,13 +163,13 @@ async def test_get_sessions(
     """Test retrieving session keys with and without filters."""
     # Create some sessions
     await session_manager.create_new_session(
-        "session1", {}, episodic_memory_params, "", {"tag": "A", "user": "1"}
+        "session1", {}, episodic_memory_params, "", {"tag": "A", "user": "1"},
     )
     await session_manager.create_new_session(
-        "session2", {}, episodic_memory_params, "", {"tag": "B", "user": "1"}
+        "session2", {}, episodic_memory_params, "", {"tag": "B", "user": "1"},
     )
     await session_manager.create_new_session(
-        "session3", {}, episodic_memory_params, "", {"tag": "A", "user": "2"}
+        "session3", {}, episodic_memory_params, "", {"tag": "A", "user": "2"},
     )
 
     # Get all sessions
@@ -186,7 +186,7 @@ async def test_get_sessions(
 
     # Filter by tag 'B' and user '1'
     sessions_B_user1 = await session_manager.get_sessions(
-        filter={"tag": "B", "user": "1"}
+        filter={"tag": "B", "user": "1"},
     )
     assert sessions_B_user1 == ["session2"]
 
@@ -210,7 +210,7 @@ async def test_save_short_term_memory_new(
     """Test saving short-term memory for a session for the first time."""
     session_key = "stm_session_1"
     await session_manager.create_new_session(
-        session_key, {}, episodic_memory_params, "", {}
+        session_key, {}, episodic_memory_params, "", {},
     )
 
     summary = "This is a summary."
@@ -218,11 +218,11 @@ async def test_save_short_term_memory_new(
     episode_num = 5
 
     await session_manager.save_short_term_memory(
-        session_key, summary, last_seq, episode_num
+        session_key, summary, last_seq, episode_num,
     )
 
     ret_summary, ret_ep_num, ret_last_seq = await session_manager.get_short_term_memory(
-        session_key
+        session_key,
     )
 
     assert ret_summary == summary
@@ -238,7 +238,7 @@ async def test_save_short_term_memory_update(
     """Test updating existing short-term memory for a session."""
     session_key = "stm_session_2"
     await session_manager.create_new_session(
-        session_key, {}, episodic_memory_params, "", {}
+        session_key, {}, episodic_memory_params, "", {},
     )
 
     # First save
@@ -249,11 +249,11 @@ async def test_save_short_term_memory_update(
     last_seq = 20
     episode_num = 10
     await session_manager.save_short_term_memory(
-        session_key, summary, last_seq, episode_num
+        session_key, summary, last_seq, episode_num,
     )
 
     ret_summary, ret_ep_num, ret_last_seq = await session_manager.get_short_term_memory(
-        session_key
+        session_key,
     )
 
     assert ret_summary == summary
@@ -279,11 +279,11 @@ async def test_get_short_term_memory_nonexistent(
     """Test that getting STM for which none has been saved raises a ValueError."""
     session_key = "session_no_stm"
     await session_manager.create_new_session(
-        session_key, {}, episodic_memory_params, "", {}
+        session_key, {}, episodic_memory_params, "", {},
     )
 
     with pytest.raises(
-        ValueError, match=f"session {session_key} does not have short term memory"
+        ValueError, match=f"session {session_key} does not have short term memory",
     ):
         await session_manager.get_short_term_memory(session_key)
 
@@ -296,7 +296,7 @@ async def test_delete_session_cascades_to_short_term_memory(
     """Test that deleting a session also deletes its associated short-term memory data."""
     session_key = "cascade_delete_session"
     await session_manager.create_new_session(
-        session_key, {}, episodic_memory_params, "", {}
+        session_key, {}, episodic_memory_params, "", {},
     )
     await session_manager.save_short_term_memory(session_key, "summary", 1, 1)
 
@@ -308,6 +308,6 @@ async def test_delete_session_cascades_to_short_term_memory(
 
     # Verify STM is also gone
     with pytest.raises(
-        ValueError, match=f"session {session_key} does not have short term memory"
+        ValueError, match=f"session {session_key} does not have short term memory",
     ):
         await session_manager.get_short_term_memory(session_key)

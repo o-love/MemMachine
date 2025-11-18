@@ -166,7 +166,7 @@ class TestMemory:
         mock_client._session.post.return_value = mock_response
 
         memory = Memory(
-            client=mock_client, agent_id=["agent1", "agent2"], user_id="user1"
+            client=mock_client, agent_id=["agent1", "agent2"], user_id="user1",
         )
 
         # Producer can be an agent
@@ -183,7 +183,7 @@ class TestMemory:
         mock_client._session.post.return_value = mock_response
 
         memory = Memory(
-            client=mock_client, agent_id="agent1", user_id=["user1", "user2"]
+            client=mock_client, agent_id="agent1", user_id=["user1", "user2"],
         )
 
         # produced_for can be a user
@@ -239,7 +239,7 @@ class TestMemory:
     def test_add_request_exception(self, mock_client):
         """Test add raises exception on request failure."""
         mock_client._session.post.side_effect = requests.RequestException(
-            "Network error"
+            "Network error",
         )
 
         memory = Memory(client=mock_client, agent_id="agent1", user_id="user1")
@@ -268,7 +268,7 @@ class TestMemory:
             "content": {
                 "episodic_memory": [["result1", "result2"]],
                 "profile_memory": [],
-            }
+            },
         }
         mock_response.raise_for_status = Mock()
         mock_client._session.post.return_value = mock_response

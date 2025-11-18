@@ -108,7 +108,7 @@ async def semantic_service(
             feature_update_message_limit=10,
             feature_update_time_limit_sec=0.05,
             debug_fail_loudly=True,
-        )
+        ),
     )
     await mem.start()
     yield mem

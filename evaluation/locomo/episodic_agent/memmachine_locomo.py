@@ -71,7 +71,7 @@ class MemMachineSearch:
         return result
 
     async def process_data_file(
-        self, file_path, exclude_category={5}, base_url="http://localhost:8080"
+        self, file_path, exclude_category={5}, base_url="http://localhost:8080",
     ):
         async def process_item(idx, item):
             if str(idx) in self.results.keys():
@@ -86,7 +86,7 @@ class MemMachineSearch:
             ]
 
             print(
-                f"Filter category: {exclude_category}, {len(qa)} -> {len(qa_filtered)}"
+                f"Filter category: {exclude_category}, {len(qa)} -> {len(qa_filtered)}",
             )
 
             results_single_convo = await self.process_questions_parallel(
@@ -108,7 +108,7 @@ class MemMachineSearch:
             json.dump(self.results, f, indent=4)
 
     async def process_questions_parallel(
-        self, qa_list, idx, users, base_url="http://localhost:8080"
+        self, qa_list, idx, users, base_url="http://localhost:8080",
     ):
         async def process_single_question(val):
             async with self._semaphore:

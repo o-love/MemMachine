@@ -122,28 +122,28 @@ async def test_history_identity_filters(episode_storage: EpisodeStorage):
 
     try:
         by_session = await episode_storage.get_history_messages(
-            session_keys=["session-assistant"]
+            session_keys=["session-assistant"],
         )
         assert [m.uuid for m in by_session] == [assistant_message]
 
         by_producer_id = await episode_storage.get_history_messages(
-            producer_ids=["system-id"]
+            producer_ids=["system-id"],
         )
         assert [m.uuid for m in by_producer_id] == [system_message]
 
         by_producer_role = await episode_storage.get_history_messages(
-            producer_roles=["user"]
+            producer_roles=["user"],
         )
         assert [m.uuid for m in by_producer_role] == [user_message]
 
         by_produced_for = await episode_storage.get_history_messages(
-            produced_for_ids=["user-id"]
+            produced_for_ids=["user-id"],
         )
         assert [m.uuid for m in by_produced_for] == [assistant_message]
 
     finally:
         await episode_storage.delete_history(
-            [user_message, assistant_message, system_message]
+            [user_message, assistant_message, system_message],
         )
 
 

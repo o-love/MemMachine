@@ -87,7 +87,7 @@ class PrometheusMetricsFactory(MetricsFactory):
     ) -> Counter:
         if name not in self._metrics:
             self._metrics[name] = PrometheusMetricsFactory.Counter(
-                PrometheusCounter(name, description, labelnames=label_names)
+                PrometheusCounter(name, description, labelnames=label_names),
             )
         counter = self._metrics[name]
         if not isinstance(counter, PrometheusMetricsFactory.Counter):
@@ -103,7 +103,7 @@ class PrometheusMetricsFactory(MetricsFactory):
     ) -> Gauge:
         if name not in self._metrics:
             self._metrics[name] = PrometheusMetricsFactory.Gauge(
-                PrometheusGauge(name, description, labelnames=label_names)
+                PrometheusGauge(name, description, labelnames=label_names),
             )
         gauge = self._metrics[name]
         if not isinstance(gauge, PrometheusMetricsFactory.Gauge):
@@ -119,7 +119,7 @@ class PrometheusMetricsFactory(MetricsFactory):
     ) -> Histogram:
         if name not in self._metrics:
             self._metrics[name] = PrometheusMetricsFactory.Histogram(
-                PrometheusHistogram(name, description, labelnames=label_names)
+                PrometheusHistogram(name, description, labelnames=label_names),
             )
         histogram = self._metrics[name]
         if not isinstance(histogram, PrometheusMetricsFactory.Histogram):
@@ -135,7 +135,7 @@ class PrometheusMetricsFactory(MetricsFactory):
     ) -> Summary:
         if name not in self._metrics:
             self._metrics[name] = PrometheusMetricsFactory.Summary(
-                PrometheusSummary(name, description, labelnames=label_names)
+                PrometheusSummary(name, description, labelnames=label_names),
             )
         summary = self._metrics[name]
         if not isinstance(summary, PrometheusMetricsFactory.Summary):

@@ -65,7 +65,7 @@ async def llm_feature_update(
     )
 
     validated_output = TypeAdapter(_SemanticFeatureUpdateRes).validate_python(
-        parsed_output
+        parsed_output,
     )
     return validated_output.commands
 
@@ -99,6 +99,6 @@ async def llm_consolidate_features(
     )
 
     validated_output = TypeAdapter(SemanticConsolidateMemoryRes).validate_python(
-        parsed_output
+        parsed_output,
     )
     return validated_output

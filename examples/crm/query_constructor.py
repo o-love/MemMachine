@@ -469,7 +469,7 @@ class CRMQueryConstructor(BaseQueryConstructor):
         except KeyError as e:
             logger.error(f"Template formatting error - missing placeholder: {e}")
             raise RuntimeError(
-                f"Failed to format prompt due to missing key: {e}"
+                f"Failed to format prompt due to missing key: {e}",
             ) from e
         except Exception as e:
             logger.error(f"Error creating CRM query: {e}")

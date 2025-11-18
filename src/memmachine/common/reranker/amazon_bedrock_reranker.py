@@ -100,7 +100,7 @@ class AmazonBedrockReranker(Reranker):
                 {
                     "textQuery": {"text": query},
                     "type": "TEXT",
-                }
+                },
             ],
             "rerankingConfiguration": {
                 "bedrockRerankingConfiguration": {
