@@ -194,8 +194,7 @@ class ShortTermMemory:
         ):
             return
 
-        for e in self._memory:
-            result.append(e)
+        result = list(self._memory)
         # Reset the count so it will only count new episodes
         self._current_episode_count = 0
         # if previous summary task is still running, wait for it
@@ -299,7 +298,7 @@ class ShortTermMemory:
         query: str,
         limit: int = 0,
         max_message_length: int = 0,
-        filter: dict[str, str] | None = None,
+        filters: dict[str, str] | None = None,
     ) -> tuple[list[Episode], str]:
         """
         Retrieve context from short-term memory for a given query.
@@ -309,8 +308,10 @@ class ShortTermMemory:
 
         Args:
             query: The user's query string.
+            limit: Maximum number of episodes to include.
             max_message_length: The maximum length of messages for the context. If 0,
             no limit is applied.
+            filters: Optional property filters for episodes.
 
         Returns:
             A tuple containing a list of episodes and the current summary.
@@ -332,12 +333,12 @@ class ShortTermMemory:
                 if len(episodes) >= limit > 0:
                     break
                 # check if should filter the message
-                if filter is not None:
-                    if "producer" in filter and filter["producer"] != e.producer_id:
+                if filters is not None:
+                    if "producer" in filters and filters["producer"] != e.producer_id:
                         continue
 
                     matched = True
-                    for key, value in filter.items():
+                    for key, value in filters.items():
                         if e.metadata.get(key) != value:
                             matched = False
                             break

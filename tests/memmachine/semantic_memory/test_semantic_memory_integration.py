@@ -1,5 +1,6 @@
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -174,8 +175,9 @@ class TestLongMemEvalIngestion:
 
     @pytest.fixture
     def long_mem_raw_question(self):
-        with open("tests/data/longmemeval_snippet.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data_path = Path("tests/data/longmemeval_snippet.json")
+        with data_path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
         return data
 
     @pytest.fixture

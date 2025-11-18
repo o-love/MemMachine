@@ -113,6 +113,7 @@ class SessionResourceRetriever:
         session_id_manager: SessionIdIsolationTypeChecker,
         default_resources: dict[IsolationType, Resources],
     ) -> None:
+        """Initialize the retriever with isolation defaults and a session checker."""
         self._session_id_manager = session_id_manager
         self._default_resources = default_resources
 

@@ -72,6 +72,7 @@ class MemMachineClient:
 
         """
         self.api_key = api_key
+        self._extra_options = kwargs
         # base_url is required
         if base_url is None:
             raise ValueError(
@@ -172,7 +173,7 @@ class MemMachineClient:
 
         # Mark all tracked Memory objects as closed
         for memory in self._memory_objects:
-            memory._client_closed = True
+            memory.mark_client_closed()
 
         # Clear the tracking set
         self._memory_objects.clear()
@@ -197,3 +198,8 @@ class MemMachineClient:
     def __repr__(self) -> str:
         """Return a developer-friendly string representation."""
         return f"MemMachineClient(base_url='{self.base_url}')"
+
+    @property
+    def session(self) -> requests.Session:
+        """Expose the underlying requests session for advanced usage."""
+        return self._session

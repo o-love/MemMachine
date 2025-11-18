@@ -199,20 +199,8 @@ class EpisodicMemory:
         """
         Add a new memory episode to both session and declarative memory.
 
-        Validates that the producer and recipient of the episode are part of
-        the current memory context.
-
         Args:
-            producer: The ID of the user or agent that created the episode.
-            produced_for: The ID of the intended recipient.
-            episode_content: The content of the episode (string or vector).
-            episode_type: The type of the episode (e.g., 'message', 'thought').
-            content_type: The type of the content (e.g., STRING).
-            timestamp: The timestamp of the episode. Defaults to now().
-            metadata: Optional dictionary of user-defined metadata.
-
-        Returns:
-            True if the episode was added successfully, False otherwise.
+            episode: Episode instance to ingest.
 
         """
         if not self._enabled:
@@ -237,12 +225,10 @@ class EpisodicMemory:
 
     async def close(self) -> None:
         """
-        Decrements the reference count and closes the instance if it reaches
-        zero.
+        Decrement the reference count and close the underlying memory stores.
 
-        When the reference count is zero, it closes the underlying memory
-        stores and notifies the manager to remove this instance from its
-        registry.
+        When the reference count is zero, it closes the memory stores and
+        notifies the manager to remove this instance from its registry.
         """
         self._closed = True
         if not self._enabled:
@@ -269,12 +255,7 @@ class EpisodicMemory:
         await asyncio.gather(*tasks)
 
     async def delete_session_episodes(self) -> None:
-        """
-        Delete all data from both session and declarative memory for this
-        context.
-
-        This is a destructive operation.
-        """
+        """Delete all data from both session and declarative memory for this context."""
         if not self._enabled:
             return
         tasks = []
@@ -302,8 +283,7 @@ class EpisodicMemory:
             limit: The maximum number of episodes to return. The limit is
                    applied to both short and long term memories. The default
                    value is 20.
-            filter: A dictionary of properties to filter the search in
-                    declarative memory.
+            property_filter: Properties to filter declarative memory searches.
 
         Returns:
             A tuple containing a list of short term memory Episode objects,
@@ -378,7 +358,7 @@ class EpisodicMemory:
         Args:
             query: The original query string.
             limit: The maximum number of episodes to include in the context.
-            filter: A dictionary of properties to filter the search.
+            property_filter: Properties to filter the search.
 
         Returns:
             A new query string enriched with context.

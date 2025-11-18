@@ -1,7 +1,5 @@
 """Session data manager abstraction."""
 
-"""Session data manager abstraction."""
-
 from abc import ABC, abstractmethod
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
@@ -51,7 +49,10 @@ class SessionDataManager(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
+    async def get_sessions(
+        self,
+        filters: dict[str, str] | None = None,
+    ) -> list[str]:
         """Return a list of all session keys (optionally filtered)."""
         raise NotImplementedError
 

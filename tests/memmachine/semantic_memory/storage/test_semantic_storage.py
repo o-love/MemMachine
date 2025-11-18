@@ -195,7 +195,7 @@ async def test_set_embedding_length_fixed_per_set(
         embedding=np.ones(2, dtype=float),
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="embedding"):
         await semantic_storage.add_feature(
             set_id="user",
             category_name="default",
@@ -230,13 +230,13 @@ async def test_update_feature_respects_set_embedding_length(
         embedding=np.ones(3, dtype=float),
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="embedding"):
         await semantic_storage.update_feature(
             feature_id,
             set_id="user2",
         )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="embedding"):
         await semantic_storage.update_feature(
             feature_id,
             embedding=np.ones(3, dtype=float),

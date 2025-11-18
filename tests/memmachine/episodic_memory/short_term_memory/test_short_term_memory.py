@@ -89,7 +89,7 @@ class MockShortTermMemoryDataManager(SessionDataManager):
     ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
         return {}, "", {}, EpisodicMemoryConf()
 
-    async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
+    async def get_sessions(self, filters: dict[str, str] | None = None) -> list[str]:
         return []
 
 

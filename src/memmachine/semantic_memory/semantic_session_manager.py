@@ -43,9 +43,9 @@ class SemanticSessionManager:
             await self._semantic_service.add_message_to_sets(history_ids[0], set_ids)
             return
 
-        tasks = []
-        for s_id in set_ids:
-            tasks.append(self._semantic_service.add_messages(s_id, history_ids))
+        tasks = [
+            self._semantic_service.add_messages(s_id, history_ids) for s_id in set_ids
+        ]
 
         await asyncio.gather(*tasks)
 

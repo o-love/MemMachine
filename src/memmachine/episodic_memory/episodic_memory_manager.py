@@ -151,9 +151,10 @@ class EpisodicMemoryManager:
 
         Args:
             session_key: The unique identifier for the session.
-            param: The parameters for configuring the episodic memory.
+            episodic_memory_config: Parameters for configuring the episodic memory.
             description: A brief description of the session.
             metadata: User-defined metadata for the session.
+            config: Additional configuration values for the session metadata.
 
         Raises:
             ValueError: If a session with the given session_key already exists.
@@ -225,16 +226,19 @@ class EpisodicMemoryManager:
 
     async def get_episodic_memory_keys(
         self,
-        filter: dict[str, str] | None,
+        filters: dict[str, str] | None,
     ) -> list[str]:
         """
         Retrieve a list of all available episodic memory session keys.
+
+        Args:
+            filters: Optional metadata filters for narrowing sessions.
 
         Returns:
             A list of session keys.
 
         """
-        return await self._session_data_manager.get_sessions(filter)
+        return await self._session_data_manager.get_sessions(filters)
 
     async def get_session_configuration(
         self,
@@ -271,8 +275,9 @@ class EpisodicMemoryManager:
         async with self._lock:
             if self._closed:
                 return
-            for key in self._instance_cache:
-                tasks.append(self._instance_cache.get(key).close())
+            tasks.extend(
+                self._instance_cache.get(key).close() for key in self._instance_cache
+            )
             await asyncio.gather(*tasks)
             await self._session_data_manager.close()
             self._instance_cache.clear()

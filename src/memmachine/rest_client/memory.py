@@ -67,6 +67,7 @@ class Memory:
         """
         self.client = client
         self._client_closed = False
+        self._extra_options = kwargs
 
         # Store group_id as private attribute
         self.__group_id = group_id
@@ -234,7 +235,7 @@ class Memory:
         )
 
         try:
-            response = self.client._session.post(
+            response = self.client.session.post(
                 f"{self.client.base_url}/v1/memories",
                 json=episode_data,
                 headers=headers,
@@ -297,7 +298,7 @@ class Memory:
             headers["user-id"] = ",".join(self.__user_id)
 
         try:
-            response = self.client._session.post(
+            response = self.client.session.post(
                 f"{self.client.base_url}/v1/memories/search",
                 json=search_data,
                 headers=headers,
@@ -325,6 +326,10 @@ class Memory:
             "user_id": self.__user_id,
             "session_id": self.__session_id,
         }
+
+    def mark_client_closed(self) -> None:
+        """Mark this memory instance as closed by its owning client."""
+        self._client_closed = True
 
     def __repr__(self) -> str:
         """Return a developer-friendly description of the memory context."""

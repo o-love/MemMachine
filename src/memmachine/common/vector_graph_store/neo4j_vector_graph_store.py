@@ -164,6 +164,12 @@ class Neo4jVectorGraphStore(VectorGraphStore):
 
         self._collection_node_counts: dict[str, int] = {}
         self._relation_edge_counts: dict[str, int] = {}
+        self._background_tasks: set[asyncio.Task[object]] = set()
+
+    def _track_task(self, task: asyncio.Task[object]) -> None:
+        """Keep background tasks from being garbage collected prematurely."""
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     async def add_nodes(
         self,
@@ -228,7 +234,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
             self._collection_node_counts[collection]
             >= self._range_index_creation_threshold
         ):
-            asyncio.create_task(
+            self._track_task(
                 self._create_initial_indexes_if_not_exist(
                     EntityType.NODE,
                     sanitized_collection,
@@ -248,7 +254,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     )
                     not in self._index_state_cache
                 ):
-                    asyncio.create_task(
+                    self._track_task(
                         self._create_vector_index_if_not_exists(
                             entity_type=EntityType.NODE,
                             sanitized_collection_or_relation=sanitized_collection,
@@ -331,7 +337,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
         self._relation_edge_counts[relation] += len(query_edges)
 
         if self._relation_edge_counts[relation] >= self._range_index_creation_threshold:
-            asyncio.create_task(
+            self._track_task(
                 self._create_initial_indexes_if_not_exist(
                     EntityType.EDGE,
                     sanitized_relation,
@@ -351,7 +357,7 @@ class Neo4jVectorGraphStore(VectorGraphStore):
                     )
                     not in self._index_state_cache
                 ):
-                    asyncio.create_task(
+                    self._track_task(
                         self._create_vector_index_if_not_exists(
                             entity_type=EntityType.EDGE,
                             sanitized_collection_or_relation=sanitized_relation,

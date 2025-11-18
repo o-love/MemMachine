@@ -56,7 +56,7 @@ def test_logconf_format_validation_valid():
     ],
 )
 def test_logconf_format_validation_invalid(badfmt):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="log format must include"):
         LogConf(format=badfmt)
 
 

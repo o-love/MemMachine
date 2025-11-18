@@ -148,14 +148,14 @@ class TestMemory:
         """Test that invalid producer raises ValueError."""
         memory = Memory(client=mock_client, agent_id="agent1", user_id="user1")
 
-        with pytest.raises(ValueError, match="producer.*must be in"):
+        with pytest.raises(ValueError, match=r"producer.*must be in"):
             memory.add("Content", producer="invalid_user")
 
     def test_add_with_invalid_produced_for_raises_error(self, mock_client):
         """Test that invalid produced_for raises ValueError."""
         memory = Memory(client=mock_client, agent_id="agent1", user_id="user1")
 
-        with pytest.raises(ValueError, match="produced_for.*must be in"):
+        with pytest.raises(ValueError, match=r"produced_for.*must be in"):
             memory.add("Content", produced_for="invalid_agent")
 
     def test_add_with_valid_producer_from_agent_list(self, mock_client):

@@ -108,7 +108,7 @@ def chat(messages, persona):
         prompt = messages[-1]["content"]
 
         formatted_prompt = (
-            f"<｜begin▁of▁sentence｜><｜User｜>{prompt}<｜Assistant｜><think>\n"
+            f"<|begin▁of▁sentence|><|User|>{prompt}<|Assistant|><think>\n"
         )
 
         response = bedrock_runtime.invoke_model(

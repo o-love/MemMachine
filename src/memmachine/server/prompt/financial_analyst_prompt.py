@@ -1,5 +1,5 @@
 """
-Financial Analyst-specific prompts for Intelligent Memory System
+Financial Analyst-specific prompts for Intelligent Memory System.
 
 Handles financial profiles with direct feature/value pairs (no tags).
 """

@@ -432,10 +432,7 @@ class DeclarativeMemory:
         query: str,
         episode_contexts: Iterable[Iterable[Episode]],
     ) -> list[float]:
-        """
-        Score episode node contexts based on their relevance to the query.
-
-        """
+        """Score episode node contexts based on their relevance to the query."""
         context_strings = []
         for episode_context in episode_contexts:
             context_string = self.string_from_episode_context(episode_context)
@@ -553,10 +550,7 @@ class DeclarativeMemory:
         anchored_episode_contexts: Iterable[tuple[Episode, Iterable[Episode]]],
         max_num_episodes: int,
     ) -> list[Episode]:
-        """
-        Unify episode contexts anchored on their nuclear episodes into a single list of episodes,
-        respecting the episode limit.
-        """
+        """Unify anchored episode contexts into a single list within the limit."""
         episode_set: set[Episode] = set()
 
         for nuclear_episode, context in anchored_episode_contexts:
@@ -575,7 +569,11 @@ class DeclarativeMemory:
                 # Sort chronological episodes by weighted index-proximity to the nuclear episode.
                 nuclear_index = context.index(nuclear_episode)
 
-                def weighted_index_proximity(episode: Episode) -> float:
+                def weighted_index_proximity(
+                    episode: Episode,
+                    nuclear_index: int = nuclear_index,
+                    context: list[Episode] = context,
+                ) -> float:
                     proximity = context.index(episode) - nuclear_index
                     if proximity >= 0:
                         # Forward recall is better than backward recall.

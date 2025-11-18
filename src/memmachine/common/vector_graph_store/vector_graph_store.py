@@ -231,6 +231,8 @@ class VectorGraphStore(ABC):
         Search for nodes matching the specified properties.
 
         Args:
+            collection (str):
+                Name of the collection to search.
             limit (int | None):
                 Maximum number of nodes to return.
                 If None, return as many matching nodes as possible
@@ -261,6 +263,8 @@ class VectorGraphStore(ABC):
         Get nodes from the collection.
 
         Args:
+            collection (str):
+                Name of the collection containing the nodes.
             node_uuids (Iterable[UUID]):
                 Iterable of UUIDs of the nodes to retrieve.
 
@@ -282,6 +286,8 @@ class VectorGraphStore(ABC):
         Delete nodes from the collection.
 
         Args:
+            collection (str):
+                Name of the collection containing the nodes.
             node_uuids (Iterable[UUID]):
                 Iterable of UUIDs of the nodes to delete.
 

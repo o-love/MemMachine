@@ -135,7 +135,7 @@ def mock_config_file(tmp_path):
     }
 
     config_file = tmp_path / "test_config.yml"
-    with open(config_file, "w", encoding="utf-8") as f:
+    with config_file.open("w", encoding="utf-8") as f:
         yaml.dump(config_content, f)
     return str(config_file)
 

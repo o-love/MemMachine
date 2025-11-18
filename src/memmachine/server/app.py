@@ -186,11 +186,8 @@ class SessionData(BaseModel):
         """
 
         def merge_lists(a: list[str], b: list[str]) -> list[str]:
-            if a and b:
-                ret = list(dict.fromkeys(a + b))  # preserve order & unique
-            else:
-                ret = a or b
-            return sorted(ret)
+            merged = list(dict.fromkeys(a + b)) if (a and b) else (a or b)
+            return sorted(merged)
 
         if other.group_id and other.group_id != AppConst.DEFAULT_GROUP_ID:
             self.group_id = other.group_id
@@ -245,10 +242,7 @@ class SessionData(BaseModel):
         return self
 
     def is_valid(self) -> bool:
-        """
-        Return False if the session data is invalid (both group_id and session_id are empty), True otherwise.
-
-        """
+        """Check that group_id, session_id, and user_id are populated."""
         return (
             self.group_id != "" and self.session_id != "" and self.first_user_id() != ""
         )
@@ -573,8 +567,7 @@ def get_current_user_id() -> str | None:
 
 class UserIDContextMiddleware:
     """
-    Middleware that extracts the user_id from the request and stores it
-    in a ContextVar for easy access within MCP tools.
+    Extract user IDs from requests and store them in a ContextVar.
 
     Optionally override `user_id` from header "user-id".
     """
@@ -636,7 +629,7 @@ class McpResponse(BaseModel):
     """Error message"""
 
 
-mcpSuccess = McpResponse(status=McpStatus.SUCCESS, message="Success")
+MCP_SUCCESS = McpResponse(status=McpStatus.SUCCESS, message="Success")
 
 
 class UserIDWithEnv(BaseModel):
@@ -827,7 +820,7 @@ async def mcp_add_memory(
     except HTTPException as e:
         episode.log_error_with_session(e, "Failed to add memory episode")
         return McpResponse(status=e.status_code, message=str(e.detail))
-    return mcpSuccess
+    return MCP_SUCCESS
 
 
 @mcp.tool(
@@ -887,7 +880,7 @@ async def mcp_search_memory(
 async def add_memory(
     episode: NewEpisode,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> None:
     """
     Add a memory episode to both episodic and semantic memory.
@@ -958,7 +951,7 @@ async def _add_memory(episode: NewEpisode) -> None:
 async def add_episodic_memory(
     episode: NewEpisode,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> None:
     """
     Add a memory episode to episodic memory only.
@@ -1026,7 +1019,7 @@ async def _add_episodic_memory(episode: NewEpisode) -> None:
 async def add_profile_memory(
     episode: NewEpisode,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> None:
     """
     Add a memory episode to profile memory.
@@ -1079,7 +1072,7 @@ async def _add_semantic_memory(episode: NewEpisode) -> None:
 async def search_memory(
     q: SearchQuery,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> SearchResult:
     """
     Search memories across episodic and profile storage.
@@ -1138,7 +1131,7 @@ async def _search_memory(q: SearchQuery) -> SearchResult:
 async def search_episodic_memory(
     q: SearchQuery,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> SearchResult:
     """
     Search episodic memory for a given session context.
@@ -1188,7 +1181,7 @@ async def _search_episodic_memory(q: SearchQuery) -> SearchResult:
 async def search_profile_memory(
     q: SearchQuery,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> SearchResult:
     """
     Search profile memory within the provided session context.
@@ -1239,7 +1232,7 @@ async def _search_semantic_memory(q: SearchQuery) -> SearchResult:
 async def delete_session_data(
     delete_req: DeleteDataRequest,
     response: Response,
-    session: SessionData = Depends(_get_session_from_header),  # type: ignore
+    session: SessionData = Depends(_get_session_from_header),  # type: ignore  # noqa: B008
 ) -> None:
     """
     Delete data for a particular session.

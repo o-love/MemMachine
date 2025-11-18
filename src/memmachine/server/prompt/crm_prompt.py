@@ -1,5 +1,5 @@
 """
-CRM-specific prompts for Intelligent Memory System
+CRM-specific prompts for Intelligent Memory System.
 
 Handles company profiles with direct feature/value pairs (no tags).
 """

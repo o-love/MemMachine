@@ -8,12 +8,12 @@ from fastmcp import Client
 from pydantic import ValidationError
 
 from memmachine.server.app import (
+    MCP_SUCCESS,
     AddMemoryParam,
     NewEpisode,
     SearchMemoryParam,
     SearchResult,
     UserIDWithEnv,
-    mcpSuccess,
 )
 from memmachine.server.mcp_stdio import mcp
 
@@ -80,8 +80,8 @@ def search_param():
 
 
 def test_mcp_response_and_status():
-    assert mcpSuccess.status == 200
-    assert mcpSuccess.message == "Success"
+    assert MCP_SUCCESS.status == 200
+    assert MCP_SUCCESS.message == "Success"
 
 
 def test_add_memory_param_get_new_episode(add_param):

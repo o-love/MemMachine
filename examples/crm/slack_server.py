@@ -116,12 +116,16 @@ async def slack_events(
 
     if low.startswith(("*q", "*q ")):
         query_text = stripped[2:].lstrip()
-        asyncio.create_task(
+        task = asyncio.create_task(
             process_query_and_reply(channel, ts, thread_ts, user, query_text),
         )
+        task.add_done_callback(lambda t: t.exception())
         return PlainTextResponse(content="ok")
 
-    asyncio.create_task(process_memory_post(channel, ts, thread_ts, user, text))
+    task = asyncio.create_task(
+        process_memory_post(channel, ts, thread_ts, user, text),
+    )
+    task.add_done_callback(lambda t: t.exception())
     return PlainTextResponse(content="ok")
 
 
@@ -189,7 +193,7 @@ async def process_memory_post(
             message_counters["errors"] += 1
             return False
     except Exception as e:
-        logger.error(f"[SLACK] Error posting to memory: {e}", exc_info=True)
+        logger.exception("[SLACK] Error posting to memory: %s", e)
         message_counters["errors"] += 1
         return False
 

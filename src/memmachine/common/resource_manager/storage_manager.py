@@ -53,8 +53,7 @@ class StorageManager:
                     tasks.append(store.close())
                 except Exception:
                     logger.exception("Error closing graph store '%s'", name)
-            for engine in self.sql_engines.values():
-                tasks.append(engine.dispose())
+            tasks.extend(engine.dispose() for engine in self.sql_engines.values())
 
             await asyncio.gather(*tasks)
 
@@ -99,13 +98,17 @@ class StorageManager:
                 async with driver.session() as session:
                     result = await session.run("RETURN 1 AS ok")
                     record = await result.single()
-                    if not record or record["ok"] != 1:
-                        raise ConnectionError(
-                            f"Verification failed for Neo4J config '{name}'",
-                        )
             except Exception as e:
                 await driver.close()
-                raise ConnectionError(f"Neo4J config '{name}' failed verification: {e}")
+                raise ConnectionError(
+                    f"Neo4J config '{name}' failed verification: {e}",
+                ) from e
+
+            if not record or record["ok"] != 1:
+                await driver.close()
+                raise ConnectionError(
+                    f"Verification failed for Neo4J config '{name}'",
+                )
 
     async def _build_sql_engines(self) -> None:
         """Create async SQL engines for configured SQLite connections."""
@@ -123,14 +126,15 @@ class StorageManager:
         """Validate connectivity for each SQL engine."""
         for name, engine in self.sql_engines.items():
             try:
-                with engine.connect() as conn:
-                    result = conn.execute(text("SELECT 1;"))
+                async with engine.connect() as conn:
+                    result = await conn.execute(text("SELECT 1;"))
                     row = result.fetchone()
-                    if not row or row[0] != 1:
-                        raise ConnectionError(
-                            f"Verification failed for SQLite config '{name}'",
-                        )
             except Exception as e:
                 raise ConnectionError(
                     f"SQLite config '{name}' failed verification: {e}",
+                ) from e
+
+            if not row or row[0] != 1:
+                raise ConnectionError(
+                    f"Verification failed for SQLite config '{name}'",
                 )

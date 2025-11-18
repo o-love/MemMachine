@@ -110,14 +110,15 @@ class LRUCache[K, V]:
             self._add_to_front(node)
         else:
             # Add new key
-            if len(self.cache) >= self.capacity:
+            if (
+                len(self.cache) >= self.capacity
+                and self.tail.prev
+                and self.tail.prev != self.head
+            ):
                 # Cache is full, evict the least recently used item (from tail.prev)
-                if (
-                    self.tail.prev and self.tail.prev != self.head
-                ):  # Ensure there's an item to evict
-                    lru_node = self.tail.prev
-                    self._remove_node(lru_node)
-                    del self.cache[lru_node.key]
+                lru_node = self.tail.prev
+                self._remove_node(lru_node)
+                del self.cache[lru_node.key]
 
             new_node = Node(key, value)
             self.cache[key] = new_node

@@ -176,20 +176,20 @@ class SessionDataManagerSQL(SessionDataManager):
     def _json_contains(
         self,
         column: ColumnElement[object],
-        filter: dict[str, object],
+        filters: dict[str, object],
     ) -> ColumnElement[object]:
         if self._engine.dialect.name == "mysql":
-            return func.json_contains(column, func.json_quote(func.json(filter)))
+            return func.json_contains(column, func.json_quote(func.json(filters)))
 
         if self._engine.dialect.name == "postgresql":
-            return column.op("@>")(filter)
+            return column.op("@>")(filters)
 
         if self._engine.dialect.name == "sqlite":
             # SQLite has no JSON_CONTAINS; emulate using json_extract
-            if not isinstance(filter, dict):
+            if not isinstance(filters, dict):
                 raise ValueError("SQLite emulation only supports dict values")
             conditions = [
-                func.json_extract(column, f"$.{k}") == v for k, v in filter.items()
+                func.json_extract(column, f"$.{k}") == v for k, v in filters.items()
             ]
             return and_(*conditions)
 
@@ -197,13 +197,16 @@ class SessionDataManagerSQL(SessionDataManager):
             f"json_contains not supported for dialect '{self._engine.dialect.name}'",
         )
 
-    async def get_sessions(self, filter: dict[str, str] | None = None) -> list[str]:
+    async def get_sessions(
+        self,
+        filters: dict[str, str] | None = None,
+    ) -> list[str]:
         """Retrieve session keys, optionally filtered by metadata."""
-        if filter is None:
+        if filters is None:
             stmt = select(self.SessionConfig.session_key)
         else:
             stmt = select(self.SessionConfig.session_key).where(
-                self._json_contains(self.SessionConfig.user_metadata, filter),
+                self._json_contains(self.SessionConfig.user_metadata, filters),
             )
         async with self._async_session() as dbsession:
             sessions = await dbsession.execute(stmt)

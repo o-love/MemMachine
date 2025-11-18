@@ -207,21 +207,21 @@ async def test_get_sessions(
     assert sorted(all_sessions) == ["session1", "session2", "session3"]
 
     # Filter by tag 'A'
-    sessions_A = await session_manager.get_sessions(filter={"tag": "A"})
-    assert sorted(sessions_A) == ["session1", "session3"]
+    sessions_a = await session_manager.get_sessions(filters={"tag": "A"})
+    assert sorted(sessions_a) == ["session1", "session3"]
 
     # Filter by user '1'
-    sessions_user1 = await session_manager.get_sessions(filter={"user": "1"})
+    sessions_user1 = await session_manager.get_sessions(filters={"user": "1"})
     assert sorted(sessions_user1) == ["session1", "session2"]
 
     # Filter by tag 'B' and user '1'
-    sessions_B_user1 = await session_manager.get_sessions(
-        filter={"tag": "B", "user": "1"},
+    sessions_b_user1 = await session_manager.get_sessions(
+        filters={"tag": "B", "user": "1"},
     )
-    assert sessions_B_user1 == ["session2"]
+    assert sessions_b_user1 == ["session2"]
 
     # Filter with no matches
-    no_match = await session_manager.get_sessions(filter={"tag": "C"})
+    no_match = await session_manager.get_sessions(filters={"tag": "C"})
     assert no_match == []
 
 

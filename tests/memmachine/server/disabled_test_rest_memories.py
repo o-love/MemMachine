@@ -51,7 +51,7 @@ def mock_memory_managers(monkeypatch):
     # 3. Create a mock for the AsyncEpisodicMemory class itself.
     #    When `AsyncEpisodicMemory(inst)` is called in the app, this mock will
     #    be called instead, returning our mock context manager.
-    MockAsyncEpisodicMemory = MagicMock(return_value=mock_context_manager)
+    mock_async_episodic_memory = MagicMock(return_value=mock_context_manager)
 
     # 4. Mock the other dependencies.
     class DummyEpisodicMemoryManager:
@@ -75,7 +75,7 @@ def mock_memory_managers(monkeypatch):
     monkeypatch.setattr(app_module, "session_id_manager", SessionIdManager())
     # This is the crucial fix: patch the name in the module where it's looked
     # up.
-    monkeypatch.setattr(app_module, "AsyncEpisodicMemory", MockAsyncEpisodicMemory)
+    monkeypatch.setattr(app_module, "AsyncEpisodicMemory", mock_async_episodic_memory)
 
 
 # --- Base Payloads for DRY Tests ---

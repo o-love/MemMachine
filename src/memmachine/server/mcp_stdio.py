@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Start the MCP server using asyncio."""
     try:
         asyncio.run(run_mcp_stdio())
     except KeyboardInterrupt:
@@ -18,6 +19,7 @@ def main() -> None:
 
 
 async def run_mcp_stdio() -> None:
+    """Run the MCP server over stdio, ensuring resources are cleaned up."""
     try:
         logger.info("starting the MemMachine MCP server")
         async with global_memory_lifespan():

@@ -10,6 +10,8 @@ from memmachine.common.data_types import FilterablePropertyValue, JSONValue
 
 
 class ContentType(Enum):
+    """Types of content stored in declarative memory."""
+
     MESSAGE = "message"
     TEXT = "text"
 

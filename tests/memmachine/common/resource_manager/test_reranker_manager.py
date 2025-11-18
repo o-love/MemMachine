@@ -74,7 +74,7 @@ async def test_lazy_initialization(reranker_manager):
 async def test_reranker_not_found(reranker_manager):
     with pytest.raises(
         ValueError,
-        match="Reranker with name unknown_reranker_id not found.",
+        match=r"Reranker with name unknown_reranker_id not found\.",
     ):
         await reranker_manager.get_reranker("unknown_reranker_id")
 

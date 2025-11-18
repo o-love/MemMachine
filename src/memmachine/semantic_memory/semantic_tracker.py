@@ -111,8 +111,8 @@ class SemanticUpdateTrackerManager:
         """
         async with self._trackers_lock:
             ret = []
-            for set, tracker in self._trackers.items():
+            for set_id, tracker in self._trackers.items():
                 if tracker.should_update():
-                    ret.append(set)
+                    ret.append(set_id)
                     tracker.reset()
             return ret
