@@ -382,7 +382,6 @@ The query prompt is: {query}.
 
 HealthAssistantSemanticCategory = SemanticCategory(
     name="health_assistant_prompt",
-    tags=set(),
     prompt=RawSemanticPrompt(
         update_prompt=DEFAULT_UPDATE_PROFILE_PROMPT,
         consolidation_prompt=DEFAULT_REWRITE_PROFILE_PROMPT,

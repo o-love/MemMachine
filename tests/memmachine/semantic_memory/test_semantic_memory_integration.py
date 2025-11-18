@@ -1,6 +1,5 @@
 import asyncio
 import json
-from importlib import import_module
 
 import pytest
 import pytest_asyncio
@@ -11,10 +10,8 @@ from memmachine.semantic_memory.semantic_memory import (
     SemanticService,
 )
 from memmachine.semantic_memory.semantic_model import (
-    RawSemanticPrompt,
     ResourceRetriever,
     Resources,
-    SemanticCategory,
 )
 from memmachine.semantic_memory.semantic_session_manager import SemanticSessionManager
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -40,45 +37,6 @@ def llm_model(real_llm_model):
 def storage(pgvector_semantic_storage):
     yield pgvector_semantic_storage
     pgvector_semantic_storage.delete_all()
-
-
-def load_types_from_modules(module_names):
-    types = []
-    for module_name in module_names:
-        prompt_module = import_module(
-            f"memmachine.server.prompt.{module_name}",
-            __package__,
-        )
-        prompt = RawSemanticPrompt.load_from_module(prompt_module)
-        semantic_type = SemanticCategory(
-            name=module_name,
-            tags={"unknown"},
-            prompt=prompt,
-        )
-        types.append(semantic_type)
-    return types
-
-
-@pytest.fixture
-def session_types(openai_integration_config):
-    module_names = [
-        # "crm_prompt",
-        # "financial_analyst_prompt",
-        "profile_prompt",  # TODO: temporary until a proper session prompt is created
-    ]
-
-    return load_types_from_modules(module_names)
-
-
-@pytest.fixture
-def profile_types(openai_integration_config):
-    module_names = [
-        # "health_assistant_prompt",
-        # "writing_assistant_prompt",
-        "profile_prompt",
-    ]
-
-    return load_types_from_modules(module_names)
 
 
 @pytest.fixture

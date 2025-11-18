@@ -189,7 +189,7 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     # 1. Tracker to recognize 2 messages hit the limit
     # 2. Background task to wake up (0.05s interval)
     # 3. Ingestion to complete
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.6)
 
     # Verify messages were marked as ingested
     uningested = await semantic_storage.get_history_messages_count(

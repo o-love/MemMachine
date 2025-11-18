@@ -533,7 +533,6 @@ The query prompt is: {query}.
 
 FinancialAnalystSemanticCategory = SemanticCategory(
     name="financial_analyst_prompt",
-    tags=set(),
     prompt=RawSemanticPrompt(
         update_prompt=UPDATE_PROMPT,
         consolidation_prompt=CONSOLIDATION_PROMPT,
