@@ -14,18 +14,18 @@ class BM25RerankerConf(BaseModel):
             BM25 b parameter (default: 0.75).
         epsilon (float):
             BM25 epsilon parameter (default: 0.25).
-        tokenize (Callable[[str], list[str]]):
-            Tokenizer function to split text into tokens.
+        tokenizer (str):
+            Tokenizer function to split text into tokens ('default' | 'simple') (default: 'default').
     """
 
-    language: str = Field(
-        default="english", description="Language for stop words in default tokenizer"
-    )
     k1: float = Field(default=1.5, description="BM25 k1 parameter")
     b: float = Field(default=0.75, description="BM25 b parameter")
     epsilon: float = Field(default=0.25, description="BM25 epsilon parameter")
-    tokenize: str = Field(
+    tokenizer: str = Field(
         default="default", description="Tokenizer function to split text into tokens"
+    )
+    language: str = Field(
+        default="english", description="Language for stop words in default tokenizer"
     )
 
 

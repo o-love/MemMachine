@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Lock
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Protocol
 
 import boto3
@@ -79,19 +80,66 @@ class RerankerManager:
             raise ValueError(f"Reranker with name {name} not found.")
 
     async def _build_bm25_reranker(self, name: str) -> Reranker:
-        from memmachine.common.reranker.bm25_reranker import BM25Reranker
+        from memmachine.common.reranker.bm25_reranker import BM25Reranker, BM25RerankerParams
+
+        def get_tokenizer(name: str, language: str) -> Callable[[str], list[str]]:
+            if name == "default":
+                from nltk import word_tokenize
+                from nltk.corpus import stopwords
+
+                stop_words = stopwords.words(language)
+
+                def _default_tokenize(text: str) -> list[str]:
+                    """
+                    Preprocess the input text
+                    by removing non-alphanumeric characters,
+                    converting to lowercase,
+                    word-tokenizing,
+                    and removing stop words.
+
+                    Args:
+                        text (str): The input text to preprocess.
+
+                    Returns:
+                        list[str]: A list of tokens for use in BM25 scoring.
+                    """
+                    alphanumeric_text = re.sub(r"\W+", " ", text)
+                    lower_text = alphanumeric_text.lower()
+                    words = word_tokenize(lower_text, language)
+                    tokens = [word for word in words if word and word not in stop_words]
+                    return tokens
+
+                return _default_tokenize
+            elif name == "simple":
+                return lambda text: re.sub(r"\W+", " ", text).lower().split()
+            else:
+                raise ValueError(f"Unknown tokenizer: {name}")
 
         conf = self.conf.bm25[name]
-        self.rerankers[name] = BM25Reranker(conf)
+        self.rerankers[name] = BM25Reranker(
+            BM25RerankerParams(
+                k1=conf.k1,
+                b=conf.b,
+                epsilon=conf.epsilon,
+                tokenize=get_tokenizer(conf.tokenizer, conf.language),
+            )
+        )
         return self.rerankers[name]
 
     async def _build_cross_encoder_reranker(self, name: str) -> Reranker:
+        from sentence_transformers import CrossEncoder
+
         from memmachine.common.reranker.cross_encoder_reranker import (
             CrossEncoderReranker,
+            CrossEncoderRerankerParams,
         )
 
         conf = self.conf.cross_encoder[name]
-        self.rerankers[name] = CrossEncoderReranker(conf)
+
+        cross_encoder = CrossEncoder(conf.model_name)
+        self.rerankers[name] = CrossEncoderReranker(
+            CrossEncoderRerankerParams(cross_encoder=cross_encoder)
+        )
         return self.rerankers[name]
 
     async def _build_amazon_bedrock_reranker(self, name: str) -> Reranker:

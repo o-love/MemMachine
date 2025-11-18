@@ -3,22 +3,34 @@ Cross-encoder based reranker implementation.
 """
 
 import asyncio
-from typing import Any
 
-from memmachine.common.configuration.reranker_conf import CrossEncoderRerankerConf
+from pydantic import BaseModel, Field, InstanceOf
+from sentence_transformers import CrossEncoder
 
 from .reranker import Reranker
 
 
-class CrossEncoderReranker(Reranker):
-    _cross_encoders: dict[str, Any] = {}
+class CrossEncoderRerankerParams(BaseModel):
+    """
+    Parameters for CrossEncoderReranker.
 
+    Attributes:
+        cross_encoder (CrossEncoder):
+            The cross-encoder model to use for reranking.
+    """
+
+    cross_encoder: InstanceOf[CrossEncoder] = Field(
+        ..., description="The cross-encoder model to use for reranking"
+    )
+
+
+class CrossEncoderReranker(Reranker):
     """
     Reranker that uses a cross-encoder model to score candidates
     based on their relevance to the query.
     """
 
-    def __init__(self, params: CrossEncoderRerankerConf):
+    def __init__(self, params: CrossEncoderRerankerParams):
         """
         Initialize a CrossEncoderReranker
         with the provided parameters.
@@ -28,22 +40,14 @@ class CrossEncoderReranker(Reranker):
                 Parameters for the CrossEncoderReranker.
         """
         super().__init__()
-        self._params = params
 
-    @property
-    def cross_encoder(self):
-        model_name = self._params.model_name
-        if model_name not in self._cross_encoders:
-            from sentence_transformers import CrossEncoder
-
-            self._cross_encoders[model_name] = CrossEncoder(model_name)
-        return self._cross_encoders[model_name]
+        self._cross_encoder = params.cross_encoder
 
     async def score(self, query: str, candidates: list[str]) -> list[float]:
         scores = [
             float(score)
             for score in await asyncio.to_thread(
-                self.cross_encoder.predict,
+                self._cross_encoder.predict,
                 [(query, candidate) for candidate in candidates],
                 show_progress_bar=False,
             )
