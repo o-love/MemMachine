@@ -2,7 +2,7 @@ import pytest
 from pydantic import SecretStr
 
 from memmachine.common.configuration.model_conf import (
-    AmazonBedrockModelConf,
+    AmazonBedrockLanguageModelConf,
     LanguageModelConf,
     OpenAICompatibleModelConf,
     OpenAIModelConf,
@@ -27,7 +27,7 @@ def mock_conf():
             ),
         },
         aws_bedrock_confs={
-            "aws_model": AmazonBedrockModelConf(
+            "aws_model": AmazonBedrockLanguageModelConf(
                 region="us-west-2",
                 aws_access_key_id=SecretStr("DUMMY_AWS_ACCESS_KEY_ID"),
                 aws_secret_access_key=SecretStr("DUMMY_AWS_SECRET_ACCESS_KEY"),
