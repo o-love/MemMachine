@@ -74,6 +74,6 @@ Response Format:
                 query=query,
             )
         except Exception as e:
-            logger.exception(f"Error creating health assistant query: {e}")
+            logger.exception("Error creating health assistant query: %s", e)
             # Fallback to simple format
             return f"{profile_str}\n\n{context_block}{query}"

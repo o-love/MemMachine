@@ -104,9 +104,10 @@ async def get_data(query: str, user_id: str, timestamp: str):
         }
 
         logger.debug(
-            f"Sending POST request to {MEMORY_BACKEND_URL}/v1/memories/search",
+            "Sending POST request to %s/v1/memories/search",
+            MEMORY_BACKEND_URL,
         )
-        logger.debug(f"Search data: {search_data}")
+        logger.debug("Search data: %s", search_data)
 
         response = requests.post(
             f"{MEMORY_BACKEND_URL}/v1/memories/search",
@@ -114,18 +115,22 @@ async def get_data(query: str, user_id: str, timestamp: str):
             timeout=1000,
         )
 
-        logger.debug(f"Response status: {response.status_code}")
-        logger.debug(f"Response headers: {dict(response.headers)}")
+        logger.debug("Response status: %s", response.status_code)
+        logger.debug("Response headers: %s", dict(response.headers))
 
         if response.status_code != 200:
-            logger.error(f"Backend returned {response.status_code}: {response.text}")
+            logger.error(
+                "Backend returned %s: %s",
+                response.status_code,
+                response.text,
+            )
             return {
                 "status": "error",
                 "message": "Failed to retrieve memory data",
             }
 
         response_data = response.json()
-        logger.debug(f"Response data: {response_data}")
+        logger.debug("Response data: %s", response_data)
 
         content = response_data.get("content", {})
         episodic_memory = content.get("episodic_memory", [])
@@ -221,9 +226,9 @@ async def store_and_search_data(user_id: str, query: str):
             timeout=1000,
         )
 
-        logger.debug(f"Store-and-search response status: {resp.status_code}")
+        logger.debug("Store-and-search response status: %s", resp.status_code)
         if resp.status_code != 200:
-            logger.error(f"Store failed with {resp.status_code}: {resp.text}")
+            logger.error("Store failed with %s: %s", resp.status_code, resp.text)
             return {
                 "status": "error",
                 "message": "Failed to store memory data",
@@ -243,11 +248,12 @@ async def store_and_search_data(user_id: str, query: str):
             timeout=1000,
         )
 
-        logger.debug(f"Store-and-search response status: {search_resp.status_code}")
+        logger.debug(
+            "Store-and-search response status: %s",
+            search_resp.status_code,
+        )
         if search_resp.status_code != 200:
-            logger.error(
-                f"Search failed with {search_resp.status_code}: {search_resp.text}",
-            )
+            logger.error("Search failed with %s: %s", search_resp.status_code, search_resp.text)
             return {
                 "status": "error",
                 "message": "Failed to search memory data",
@@ -343,9 +349,7 @@ async def analyze_writing_style(user_id: str, query: str):
         )
 
         if search_resp.status_code != 200:
-            logger.error(
-                f"Search failed with {search_resp.status_code}: {search_resp.text}",
-            )
+            logger.error("Search failed with %s: %s", search_resp.status_code, search_resp.text)
             return {
                 "status": "error",
                 "message": "Failed to retrieve existing writing style data",

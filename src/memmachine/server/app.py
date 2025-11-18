@@ -137,7 +137,7 @@ class AppConst:
     ]
     EPISODE_TYPE_EXAMPLES: ClassVar[list[str]] = ["message"]
     EPISODE_META_EXAMPLES: ClassVar[list[dict[str, str]]] = [
-        {"mood": "happy", "location": "office"}
+        {"mood": "happy", "location": "office"},
     ]
 
 
@@ -263,7 +263,7 @@ class RequestWithSession(BaseModel):
         session_name = (
             f"{sess.group_id}-{sess.agent_id}-{sess.user_id}-{sess.session_id}"
         )
-        logger.error(f"{message} for %s", session_name)
+        logger.error("%s for %s", message, session_name)
         logger.error(e)
 
     def get_session(self) -> SessionData:
@@ -573,7 +573,7 @@ class UserIDContextMiddleware:
     """
 
     def __init__(
-        self, app: StarletteWithLifespan, header_name: str = "user-id"
+        self, app: StarletteWithLifespan, header_name: str = "user-id",
     ) -> None:
         """Store the wrapped app and the name of the header carrying user id."""
         self.app = app

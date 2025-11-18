@@ -29,8 +29,10 @@ class SlackService:
             real = (profile.get("real_name") or "").strip()
             return display or real or user_id
         except SlackApiError as e:
+            error_detail = e.response["error"] if hasattr(e, "response") else str(e)
             logger.exception(
-                f"[SLACK] users.info failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
+                "[SLACK] users.info failed: %s",
+                error_detail,
             )
             return user_id
         except Exception:
@@ -53,8 +55,10 @@ class SlackService:
             )
             return resp.get("ts")
         except SlackApiError as e:
+            error_detail = e.response["error"] if hasattr(e, "response") else str(e)
             logger.exception(
-                f"[SLACK] chat.postMessage failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
+                "[SLACK] chat.postMessage failed: %s",
+                error_detail,
             )
             return None
         except Exception:
@@ -97,13 +101,17 @@ class SlackService:
                     break
 
             logger.info(
-                f"[SLACK] Fetched {len(messages)} historical messages from channel {channel}",
+                "[SLACK] Fetched %d historical messages from channel %s",
+                len(messages),
+                channel,
             )
             return messages
 
         except SlackApiError as e:
+            error_detail = e.response["error"] if hasattr(e, "response") else str(e)
             logger.exception(
-                f"[SLACK] conversations.history failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
+                "[SLACK] conversations.history failed: %s",
+                error_detail,
             )
             return []
         except Exception:
@@ -139,12 +147,14 @@ class SlackService:
                 if not cursor:
                     break
 
-            logger.info(f"[SLACK] Found {len(channels)} accessible channels")
+            logger.info("[SLACK] Found %d accessible channels", len(channels))
             return channels
 
         except SlackApiError as e:
+            error_detail = e.response["error"] if hasattr(e, "response") else str(e)
             logger.exception(
-                f"[SLACK] conversations.list failed: {e.response['error'] if hasattr(e, 'response') else str(e)}",
+                "[SLACK] conversations.list failed: %s",
+                error_detail,
             )
             return []
         except Exception:

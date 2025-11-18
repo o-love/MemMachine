@@ -123,9 +123,9 @@ select = [
     "YTT",
 ]
 ignore = [
-    "E501", "UP015", "TRY002", "COM812",
+    "E501", "UP015", "TRY002", "COM819",
     "D102", "D212", "D203", "RET504",
-    "TRY003", "PLC0415", "G004",
+    "TRY003", "PLC0415", "COM818",
 ]
 
 [tool.ruff.lint.per-file-ignores]

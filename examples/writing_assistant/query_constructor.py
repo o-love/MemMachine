@@ -159,7 +159,7 @@ Use the "/submit" command followed by the content type and your writing sample:
                 query=query,
             )
         except Exception as e:
-            logger.exception(f"Error creating writing assistant query: {e}")
+            logger.exception("Error creating writing assistant query: %s", e)
             # Fallback to simple format
             return f"{profile_str}\n\n{context_block}{query}"
 

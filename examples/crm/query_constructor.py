@@ -453,7 +453,7 @@ class CRMQueryConstructor(BaseQueryConstructor):
             try:
                 config_json = json.dumps(current_config, indent=2)
             except (TypeError, ValueError) as e:
-                logger.exception(f"Error serializing CONFIG to JSON: {e}")
+                logger.exception("Error serializing CONFIG to JSON: %s", e)
                 config_json = '{"error": "Configuration serialization failed"}'
 
             result = self.prompt_template.format(
@@ -462,14 +462,20 @@ class CRMQueryConstructor(BaseQueryConstructor):
                 context_block=context_block,
                 query=query,
             )
-            logger.info(f"[DEBUG] Query constructor generated {len(result)} characters")
-            logger.info(f"[DEBUG] Query constructor preview: {result[:500]}...")
+            logger.info(
+                "[DEBUG] Query constructor generated %d characters",
+                len(result),
+            )
+            logger.info("[DEBUG] Query constructor preview: %s...", result[:500])
             return result
         except KeyError as e:
-            logger.exception(f"Template formatting error - missing placeholder: {e}")
+            logger.exception(
+                "Template formatting error - missing placeholder: %s",
+                e,
+            )
             raise RuntimeError(
                 f"Failed to format prompt due to missing key: {e}",
             ) from e
         except Exception as e:
-            logger.exception(f"Error creating CRM query: {e}")
+            logger.exception("Error creating CRM query: %s", e)
             return f"{profile_str}\n\n{context_block}{query}"

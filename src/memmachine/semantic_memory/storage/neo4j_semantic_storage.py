@@ -75,7 +75,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
     _SET_LABEL_PREFIX = "FeatureSet_"
 
     def __init__(
-        self, driver: InstanceOf[AsyncDriver], owns_driver: bool = False
+        self, driver: InstanceOf[AsyncDriver], owns_driver: bool = False,
     ) -> None:
         """Initialize the storage with a Neo4j driver."""
         self._driver = driver
@@ -843,7 +843,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
             await self._ensure_set_label_applied(set_id)
 
     async def _ensure_set_embedding_dimensions(
-        self, set_id: str, dimensions: int
+        self, set_id: str, dimensions: int,
     ) -> None:
         cached = self._set_embedding_dimensions.get(set_id)
         if cached is not None:
@@ -912,7 +912,7 @@ class Neo4jSemanticStorage(SemanticStorageBase):
         )
 
     async def _get_feature_dimensions(
-        self, feature_id: FeatureIdT
+        self, feature_id: FeatureIdT,
     ) -> dict[str, Any] | None:
         records, _, _ = await self._driver.execute_query(
             f"""

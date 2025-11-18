@@ -68,6 +68,6 @@ Response Format:
                 query=query,
             )
         except Exception as e:
-            logger.exception(f"Error creating chatbot query: {e}")
+            logger.exception("Error creating chatbot query: %s", e)
             # Fallback to simple format
             return f"{profile_str}\n\n{context_block}{query}"

@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """
 Memory management interface for MemMachine.
 
 This module provides the Memory class that handles episodic and profile memory
 operations for a specific context.
 """
+
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
@@ -232,9 +232,16 @@ class Memory:
 
         # Log the request details for debugging
         logger.debug(
-            f"Adding memory: producer={producer}, produced_for={produced_for}, "
-            f"user_id={self.__user_id}, agent_id={self.__agent_id}, "
-            f"group_id={self.__group_id}, session_id={self.__session_id}",
+            (
+                "Adding memory: producer=%s, produced_for=%s, user_id=%s, "
+                "agent_id=%s, group_id=%s, session_id=%s"
+            ),
+            producer,
+            produced_for,
+            self.__user_id,
+            self.__agent_id,
+            self.__group_id,
+            self.__session_id,
         )
 
         try:
@@ -259,7 +266,7 @@ class Memory:
             logger.exception("Failed to add memory")
             raise
         else:
-            logger.debug(f"Successfully added memory: {content[:50]}...")
+            logger.debug("Successfully added memory: %s...", content[:50])
             return True
 
     def search(
@@ -309,7 +316,7 @@ class Memory:
             )
             response.raise_for_status()
             data = response.json()
-            logger.info(f"Search completed for query: {query}")
+            logger.info("Search completed for query: %s", query)
             return data.get("content", {})
         except Exception:
             logger.exception("Failed to search memories")

@@ -72,5 +72,5 @@ Response Format:
                 query=query,
             )
         except Exception as e:
-            logger.exception(f"Error creating financial analyst query: {e}")
+            logger.exception("Error creating financial analyst query: %s", e)
             return f"{profile_str}\n\n{context_block}{query}"

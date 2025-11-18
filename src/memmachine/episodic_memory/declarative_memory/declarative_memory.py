@@ -161,7 +161,7 @@ class DeclarativeMemory:
                 },
             )
             for derivative, embedding in zip(
-                derivatives, derivative_embeddings, strict=False
+                derivatives, derivative_embeddings, strict=False,
             )
         ]
 
@@ -172,7 +172,7 @@ class DeclarativeMemory:
                 target_uuid=episode.uuid,
             )
             for episode, episode_derivatives in zip(
-                episodes, episodes_derivatives, strict=False
+                episodes, episodes_derivatives, strict=False,
             )
             for derivative in episode_derivatives
         ]
@@ -245,7 +245,8 @@ class DeclarativeMemory:
                 ]
             case _:
                 logger.warning(
-                    f"Unsupported content type for derivative derivation: {episode.content_type}",
+                    "Unsupported content type for derivative derivation: %s",
+                    episode.content_type,
                 )
                 return []
 

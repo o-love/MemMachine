@@ -15,7 +15,11 @@ logger = logging.getLogger(__name__)
 async def run_mcp_http(host: str, port: int) -> None:
     """Run MCP server in HTTP mode."""
     try:
-        logger.info(f"Starting MemMachine MCP HTTP server at http://{host}:{port}")
+        logger.info(
+            "Starting MemMachine MCP HTTP server at http://%s:%s",
+            host,
+            port,
+        )
         async with global_memory_lifespan():
             await uvicorn.Server(
                 uvicorn.Config(mcp.get_app(), host=host, port=int(port)),

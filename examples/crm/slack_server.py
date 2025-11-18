@@ -58,7 +58,7 @@ async def slack_events(
     request: Request,
     x_slack_signature: Annotated[str | None, Header(alias="X-Slack-Signature")] = None,
     x_slack_request_timestamp: Annotated[
-        str | None, Header(alias="X-Slack-Request-Timestamp")
+        str | None, Header(alias="X-Slack-Request-Timestamp"),
     ] = None,
 ):
     signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
@@ -100,7 +100,9 @@ async def slack_events(
     # Only log important events, not every message
     if event_type == "message" and not subtype and not bot_id:
         logger.debug(
-            f"[SLACK] Processing message from user {user} in channel {channel}",
+            "[SLACK] Processing message from user %s in channel %s",
+            user,
+            channel,
         )
 
     if event_type != "message" or subtype is not None or bot_id:
@@ -161,7 +163,7 @@ async def process_memory_post(
         bool: True if message was skipped (already processed), False if successfully processed
 
     """
-    logger.debug(f"[SLACK] Processing message from user {user}")
+    logger.debug("[SLACK] Processing message from user %s", user)
 
     (await slack_service.get_user_display_name(user) if user else (user or ""))
 
@@ -175,7 +177,7 @@ async def process_memory_post(
         "slack_message_id": slack_message_id,
     }
 
-    logger.debug(f"[SLACK] POST -> {crm_server_url}")
+    logger.debug("[SLACK] POST -> %s", crm_server_url)
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -183,13 +185,13 @@ async def process_memory_post(
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status") == "skipped":
-                    logger.debug(f"[SLACK] Message {ts} already processed, skipped")
+                    logger.debug("[SLACK] Message %s already processed, skipped", ts)
                     message_counters["skipped"] += 1
                     return True
                 logger.debug("[SLACK] Message posted to memory successfully")
                 message_counters["processed"] += 1
                 return False
-            logger.warning(f"[SLACK] Failed to post to memory: {resp.status_code}")
+            logger.warning("[SLACK] Failed to post to memory: %s", resp.status_code)
             message_counters["errors"] += 1
             return False
     except Exception as e:
@@ -206,7 +208,11 @@ async def process_query_and_reply(
     query_text: str,
 ) -> None:
     """Handle *Q queries by searching memory and using OpenAI chat completion"""
-    logger.info(f"[SLACK] Processing query from user {user}: {query_text[:50]}...")
+    logger.info(
+        "[SLACK] Processing query from user %s: %s...",
+        user,
+        query_text[:50],
+    )
 
     (await slack_service.get_user_display_name(user) if user else (user or ""))
 
@@ -214,12 +220,15 @@ async def process_query_and_reply(
 
     params = {"query": query_text, "user_id": user, "timestamp": str(int(time.time()))}
 
-    logger.debug(f"[SLACK] GET -> {search_url}")
+    logger.debug("[SLACK] GET -> %s", search_url)
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(search_url, params=params)
-            logger.debug(f"[SLACK] memory search resp status={resp.status_code}")
+            logger.debug(
+                "[SLACK] memory search resp status=%s",
+                resp.status_code,
+            )
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -238,7 +247,7 @@ async def process_query_and_reply(
                 response_text = f"⚠️ Search failed with status {resp.status_code}"
 
     except Exception as e:
-        logger.exception(f"[SLACK] Error searching memory: {e}")
+        logger.exception("[SLACK] Error searching memory: %s", e)
         response_text = f"⚠️ Error searching memory: {e!s}"
 
     await slack_service.post_message(
@@ -269,7 +278,10 @@ async def generate_openai_response(formatted_query: str, original_query: str) ->
             {"role": "user", "content": formatted_query},
         ]
 
-        logger.debug(f"[OPENAI] Sending request with {len(formatted_query)} characters")
+        logger.debug(
+            "[OPENAI] Sending request with %d characters",
+            len(formatted_query),
+        )
 
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
@@ -279,12 +291,15 @@ async def generate_openai_response(formatted_query: str, original_query: str) ->
         )
 
         response_text = response.choices[0].message.content
-        logger.debug(f"[OPENAI] Generated response: {len(response_text)} characters")
+        logger.debug(
+            "[OPENAI] Generated response: %d characters",
+            len(response_text),
+        )
 
         return response_text
 
     except Exception as e:
-        logger.exception(f"[OPENAI] Error generating response: {e}")
+        logger.exception("[OPENAI] Error generating response: %s", e)
         return f"⚠️ Error generating AI response: {e!s}"
 
 
@@ -367,7 +382,8 @@ async def main() -> None:
 async def ingest_historical_messages_with_limit(message_limit: int) -> None:
     """Ingest historical messages with the specified limit"""
     logger.info(
-        f"[SLACK] Starting historical message ingestion with limit: {message_limit}",
+        "[SLACK] Starting historical message ingestion with limit: %s",
+        message_limit,
     )
 
     reset_counters()
@@ -391,7 +407,7 @@ async def ingest_historical_messages_with_limit(message_limit: int) -> None:
         allow_channel = os.getenv("CRM_CHANNEL_ID")
         if allow_channel:
             channels = [ch for ch in channels if ch.get("id") == allow_channel]
-            logger.info(f"[SLACK] Limited to specific channel: {allow_channel}")
+            logger.info("[SLACK] Limited to specific channel: %s", allow_channel)
             print(f"Channel filter: {allow_channel}")
 
         print(f"Channels to process: {len(channels)}")
@@ -405,7 +421,11 @@ async def ingest_historical_messages_with_limit(message_limit: int) -> None:
             channel_id = channel.get("id")
             channel_name = channel.get("name", "unknown")
 
-            logger.info(f"[SLACK] Processing channel: {channel_name} ({channel_id})")
+            logger.info(
+                "[SLACK] Processing channel: %s (%s)",
+                channel_name,
+                channel_id,
+            )
             print(f"  #{channel_name}...", end=" ", flush=True)
 
             messages = await slack_service.get_channel_history(
@@ -414,7 +434,7 @@ async def ingest_historical_messages_with_limit(message_limit: int) -> None:
             )
 
             if not messages:
-                logger.info(f"[SLACK] No messages found in channel {channel_name}")
+                logger.info("[SLACK] No messages found in channel %s", channel_name)
                 print("⚠️ No messages found")
                 continue
 
@@ -445,7 +465,10 @@ async def ingest_historical_messages_with_limit(message_limit: int) -> None:
                 await asyncio.sleep(0.1)
 
             logger.info(
-                f"[SLACK] Processed {channel_processed} messages, skipped {channel_skipped} messages from channel {channel_name}",
+                "[SLACK] Processed %d messages, skipped %d messages from channel %s",
+                channel_processed,
+                channel_skipped,
+                channel_name,
             )
             if channel_skipped > 0:
                 print(f"✅ {channel_processed} processed, {channel_skipped} skipped")
@@ -464,15 +487,18 @@ async def ingest_historical_messages_with_limit(message_limit: int) -> None:
         print(f"{'=' * 50}")
 
         logger.info(
-            f"[SLACK] Historical ingestion complete. Processed: {counters['processed']}, Skipped: {counters['skipped']}, Errors: {counters['errors']}",
+            "[SLACK] Historical ingestion complete. Processed: %d, Skipped: %d, Errors: %d",
+            counters["processed"],
+            counters["skipped"],
+            counters["errors"],
         )
 
     except Exception as e:
-        logger.exception(f"[SLACK] Error during historical ingestion: {e}")
+        logger.exception("[SLACK] Error during historical ingestion: %s", e)
         print(f"❌ Error during historical ingestion: {e}")
         import traceback
 
-        logger.exception(f"[SLACK] Traceback: {traceback.format_exc()}")
+        logger.exception("[SLACK] Traceback: %s", traceback.format_exc())
 
 
 if __name__ == "__main__":
