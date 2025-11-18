@@ -5,6 +5,8 @@ Builder for LanguageModel instances.
 import asyncio
 from asyncio import Lock
 
+from pydantic import SecretStr
+
 from memmachine.common.configuration.model_conf import LanguageModelConf
 from memmachine.common.language_model.language_model import LanguageModel
 
@@ -19,11 +21,11 @@ class LanguageModelManager:
 
     async def build_all(self) -> dict[str, LanguageModel]:
         names = set()
-        for name in self.conf.openai_confs:
+        for name in self.conf.openai_responses_language_model_confs:
             names.add(name)
-        for name in self.conf.aws_bedrock_confs:
+        for name in self.conf.amazon_bedrock_language_model_confs:
             names.add(name)
-        for name in self.conf.openai_compatible_confs:
+        for name in self.conf.openai_chat_completions_language_model_confs:
             names.add(name)
 
         await asyncio.gather(*[self.get_language_model(name) for name in names])
@@ -56,7 +58,7 @@ class LanguageModelManager:
         else:
             raise ValueError(f"Language model with name {name} not found.")
 
-    def _build_openai_responses_language_models(self, name: str) -> LanguageModel:
+    def _build_openai_responses_language_model(self, name: str) -> LanguageModel:
         import openai
 
         from memmachine.common.language_model.openai_responses_language_model import (
@@ -79,7 +81,7 @@ class LanguageModelManager:
             )
         )
 
-    def _build_openai_chat_completions_language_models(
+    def _build_openai_chat_completions_language_model(
         self, name: str
     ) -> LanguageModel:
         import openai
@@ -104,7 +106,7 @@ class LanguageModelManager:
             )
         )
 
-    def _build_amazon_bedrock_language_models(self, name: str) -> LanguageModel:
+    def _build_amazon_bedrock_language_model(self, name: str) -> LanguageModel:
         import boto3
         import botocore
 
@@ -115,12 +117,17 @@ class LanguageModelManager:
 
         conf = self.conf.amazon_bedrock_language_model_confs[name]
 
+        def _get_secret_value(secret: SecretStr | None) -> str| None:
+            if secret is None:
+                return None
+            return secret.get_secret_value()
+
         client = boto3.client(
             "bedrock-runtime",
             region_name=conf.region,
-            aws_access_key_id=conf.aws_access_key_id.get_secret_value(),
-            aws_secret_access_key=conf.aws_secret_access_key.get_secret_value(),
-            aws_session_token=conf.aws_session_token.get_secret_value(),
+            aws_access_key_id=_get_secret_value(conf.aws_access_key_id),
+            aws_secret_access_key=_get_secret_value(conf.aws_secret_access_key),
+            aws_session_token=_get_secret_value(conf.aws_session_token),
             config=botocore.config.Config(
                 retries={
                     "total_max_attempts": 1,
