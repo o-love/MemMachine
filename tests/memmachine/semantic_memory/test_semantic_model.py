@@ -157,6 +157,7 @@ class TestHistoryMessage:
 
         now = datetime.now(UTC)
         msg = Episode(
+            uid="123",
             content="Test message",
             created_at=now,
             session_key="session_key",
