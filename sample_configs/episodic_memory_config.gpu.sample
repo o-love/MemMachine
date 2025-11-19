@@ -2,6 +2,9 @@ logging:
   path: /tmp/memory_log
   level: info #| debug | error
 
+episode_store:
+  database: profile_storage
+
 episodic_memory:
   long_term_memory:
     embedder: openai_embedder
