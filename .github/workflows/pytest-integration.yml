@@ -26,8 +26,10 @@ jobs:
           "tests/memmachine/common/session_manager/",
           # Vector Graph Store tests
           "tests/memmachine/common/vector_graph_store/",
-          # Episodic Store tests
+          # Episode Store tests
           "tests/memmachine/episode_store/",
+          # Episodic Memory tests
+          "tests/memmachine/episodic_memory/",
           # Semantic Memory tests
           "tests/memmachine/semantic_memory/",
         ]
