@@ -31,16 +31,28 @@ class MemMachineClient:
             base_url="http://localhost:8080"
         )
 
-        # Create a memory instance
-        memory = client.memory(
-            group_id="my_group",
-            agent_id="my_agent",
-            user_id="user123",
-            session_id="session456"
+        # Create a project (optional, project is auto-created on first use)
+        client.create_project(
+            org_id="my_org",
+            project_id="my_project",
+            description="My project description"
         )
 
-        # Add memory
-        memory.add("I like pizza", metadata={"type": "preference"})
+        # Create a memory instance (v2 API requires org_id and project_id)
+        memory = client.memory(
+            org_id="my_org",
+            project_id="my_project",
+            group_id="my_group",  # Optional: stored in metadata
+            agent_id="my_agent",  # Optional: stored in metadata
+            user_id="user123",    # Optional: stored in metadata
+            session_id="session456"  # Optional: stored in metadata
+        )
+
+        # Add memory (role defaults to "user")
+        memory.add("I like pizza")
+
+        # Add assistant response
+        memory.add("I understand you like pizza", role="assistant")
 
         # Search memories
         results = memory.search("What do I like to eat?")
@@ -108,8 +120,93 @@ class MemMachineClient:
         if api_key:
             self._session.headers["Authorization"] = f"Bearer {api_key}"
 
+    def request(
+        self,
+        method: str,
+        url: str,
+        **kwargs: dict[str, Any],
+    ) -> requests.Response:
+        """
+        Make an HTTP request using the client's session.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: Request URL
+            **kwargs: Additional arguments passed to requests.Session.request()
+
+        Returns:
+            Response object from the request
+
+        Raises:
+            requests.RequestException: If the request fails
+
+        """
+        return self._session.request(method, url, timeout=self.timeout, **kwargs)
+
+    def create_project(
+        self,
+        org_id: str,
+        project_id: str,
+        description: str = "",
+        embedder: str = "default",
+        reranker: str = "default",
+    ) -> bool:
+        """
+        Create a new project in MemMachine.
+
+        Args:
+            org_id: Organization identifier (required)
+            project_id: Project identifier (required)
+            description: Optional description for the project (default: "")
+            embedder: Embedder model name to use (default: "default")
+            reranker: Reranker model name to use (default: "default")
+
+        Returns:
+            True if the project was created successfully
+
+        Raises:
+            requests.RequestException: If the request fails
+            RuntimeError: If the client has been closed
+
+        Example:
+            ```python
+            client = MemMachineClient(base_url="http://localhost:8080")
+            client.create_project(
+                org_id="my_org",
+                project_id="my_project",
+                description="My new project"
+            )
+            ```
+
+        """
+        if self._closed:
+            raise RuntimeError("Cannot create project: client has been closed")
+
+        url = f"{self.base_url}/api/v2/projects"
+        data = {
+            "org_id": org_id,
+            "project_id": project_id,
+            "description": description,
+            "config": {
+                "embedder": embedder,
+                "reranker": reranker,
+            },
+        }
+
+        try:
+            response = self._session.post(url, json=data, timeout=self.timeout)
+            response.raise_for_status()
+        except requests.RequestException:
+            logger.exception("Failed to create project %s/%s", org_id, project_id)
+            raise
+        else:
+            logger.debug("Project created: %s/%s", org_id, project_id)
+            return True
+
     def memory(
         self,
+        org_id: str,
+        project_id: str,
         group_id: str | None = None,
         agent_id: str | list[str] | None = None,
         user_id: str | list[str] | None = None,
@@ -120,10 +217,12 @@ class MemMachineClient:
         Create a Memory instance for a specific context.
 
         Args:
-            group_id: Group identifier for the memory context
-            agent_id: Agent identifier(s) for the memory context
-            user_id: User identifier(s) for the memory context
-            session_id: Session identifier for the memory context
+            org_id: Organization identifier (required for v2 API)
+            project_id: Project identifier (required for v2 API)
+            group_id: Group identifier (optional, will be stored in metadata)
+            agent_id: Agent identifier(s) (optional, will be stored in metadata)
+            user_id: User identifier(s) (optional, will be stored in metadata)
+            session_id: Session identifier (optional, will be stored in metadata)
             **kwargs: Additional configuration options
 
         Returns:
@@ -132,6 +231,8 @@ class MemMachineClient:
         """
         memory = Memory(
             client=self,
+            org_id=org_id,
+            project_id=project_id,
             group_id=group_id,
             agent_id=agent_id,
             user_id=user_id,
