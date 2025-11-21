@@ -6,7 +6,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import pytest_asyncio
 
-from memmachine.episode_store.episode_model import EpisodeIdT, EpisodeType
+from memmachine.episode_store.episode_model import (
+    EpisodeEntry,
+    EpisodeIdT,
+    EpisodeType,
+)
 from memmachine.episode_store.episode_storage import EpisodeStorage
 
 DEFAULT_HISTORY_ARGS = {
@@ -61,7 +65,7 @@ async def timestamped_history(episode_storage: EpisodeStorage):
 
     yield (message, before, after)
 
-    await episode_storage.delete_episode([history_id])
+    await episode_storage.delete_episodes([history_id])
 
 
 @pytest.mark.asyncio
@@ -88,6 +92,43 @@ async def test_add_and_get_history(episode_storage: EpisodeStorage):
     assert history.producer_role == "assistant"
     assert history.produced_for_id == "agent-456"
     assert history.episode_type == EpisodeType.MESSAGE
+
+
+@pytest.mark.asyncio
+async def test_add_multiple_episodes_returns_models(
+    episode_storage: EpisodeStorage,
+):
+    created_at = datetime.now(tz=UTC)
+    entries = [
+        EpisodeEntry(
+            content="first",
+            producer_id="p-1",
+            producer_role="role-1",
+            produced_for_id="consumer-1",
+            metadata={"key": "value"},
+            created_at=created_at,
+        ),
+        EpisodeEntry(
+            content="second",
+            producer_id="p-2",
+            producer_role="role-2",
+            episode_type=EpisodeType.MESSAGE,
+        ),
+    ]
+
+    episodes = await episode_storage.add_episodes("batch-session", entries)
+
+    try:
+        assert [e.content for e in episodes] == ["first", "second"]
+        assert all(e.session_key == "batch-session" for e in episodes)
+        assert episodes[0].created_at == created_at
+        assert episodes[0].metadata == {"key": "value"}
+        assert episodes[0].produced_for_id == "consumer-1"
+        assert episodes[1].episode_type == EpisodeType.MESSAGE
+    finally:
+        await episode_storage.delete_episodes([e.uid for e in episodes])
+
+    assert await episode_storage.get_episode_messages() == []
 
 
 @pytest.mark.asyncio
@@ -142,7 +183,7 @@ async def test_history_identity_filters(episode_storage: EpisodeStorage):
         assert [m.uid for m in by_produced_for] == [assistant_message]
 
     finally:
-        await episode_storage.delete_episode(
+        await episode_storage.delete_episodes(
             [user_message, assistant_message, system_message],
         )
 
@@ -203,13 +244,13 @@ async def test_history_metadata_filter(episode_storage: EpisodeStorage):
     results = await episode_storage.get_episode_messages(metadata={"scope": "b"})
     assert [entry.uid for entry in results] == [second]
 
-    await episode_storage.delete_episode([first, second])
+    await episode_storage.delete_episodes([first, second])
 
 
 @pytest.mark.asyncio
 async def test_delete_history(episode_storage: EpisodeStorage):
     history_id = await create_history_entry(episode_storage, content="to delete")
-    await episode_storage.delete_episode([history_id])
+    await episode_storage.delete_episodes([history_id])
 
     history = await episode_storage.get_episode(history_id)
 
@@ -231,7 +272,7 @@ async def test_delete_history_messages_by_range(episode_storage: EpisodeStorage)
     remaining = await episode_storage.get_episode_messages()
     assert [entry.uid for entry in remaining] == [newer]
 
-    await episode_storage.delete_episode([newer])
+    await episode_storage.delete_episodes([newer])
 
 
 @pytest.mark.asyncio
@@ -254,7 +295,7 @@ async def test_delete_history_messages_with_identity_filters(
     remaining = await episode_storage.get_episode_messages()
     assert [entry.uid for entry in remaining] == [keep_history]
 
-    await episode_storage.delete_episode([keep_history])
+    await episode_storage.delete_episodes([keep_history])
 
 
 @pytest.mark.asyncio
@@ -287,3 +328,28 @@ async def test_history_time_window_workflow(episode_storage: EpisodeStorage):
 
     await episode_storage.delete_episode_messages()
     assert await episode_storage.get_episode_messages() == []
+
+
+@pytest.mark.asyncio
+async def test_number_of_messages_in_empty(episode_storage: EpisodeStorage):
+    total_count = await episode_storage.get_episode_messages_count()
+    assert total_count == 0
+
+
+@pytest.mark.asyncio
+async def test_number_no_filter_returns_all(episode_storage: EpisodeStorage):
+    await create_history_entry(episode_storage, session_key="first", content="first")
+    await create_history_entry(episode_storage, session_key="second", content="second")
+
+    first_count = await episode_storage.get_episode_messages_count(
+        session_keys=["first"]
+    )
+    assert first_count == 1
+
+    second_count = await episode_storage.get_episode_messages_count(
+        session_keys=["second"]
+    )
+    assert second_count == 1
+
+    total_count = await episode_storage.get_episode_messages_count()
+    assert total_count == 2

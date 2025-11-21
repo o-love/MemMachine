@@ -1,5 +1,6 @@
 """SQLAlchemy implementation of the episode storage layer."""
 
+from collections.abc import Callable
 from datetime import UTC
 from typing import Any, TypeVar
 
@@ -24,9 +25,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import Select
+from sqlalchemy.sql.elements import ColumnElement
 
-from memmachine.episode_store.episode_model import Episode as EpisodeE
-from memmachine.episode_store.episode_model import EpisodeType
+from memmachine.episode_store.episode_model import (
+    Episode as EpisodeE,
+)
+from memmachine.episode_store.episode_model import EpisodeEntry, EpisodeType
 from memmachine.episode_store.episode_storage import EpisodeIdT, EpisodeStorage
 
 
@@ -116,6 +120,10 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
     def _create_session(self) -> AsyncSession:
         return self._session_factory()
 
+    async def startup(self) -> None:
+        async with self._engine.begin() as conn:
+            await conn.run_sync(BaseEpisodeStore.metadata.create_all)
+
     @validate_call
     async def add_episode(
         self,
@@ -160,6 +168,65 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         return EpisodeIdT(episode_id)
 
     @validate_call
+    async def add_episodes(
+        self,
+        session_key: str,
+        episodes: list[EpisodeEntry],
+    ) -> list[EpisodeE]:
+        if not episodes:
+            return []
+
+        values_to_insert: list[dict[str, Any]] = []
+        for entry in episodes:
+            entry_values: dict[str, Any] = {
+                "content": entry.content,
+                "session_key": session_key,
+                "producer_id": entry.producer_id,
+                "producer_role": entry.producer_role,
+            }
+
+            if entry.produced_for_id is not None:
+                entry_values["produced_for_id"] = entry.produced_for_id
+
+            if entry.episode_type is not None:
+                entry_values["episode_type"] = entry.episode_type
+
+            if entry.metadata is not None:
+                entry_values["json_metadata"] = entry.metadata
+
+            if entry.created_at is not None:
+                entry_values["created_at"] = entry.created_at
+
+            values_to_insert.append(entry_values)
+
+        insert_stmt = insert(Episode).returning(Episode.id)
+
+        async with self._create_session() as session:
+            result = await session.execute(insert_stmt, values_to_insert)
+            inserted_ids = result.scalars().all()
+            await session.commit()
+
+        int_episode_ids = [int(episode_id) for episode_id in inserted_ids]
+        if not int_episode_ids:
+            return []
+
+        select_stmt = (
+            select(Episode)
+            .where(Episode.id.in_(int_episode_ids))
+            .order_by(Episode.id.asc())
+        )
+
+        async with self._create_session() as session:
+            result = await session.execute(select_stmt)
+            persisted_episodes = result.scalars().all()
+
+        episodes_by_id = {
+            episode_row.id: episode_row.to_typed_model()
+            for episode_row in persisted_episodes
+        }
+        return [episodes_by_id[episode_id] for episode_id in int_episode_ids]
+
+    @validate_call
     async def get_episode(self, episode_id: EpisodeIdT) -> EpisodeE | None:
         stmt = (
             select(Episode)
@@ -184,41 +251,55 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         episode_types: list[EpisodeType] | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, str] | None = None,
+        metadata: dict[str, JsonValue] | None = None,
     ) -> StmtT:
-        if session_keys is not None:
-            stmt = stmt.where(Episode.session_key.in_(session_keys))
+        filters: list[ColumnElement[bool]] = []
 
-        if producer_ids is not None:
-            stmt = stmt.where(Episode.producer_id.in_(producer_ids))
+        filter_definitions: list[
+            tuple[list[str] | None, Callable[[list[str]], ColumnElement[bool]]]
+        ] = [
+            (session_keys, Episode.session_key.in_),
+            (producer_ids, Episode.producer_id.in_),
+            (producer_roles, Episode.producer_role.in_),
+            (produced_for_ids, Episode.produced_for_id.in_),
+        ]
 
-        if producer_roles is not None:
-            stmt = stmt.where(Episode.producer_role.in_(producer_roles))
-
-        if produced_for_ids is not None:
-            stmt = stmt.where(Episode.produced_for_id.in_(produced_for_ids))
+        for values, builder in filter_definitions:
+            if values is not None:
+                filters.append(builder(values))
 
         if episode_types is not None:
-            stmt = stmt.where(Episode.episode_type.in_(episode_types))
-
+            filters.append(Episode.episode_type.in_(episode_types))
         if start_time is not None:
-            stmt = stmt.where(Episode.created_at >= start_time)
-
+            filters.append(Episode.created_at >= start_time)
         if end_time is not None:
-            stmt = stmt.where(Episode.created_at <= end_time)
+            filters.append(Episode.created_at <= end_time)
 
-        if metadata is not None:
-            if self._engine.dialect.name == "postgresql":
-                stmt = stmt.where(cast(Episode.json_metadata, JSONB).contains(metadata))
-            else:
-                stmt = stmt.where(Episode.json_metadata.contains(metadata))
+        metadata_filter = self._build_metadata_filter(metadata)
+        if metadata_filter is not None:
+            filters.append(metadata_filter)
+
+        if filters:
+            stmt = stmt.where(*filters)
 
         return stmt
+
+    def _build_metadata_filter(
+        self, metadata: dict[str, JsonValue] | None
+    ) -> ColumnElement[bool] | None:
+        if metadata is None:
+            return None
+
+        metadata_str = {key: str(metadata[key]) for key in metadata}
+        if self._engine.dialect.name == "postgresql":
+            return cast(Episode.json_metadata, JSONB).contains(metadata)
+        return Episode.json_metadata.contains(metadata_str)
 
     @validate_call
     async def get_episode_messages(
         self,
         *,
+        limit: int | None = None,
         session_keys: list[str] | None = None,
         producer_ids: list[str] | None = None,
         producer_roles: list[str] | None = None,
@@ -230,11 +311,41 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
     ) -> list[EpisodeE]:
         stmt = select(Episode)
 
-        metadata_str: dict[str, str] | None = None
-        if metadata is not None:
-            metadata_str = {}
-            for key in metadata:
-                metadata_str[key] = str(metadata[key])
+        stmt = self._apply_episode_filter(
+            stmt,
+            session_keys=session_keys,
+            producer_ids=producer_ids,
+            producer_roles=producer_roles,
+            produced_for_ids=produced_for_ids,
+            episode_types=episode_types,
+            start_time=start_time,
+            end_time=end_time,
+            metadata=metadata,
+        )
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        async with self._create_session() as session:
+            result = await session.execute(stmt)
+            episode_messages = result.scalars().all()
+
+        return [h.to_typed_model() for h in episode_messages]
+
+    @validate_call
+    async def get_episode_messages_count(
+        self,
+        *,
+        session_keys: list[str] | None = None,
+        producer_ids: list[str] | None = None,
+        producer_roles: list[str] | None = None,
+        produced_for_ids: list[str] | None = None,
+        episode_types: list[EpisodeType] | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        metadata: dict[str, JsonValue] | None = None,
+    ) -> int:
+        stmt = select(func.count(Episode.id))
 
         stmt = self._apply_episode_filter(
             stmt,
@@ -245,17 +356,17 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
             episode_types=episode_types,
             start_time=start_time,
             end_time=end_time,
-            metadata=metadata_str,
+            metadata=metadata,
         )
 
         async with self._create_session() as session:
             result = await session.execute(stmt)
-            episode_messages = result.scalars().all()
+            n_messages = result.scalar_one()
 
-        return [h.to_typed_model() for h in episode_messages]
+        return int(n_messages)
 
     @validate_call
-    async def delete_episode(self, episode_ids: list[EpisodeIdT]) -> None:
+    async def delete_episodes(self, episode_ids: list[EpisodeIdT]) -> None:
         int_episode_ids = [int(h_id) for h_id in episode_ids]
 
         stmt = delete(Episode).where(Episode.id.in_(int_episode_ids))
@@ -279,12 +390,6 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
     ) -> None:
         stmt = delete(Episode)
 
-        metadata_str: dict[str, str] | None = None
-        if metadata is not None:
-            metadata_str = {}
-            for key in metadata:
-                metadata_str[key] = str(metadata[key])
-
         stmt = self._apply_episode_filter(
             stmt,
             session_keys=session_keys,
@@ -294,7 +399,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
             episode_types=episode_types,
             start_time=start_time,
             end_time=end_time,
-            metadata=metadata_str,
+            metadata=metadata,
         )
 
         async with self._create_session() as session:

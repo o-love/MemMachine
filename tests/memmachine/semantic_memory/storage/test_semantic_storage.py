@@ -4,14 +4,22 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
+from memmachine.common.filter.filter_parser import FilterExpr, parse_filter
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorage
 
 
+def _expr(spec: str | None) -> FilterExpr | None:
+    return parse_filter(spec) if spec else None
+
+
 @pytest.mark.asyncio
 async def test_empty_storage(semantic_storage: SemanticStorage):
-    assert await semantic_storage.get_feature_set(set_ids=["user"]) == []
+    assert (
+        await semantic_storage.get_feature_set(filter_expr=_expr("set_id IN (user)"))
+        == []
+    )
 
 
 @pytest.mark.asyncio
@@ -21,7 +29,9 @@ async def test_multiple_features(
 ):
     # Given a storage with two features
     # When we retrieve the profile
-    profile_result = await semantic_storage.get_feature_set(set_ids=["user"])
+    profile_result = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user)")
+    )
     grouped_profile = SemanticFeature.group_features(profile_result)
 
     assert len(grouped_profile) == 1
@@ -49,14 +59,18 @@ async def test_delete_feature(semantic_storage: SemanticStorage):
     )
 
     # Given a storage with a single feature
-    features = await semantic_storage.get_feature_set(set_ids=["user"])
+    features = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user)")
+    )
     assert len(features) == 1
     assert features[0].value == "pizza"
 
     # When we delete the feature
     await semantic_storage.delete_features([idx_a])
 
-    features = await semantic_storage.get_feature_set(set_ids=["user"])
+    features = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user)")
+    )
 
     # Then the feature should no longer exist
     assert features == []
@@ -68,10 +82,14 @@ async def test_delete_feature_set_by_set_id(
     with_multiple_sets,
 ):
     # Given a storage with two sets
-    res_a = await semantic_storage.get_feature_set(set_ids=["user1"])
+    res_a = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user1)")
+    )
     grouped_a = SemanticFeature.group_features(res_a)
 
-    res_b = await semantic_storage.get_feature_set(set_ids=["user2"])
+    res_b = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user2)")
+    )
     grouped_b = SemanticFeature.group_features(res_b)
 
     key, expected = with_multiple_sets
@@ -83,14 +101,18 @@ async def test_delete_feature_set_by_set_id(
     assert set_b == expected["user2"]
 
     # When we delete the first set
-    await semantic_storage.delete_feature_set(set_ids=["user1"])
+    await semantic_storage.delete_feature_set(filter_expr=_expr("set_id IN (user1)"))
 
     # Then the first set should be empty
-    res_delete_a = await semantic_storage.get_feature_set(set_ids=["user1"])
+    res_delete_a = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user1)")
+    )
     assert res_delete_a == []
 
     # And the second set should still exist
-    res_delete_b = await semantic_storage.get_feature_set(set_ids=["user2"])
+    res_delete_b = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user2)")
+    )
     grouped_delete_b = SemanticFeature.group_features(res_delete_b)
     set_delete_b = [{"value": f.value} for f in grouped_delete_b[key]]
     assert set_delete_b == expected["user2"]
@@ -143,7 +165,7 @@ async def test_get_feature_set_basic_vector_search(
 
     # When doing a vector search
     results = await semantic_storage.get_feature_set(
-        set_ids=["user"],
+        filter_expr=_expr("set_id IN (user)"),
         limit=10,
         vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=embed_a,
@@ -167,7 +189,7 @@ async def test_get_feature_set_min_cos_vector_search(
 
     # When doing a vector search with a min_cos threshold
     results = await semantic_storage.get_feature_set(
-        set_ids=["user"],
+        filter_expr=_expr("set_id IN (user)"),
         limit=10,
         vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=embed_a,
@@ -282,7 +304,7 @@ async def feature_and_citations(
     yield feature_id, {h1_id, h2_id}
 
     await semantic_storage.delete_features([feature_id])
-    await episode_storage.delete_episode([h1_id, h2_id])
+    await episode_storage.delete_episodes([h1_id, h2_id])
 
 
 @pytest.mark.asyncio
@@ -414,7 +436,9 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorage):
         embedding=embed,
     )
 
-    profile_default = await semantic_storage.get_feature_set(set_ids=["user"])
+    profile_default = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user)")
+    )
     grouped_default = SemanticFeature.group_features(profile_default)
     assert ("default", "food", "likes") in grouped_default
 
@@ -424,35 +448,78 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorage):
     assert {item.value for item in likes_entries} == {"pizza", "sushi"}
 
     tenant_profile = await semantic_storage.get_feature_set(
-        set_ids=["user"],
-        category_names=["tenant_A"],
+        filter_expr=_expr("set_id IN (user) AND category_name IN (tenant_A)")
     )
     grouped_tenant = SemanticFeature.group_features(tenant_profile)
     assert grouped_tenant[("tenant_A", "prefs", "color")][0].value == "blue"
 
     await semantic_storage.delete_feature_set(
-        set_ids=["user"],
-        category_names=["default"],
-        feature_names=["likes"],
-        tags=["food"],
+        filter_expr=_expr(
+            "set_id IN (user) AND category_name IN (default) AND feature IN (likes) AND tag IN (food)"
+        )
     )
 
-    after_delete = await semantic_storage.get_feature_set(set_ids=["user"])
+    after_delete = await semantic_storage.get_feature_set(
+        filter_expr=_expr("set_id IN (user)")
+    )
     grouped_after_delete = SemanticFeature.group_features(after_delete)
     assert ("default", "food", "likes") not in grouped_after_delete
 
     await semantic_storage.delete_feature_set(
-        set_ids=["user"],
-        category_names=["tenant_A"],
+        filter_expr=_expr("set_id IN (user) AND category_name IN (tenant_A)")
     )
     tenant_only = await semantic_storage.get_feature_set(
-        set_ids=["user"],
-        category_names=["tenant_A"],
+        filter_expr=_expr("set_id IN (user) AND category_name IN (tenant_A)")
     )
     assert tenant_only == []
 
-    await semantic_storage.delete_feature_set(set_ids=["user"])
-    assert await semantic_storage.get_feature_set(set_ids=["user"]) == []
+    await semantic_storage.delete_feature_set(filter_expr=_expr("set_id IN (user)"))
+    assert (
+        await semantic_storage.get_feature_set(filter_expr=_expr("set_id IN (user)"))
+        == []
+    )
+
+
+@pytest.mark.asyncio
+async def test_filter_by_metadata_nullity(semantic_storage: SemanticStorage):
+    embed = np.array([1.0], dtype=float)
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="note",
+        value="first",
+        tag="misc",
+        metadata={"details": "present"},
+        embedding=embed,
+    )
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="note",
+        value="second",
+        tag="misc",
+        metadata={"details": None},
+        embedding=embed,
+    )
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="note",
+        value="third",
+        tag="misc",
+        metadata=None,
+        embedding=embed,
+    )
+
+    null_results = await semantic_storage.get_feature_set(
+        filter_expr=_expr("metadata.details IS NULL"),
+    )
+    assert {feature.value for feature in null_results} == {"second", "third"}
+
+    not_null_results = await semantic_storage.get_feature_set(
+        filter_expr=_expr("metadata.details IS NOT NULL"),
+    )
+    assert [feature.value for feature in not_null_results] == ["first"]
 
 
 @pytest.mark.asyncio
@@ -491,7 +558,7 @@ async def test_complex_semantic_search_and_citations(
     )
 
     results = await semantic_storage.get_feature_set(
-        set_ids=["user"],
+        filter_expr=_expr("set_id IN (user)"),
         limit=10,
         vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=np.array([1.0, 0.0]),
@@ -507,7 +574,7 @@ async def test_complex_semantic_search_and_citations(
     assert results[0].metadata.citations[0] == history_id
 
     filtered = await semantic_storage.get_feature_set(
-        set_ids=["user"],
+        filter_expr=_expr("set_id IN (user)"),
         limit=1,
         vector_search_opts=SemanticStorage.VectorSearchOpts(
             query_embedding=np.array([1.0, 0.0]),
@@ -531,10 +598,9 @@ async def test_complex_semantic_search_and_citations(
     ]
     await semantic_storage.delete_features(feature_ids[:1])
     remaining = await semantic_storage.get_feature_set(
-        set_ids=["user"],
-        category_names=["default"],
-        tags=["facts"],
-        feature_names=["topic"],
+        filter_expr=_expr(
+            "set_id IN (user) AND category_name IN (default) AND tag IN (facts) AND feature IN (topic)"
+        )
     )
     assert len(remaining) == 1
     assert remaining[0].value == "music"

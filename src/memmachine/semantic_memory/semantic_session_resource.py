@@ -21,12 +21,15 @@ ALL_MEMORY_TYPES: Final[list[IsolationType]] = list(IsolationType)
 class SessionData(Protocol):
     """Protocol exposing the identifiers used to derive set_ids."""
 
+    @property
     def user_profile_id(self) -> SetIdT | None:
         raise NotImplementedError
 
+    @property
     def session_id(self) -> SetIdT | None:
         raise NotImplementedError
 
+    @property
     def role_profile_id(self) -> SetIdT | None:
         raise NotImplementedError
 
@@ -71,12 +74,15 @@ class SessionIdManager:
                 self._role_id: str | None = _role_profile_id
                 self._session_id: str | None = _session_id
 
+            @property
             def user_profile_id(self) -> str | None:
                 return self._user_id
 
+            @property
             def role_profile_id(self) -> str | None:
                 return self._role_id
 
+            @property
             def session_id(self) -> str | None:
                 return self._session_id
 

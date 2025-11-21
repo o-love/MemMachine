@@ -9,6 +9,7 @@ import numpy as np
 from pydantic import BaseModel, InstanceOf, TypeAdapter
 
 from memmachine.common.embedder import Embedder
+from memmachine.common.filter.filter_parser import And, Comparison
 from memmachine.episode_store.episode_model import Episode, EpisodeIdT
 from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_llm import (
@@ -102,9 +103,15 @@ class IngestionService:
                         message.model_dump(),
                     )
 
+                filter_expr = And(
+                    left=Comparison(field="set_id", op="=", value=set_id),
+                    right=Comparison(
+                        field="category", op="=", value=semantic_category.name
+                    ),
+                )
+
                 features = await self._semantic_storage.get_feature_set(
-                    set_ids=[set_id],
-                    category_names=[semantic_category.name],
+                    filter_expr=filter_expr,
                 )
 
                 try:
@@ -183,11 +190,23 @@ class IngestionService:
                         await self._semantic_storage.add_citations(f_id, [citation_id])
 
                 case SemanticCommandType.DELETE:
+                    filter_expr = And(
+                        left=And(
+                            left=Comparison(field="set_id", op="=", value=set_id),
+                            right=Comparison(
+                                field="category_name", op="=", value=category_name
+                            ),
+                        ),
+                        right=And(
+                            left=Comparison(
+                                field="feature", op="=", value=command.feature
+                            ),
+                            right=Comparison(field="tag", op="=", value=command.tag),
+                        ),
+                    )
+
                     await self._semantic_storage.delete_feature_set(
-                        set_ids=[set_id],
-                        category_names=[category_name],
-                        feature_names=[command.feature],
-                        tags=[command.tag],
+                        filter_expr=filter_expr
                     )
 
                 case _:
@@ -202,9 +221,17 @@ class IngestionService:
         async def _consolidate_type(
             semantic_category: InstanceOf[SemanticCategory],
         ) -> None:
+            from memmachine.common.filter.filter_parser import And, Comparison
+
+            filter_expr = And(
+                left=Comparison(field="set_id", op="=", value=set_id),
+                right=Comparison(
+                    field="category_name", op="=", value=semantic_category.name
+                ),
+            )
+
             features = await self._semantic_storage.get_feature_set(
-                set_ids=[set_id],
-                category_names=[semantic_category.name],
+                filter_expr=filter_expr,
                 tag_threshold=self._consolidation_threshold,
                 load_citations=True,
             )

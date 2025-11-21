@@ -206,11 +206,14 @@ async def test_query_memory_all_enabled(
     )
     mock_long_term_memory.search.return_value = [ep2, ep3]
 
-    short, long, summary = await episodic_memory.query_memory("test query")
+    response = await episodic_memory.query_memory("test query")
 
-    assert short == [ep1]
-    assert long == [ep2]  # ep3 is a duplicate and should be filtered out
-    assert summary == ["summary"]
+    assert response is not None
+    assert response.short_term_memory == [ep1]
+    assert response.long_term_memory == [
+        ep2
+    ]  # ep3 is a duplicate and should be filtered out
+    assert response.episode_summary == ["summary"]
     mock_short_term_memory.get_short_term_memory_context.assert_awaited_once()
     mock_long_term_memory.search.assert_awaited_once()
 
@@ -230,10 +233,11 @@ async def test_query_memory_short_term_only(
         "summary",
     )
 
-    short, long, summary = await memory.query_memory("test query")
-    assert short == [ep1]
-    assert long == []
-    assert summary == ["summary"]
+    response = await memory.query_memory("test query")
+    assert response is not None
+    assert response.short_term_memory == [ep1]
+    assert response.long_term_memory == []
+    assert response.episode_summary == ["summary"]
 
 
 @pytest.mark.asyncio
@@ -248,21 +252,20 @@ async def test_query_memory_long_term_only(
     ep1 = create_test_episode(content="long only")
     mock_long_term_memory.search.return_value = [ep1]
 
-    short, long, summary = await memory.query_memory("test query")
-    assert short == []
-    assert long == [ep1]
-    assert summary == [""]
+    response = await memory.query_memory("test query")
+    assert response is not None
+    assert response.short_term_memory == []
+    assert response.long_term_memory == [ep1]
+    assert response.episode_summary == [""]
 
 
 @pytest.mark.asyncio
 async def test_query_memory_when_disabled(episodic_memory_params):
-    """Test that query_memory returns empty lists when disabled."""
+    """Test that query_memory returns None when disabled."""
     episodic_memory_params.enabled = False
     memory = EpisodicMemory(episodic_memory_params)
-    short, long, summary = await memory.query_memory("test query")
-    assert short == []
-    assert long == []
-    assert summary == []
+    response = await memory.query_memory("test query")
+    assert response is None
 
 
 @pytest.mark.asyncio

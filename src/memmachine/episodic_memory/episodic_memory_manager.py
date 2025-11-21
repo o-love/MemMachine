@@ -118,14 +118,16 @@ class EpisodicMemoryManager:
             instance = self._instance_cache.get(session_key)
             if instance is None:
                 # load from the database
-                (
-                    _,
-                    _,
-                    _,
-                    episodic_memory_config,
-                ) = await self._session_data_manager.get_session_info(session_key)
+                session_info = await self._session_data_manager.get_session_info(
+                    session_key
+                )
+                if session_info is None:
+                    raise RuntimeError(
+                        f"No session info found for session {session_key}"
+                    )
+
                 episodic_memory_params = await episodic_memory_params_from_config(
-                    episodic_memory_config,
+                    session_info.episode_memory_conf,
                     self._resource_manager,
                 )
                 instance = EpisodicMemory(episodic_memory_params)
@@ -209,14 +211,14 @@ class EpisodicMemoryManager:
             self._instance_cache.erase(session_key)
             if instance is None:
                 # Open it
-                (
-                    _,
-                    _,
-                    _,
-                    episodic_memory_config,
-                ) = await self._session_data_manager.get_session_info(session_key)
+                session_info = await self._session_data_manager.get_session_info(
+                    session_key
+                )
+                if session_info is None:
+                    raise RuntimeError(f"Session {session_key} is None")
+
                 params = await episodic_memory_params_from_config(
-                    episodic_memory_config,
+                    session_info.episode_memory_conf,
                     self._resource_manager,
                 )
                 instance = EpisodicMemory(params)
@@ -243,7 +245,7 @@ class EpisodicMemoryManager:
     async def get_session_configuration(
         self,
         session_key: str,
-    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
+    ) -> SessionDataManager.SessionInfo | None:
         """Retrieve the configuration, description, and metadata for a given session."""
         return await self._session_data_manager.get_session_info(session_key)
 

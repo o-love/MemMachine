@@ -7,6 +7,7 @@ import pytest_asyncio
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.common.filter.filter_parser import parse_filter
 from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
@@ -197,8 +198,8 @@ async def test_add_message_records_history_and_uningested_counts(
     )
 
     # When inspecting storage for each isolation level
-    profile_id = session_data.user_profile_id()
-    session_id = session_data.session_id()
+    profile_id = session_data.user_profile_id
+    session_id = session_data.session_id
     profile_messages = await semantic_storage.get_history_messages(
         set_ids=[profile_id],
         is_ingested=False,
@@ -223,8 +224,8 @@ async def test_search_returns_relevant_features(
     session_data,
 ):
     # Given semantic features stored for both profile and session
-    profile_id = session_data.user_profile_id()
-    session_id = session_data.session_id()
+    profile_id = session_data.user_profile_id
+    session_id = session_data.session_id
     await semantic_service.add_new_feature(
         set_id=profile_id,
         category_name="Profile",
@@ -244,6 +245,7 @@ async def test_search_returns_relevant_features(
     matches = await session_manager.search(
         message="Why does alpha stay calm?",
         session_data=session_data,
+        min_distance=0.5,
     )
 
     # Then only the alpha feature is returned and embedder search was invoked
@@ -270,10 +272,14 @@ async def test_add_feature_applies_requested_isolation(
     )
 
     # When retrieving features for each set id
-    profile_id = session_data.user_profile_id()
-    session_id = session_data.session_id()
-    profile_features = await semantic_storage.get_feature_set(set_ids=[profile_id])
-    session_features = await semantic_storage.get_feature_set(set_ids=[session_id])
+    profile_id = session_data.user_profile_id
+    session_id = session_data.session_id
+    profile_features = await semantic_storage.get_feature_set(
+        filter_expr=parse_filter(f"set_id IN ('{profile_id}')")
+    )
+    session_features = await semantic_storage.get_feature_set(
+        filter_expr=parse_filter(f"set_id IN ('{session_id}')")
+    )
 
     # Then only the profile receives the new feature and embeddings were generated
     assert feature_id == profile_features[0].metadata.id
@@ -290,8 +296,8 @@ async def test_delete_feature_set_removes_filtered_entries(
     session_data,
 ):
     # Given profile and session features with distinct tags
-    profile_id = session_data.user_profile_id()
-    session_id = session_data.session_id()
+    profile_id = session_data.user_profile_id
+    session_id = session_data.session_id
     await semantic_service.add_new_feature(
         set_id=profile_id,
         category_name="Profile",
@@ -308,15 +314,20 @@ async def test_delete_feature_set_removes_filtered_entries(
     )
 
     # When deleting only the profile-tagged features
+    property_filter = parse_filter("tag IN ('profile_tag')")
     await session_manager.delete_feature_set(
         session_data=session_data,
         memory_type=[IsolationType.USER],
-        tags=["profile_tag"],
+        property_filter=property_filter,
     )
 
     # Then profile features are cleared while session-scoped entries remain
-    profile_features = await semantic_storage.get_feature_set(set_ids=[profile_id])
-    session_features = await semantic_storage.get_feature_set(set_ids=[session_id])
+    profile_features = await semantic_storage.get_feature_set(
+        filter_expr=parse_filter(f"set_id IN ('{profile_id}')")
+    )
+    session_features = await semantic_storage.get_feature_set(
+        filter_expr=parse_filter(f"set_id IN ('{session_id}')")
+    )
 
     assert profile_features == []
     assert len(session_features) == 1
@@ -335,7 +346,7 @@ async def test_add_message_uses_all_isolations(
 
     mock_semantic_service.add_message_to_sets.assert_awaited_once_with(
         history_id,
-        [session_data.session_id(), session_data.user_profile_id()],
+        [session_data.session_id, session_data.user_profile_id],
     )
 
 
@@ -353,7 +364,7 @@ async def test_add_message_with_session_only_isolation(
     mock_semantic_service.add_message_to_sets.assert_awaited_once()
     args, kwargs = mock_semantic_service.add_message_to_sets.await_args
     assert kwargs == {}
-    assert args[1] == [session_data.session_id()]
+    assert args[1] == [session_data.session_id]
 
 
 async def test_search_passes_set_ids_and_filters(
@@ -363,23 +374,26 @@ async def test_search_passes_set_ids_and_filters(
 ):
     mock_semantic_service.search.return_value = ["result"]
 
+    filter_str = "tag IN ('facts') AND feature_name IN ('alpha_fact')"
     result = await mock_session_manager.search(
         message="Find alpha info",
         session_data=session_data,
         memory_type=[IsolationType.USER],
-        tag_names=["facts"],
-        feature_names=["alpha_fact"],
+        search_filter=parse_filter(filter_str),
         limit=5,
         load_citations=True,
     )
 
     mock_semantic_service.search.assert_awaited_once()
     kwargs = mock_semantic_service.search.await_args.kwargs
-    assert kwargs["set_ids"] == [session_data.user_profile_id()]
-    assert kwargs["tag_names"] == ["facts"]
-    assert kwargs["feature_names"] == ["alpha_fact"]
+    assert kwargs["set_ids"] == [session_data.user_profile_id]
     assert kwargs["limit"] == 5
     assert kwargs["load_citations"] is True
+    expected_filter = SemanticSessionManager._merge_filters(
+        [session_data.user_profile_id],
+        parse_filter(filter_str),
+    )
+    assert kwargs["filter_expr"] == expected_filter
     assert result == ["result"]
 
 
@@ -396,7 +410,7 @@ async def test_number_of_uningested_messages_delegates(
     )
 
     mock_semantic_service.number_of_uningested.assert_awaited_once_with(
-        set_ids=[session_data.session_id()],
+        set_ids=[session_data.session_id],
     )
     assert count == 7
 
@@ -418,7 +432,7 @@ async def test_add_feature_translates_to_single_set(
     )
 
     mock_semantic_service.add_new_feature.assert_awaited_once_with(
-        set_id=session_data.user_profile_id(),
+        set_id=session_data.user_profile_id,
         category_name="Profile",
         feature="tone",
         value="Alpha calm",
@@ -467,18 +481,22 @@ async def test_get_set_features_wraps_opts(
     mock_semantic_service: MagicMock,
     session_data,
 ):
+    filter_str = "tag IN ('facts') AND feature_name IN ('alpha_fact')"
     result = await mock_session_manager.get_set_features(
         session_data=session_data,
         memory_type=[IsolationType.USER],
-        category_names=["Profile"],
-        tag_names=["facts"],
-        feature_names=["alpha_fact"],
+        search_filter=parse_filter(filter_str),
+        limit=7,
+        load_citations=True,
     )
 
     mock_semantic_service.get_set_features.assert_awaited_once()
-    opts = mock_semantic_service.get_set_features.await_args.args[0]
-    assert opts.set_ids == [session_data.user_profile_id()]
-    assert opts.category_names == ["Profile"]
-    assert opts.tags == ["facts"]
-    assert opts.feature_names == ["alpha_fact"]
+    kwargs = mock_semantic_service.get_set_features.await_args.kwargs
+    expected_filter = SemanticSessionManager._merge_filters(
+        [session_data.user_profile_id],
+        parse_filter(filter_str),
+    )
+    assert kwargs["filter_expr"] == expected_filter
+    assert kwargs["limit"] == 7
+    assert kwargs["with_citations"] is True
     assert result == ["features"]

@@ -85,9 +85,9 @@ class TestSessionIdManager:
             role_id="role789",
         )
 
-        assert session_data.user_profile_id() == "mem_user_user123"
-        assert session_data.session_id() == "mem_session_session456"
-        assert session_data.role_profile_id() == "mem_role_role789"
+        assert session_data.user_profile_id == "mem_user_user123"
+        assert session_data.session_id == "mem_session_session456"
+        assert session_data.role_profile_id == "mem_role_role789"
 
     def test_generate_session_data_with_empty_strings(self):
         manager = SessionIdManager()
@@ -98,8 +98,8 @@ class TestSessionIdManager:
         )
 
         # Should return None
-        assert session_data.user_profile_id() is None
-        assert session_data.session_id() is None
+        assert session_data.user_profile_id is None
+        assert session_data.session_id is None
 
     def test_is_session_id_recognizes_session_prefix(self):
         manager = SessionIdManager()
