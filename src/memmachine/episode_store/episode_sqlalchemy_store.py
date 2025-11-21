@@ -25,8 +25,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import Select
 
-from memmachine.episode_store.episode_model import Episode as EpisodeE
-from memmachine.episode_store.episode_model import EpisodeType
+from memmachine.episode_store.episode_model import (
+    Episode as EpisodeE,
+)
+from memmachine.episode_store.episode_model import EpisodeEntry, EpisodeType
 from memmachine.episode_store.episode_storage import EpisodeIdT, EpisodeStorage
 
 
@@ -162,6 +164,62 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
             episode_id = result.scalar_one()
 
         return EpisodeIdT(episode_id)
+
+    @validate_call
+    async def add_episodes(
+        self,
+        session_key: str,
+        episode: list[EpisodeEntry],
+    ) -> list[EpisodeE]:
+        if not episode:
+            return []
+
+        values_to_insert: list[dict[str, Any]] = []
+        for entry in episode:
+            entry_values: dict[str, Any] = {
+                "content": entry.content,
+                "session_key": session_key,
+                "producer_id": entry.producer_id,
+                "producer_role": entry.producer_role,
+            }
+
+            if entry.produced_for_id is not None:
+                entry_values["produced_for_id"] = entry.produced_for_id
+
+            if entry.episode_type is not None:
+                entry_values["episode_type"] = entry.episode_type
+
+            if entry.metadata is not None:
+                entry_values["json_metadata"] = entry.metadata
+
+            if entry.created_at is not None:
+                entry_values["created_at"] = entry.created_at
+
+            values_to_insert.append(entry_values)
+
+        insert_stmt = insert(Episode).returning(Episode.id)
+
+        async with self._create_session() as session:
+            result = await session.execute(insert_stmt, values_to_insert)
+            inserted_ids = result.scalars().all()
+            await session.commit()
+
+        int_episode_ids = [int(episode_id) for episode_id in inserted_ids]
+        if not int_episode_ids:
+            return []
+
+        select_stmt = (
+            select(Episode)
+            .where(Episode.id.in_(int_episode_ids))
+            .order_by(Episode.id.asc())
+        )
+
+        async with self._create_session() as session:
+            result = await session.execute(select_stmt)
+            persisted_episodes = result.scalars().all()
+
+        episodes_by_id = {episode_row.id: episode_row.to_typed_model() for episode_row in persisted_episodes}
+        return [episodes_by_id[episode_id] for episode_id in int_episode_ids]
 
     @validate_call
     async def get_episode(self, episode_id: EpisodeIdT) -> EpisodeE | None:

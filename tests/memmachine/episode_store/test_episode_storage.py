@@ -6,7 +6,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import pytest_asyncio
 
-from memmachine.episode_store.episode_model import EpisodeIdT, EpisodeType
+from memmachine.episode_store.episode_model import (
+    EpisodeEntry,
+    EpisodeIdT,
+    EpisodeType,
+)
 from memmachine.episode_store.episode_storage import EpisodeStorage
 
 DEFAULT_HISTORY_ARGS = {
@@ -88,6 +92,43 @@ async def test_add_and_get_history(episode_storage: EpisodeStorage):
     assert history.producer_role == "assistant"
     assert history.produced_for_id == "agent-456"
     assert history.episode_type == EpisodeType.MESSAGE
+
+
+@pytest.mark.asyncio
+async def test_add_multiple_episodes_returns_models(
+    episode_storage: EpisodeStorage,
+):
+    created_at = datetime.now(tz=UTC)
+    entries = [
+        EpisodeEntry(
+            content="first",
+            producer_id="p-1",
+            producer_role="role-1",
+            produced_for_id="consumer-1",
+            metadata={"key": "value"},
+            created_at=created_at,
+        ),
+        EpisodeEntry(
+            content="second",
+            producer_id="p-2",
+            producer_role="role-2",
+            episode_type=EpisodeType.MESSAGE,
+        ),
+    ]
+
+    episodes = await episode_storage.add_episodes("batch-session", entries)
+
+    try:
+        assert [e.content for e in episodes] == ["first", "second"]
+        assert all(e.session_key == "batch-session" for e in episodes)
+        assert episodes[0].created_at == created_at
+        assert episodes[0].metadata == {"key": "value"}
+        assert episodes[0].produced_for_id == "consumer-1"
+        assert episodes[1].episode_type == EpisodeType.MESSAGE
+    finally:
+        await episode_storage.delete_episodes([e.uid for e in episodes])
+
+    assert await episode_storage.get_episode_messages() == []
 
 
 @pytest.mark.asyncio
