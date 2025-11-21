@@ -1,6 +1,6 @@
 import pytest
 
-from memmachine.main.filter_parser import And, Comparison, Filter, Or, parse_filter
+from memmachine.common.filter.filter_parser import And, Comparison, Filter, Or, parse_filter
 
 
 def _flatten_and(expr: And) -> list[Comparison]:

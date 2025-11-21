@@ -11,11 +11,11 @@ from typing import Any
 import numpy as np
 from neo4j import AsyncDriver
 from neo4j.graph import Node as Neo4jNode
-from pydantic import InstanceOf, validate_call
+from pydantic import InstanceOf
 
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
-from memmachine.main.filter_parser import (
+from memmachine.common.filter.filter_parser import (
     And as FilterAnd,
     Or as FilterOr,
     Comparison as FilterComparison,
@@ -329,7 +329,6 @@ class Neo4jSemanticStorage(SemanticStorage):
         updates.append(f"SET f:{new_label}")
         return updates
 
-    @validate_call
     async def get_feature(
         self,
         feature_id: FeatureIdT,
@@ -361,7 +360,6 @@ class Neo4jSemanticStorage(SemanticStorage):
             ids=[str(fid) for fid in feature_ids],
         )
 
-    @validate_call
     async def get_feature_set(
         self,
         *,

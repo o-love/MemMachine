@@ -7,7 +7,9 @@ import numpy as np
 from alembic import command
 from alembic.config import Config
 from pgvector.sqlalchemy import Vector
-from pydantic import InstanceOf, TypeAdapter, validate_call
+from pydantic import InstanceOf, TypeAdapter
+from collections import Counter
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -38,7 +40,7 @@ from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
     SemanticStorage,
 )
-from memmachine.main.filter_parser import (
+from memmachine.common.filter.filter_parser import (
     And as FilterAnd,
     Or as FilterOr,
     Comparison as FilterComparison,
@@ -196,7 +198,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
     async def cleanup(self) -> None:
         await self._engine.dispose()
 
-    @validate_call
     async def delete_all(self) -> None:
         async with self._create_session() as session:
             await session.execute(delete(citation_association_table))
@@ -204,7 +205,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
             await session.execute(delete(Feature))
             await session.commit()
 
-    @validate_call
     async def add_feature(
         self,
         *,
@@ -237,7 +237,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
 
         return FeatureIdT(feature_id)
 
-    @validate_call
     async def update_feature(
         self,
         feature_id: FeatureIdT,
@@ -271,7 +270,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
             await session.execute(stmt)
             await session.commit()
 
-    @validate_call
     async def get_feature(
         self,
         feature_id: FeatureIdT,
@@ -295,7 +293,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
 
         return feature.to_typed_model(citations=citations_map.get(feature.id))
 
-    @validate_call
     async def get_feature_set(
         self,
         *,
@@ -331,7 +328,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
 
         return [f.to_typed_model(citations=citations_map.get(f.id)) for f in features]
 
-    @validate_call
     async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         feature_ids_ints = [int(f_id) for f_id in feature_ids]
 
@@ -340,28 +336,23 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
             await session.execute(stmt)
             await session.commit()
 
-    @validate_call
     async def delete_feature_set(
         self,
         *,
-        limit: int | None = None,
-        vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         filter_expr: FilterExpr | None = None,
     ) -> None:
-        stmt = delete(Feature)
-
-        stmt = self._apply_feature_filter(
-            stmt,
-            k=limit,
-            vector_search_opts=vector_search_opts,
-            filter_expr=filter_expr,
-        )
+        if vector_search_opts is not None:
+            raise ValueError("Vector search options are not supported for deletion")
 
         async with self._create_session() as session:
+            stmt = delete(Feature)
+            stmt = self._apply_feature_filter(
+                stmt,
+                filter_expr=filter_expr,
+            )
             await session.execute(stmt)
             await session.commit()
 
-    @validate_call()
     async def add_citations(
         self,
         feature_id: FeatureIdT,
@@ -378,7 +369,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
             await session.execute(stmt)
             await session.commit()
 
-    @validate_call
     async def get_history_messages(
         self,
         *,
@@ -403,7 +393,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
 
         return TypeAdapter(list[EpisodeIdT]).validate_python(history_ids)
 
-    @validate_call
     async def get_history_messages_count(
         self,
         *,
@@ -424,7 +413,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
 
         return count
 
-    @validate_call
     async def mark_messages_ingested(
         self,
         set_id: str,
@@ -444,7 +432,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
             await session.execute(stmt)
             await session.commit()
 
-    @validate_call
     async def add_history_to_set(
         self,
         set_id: str,

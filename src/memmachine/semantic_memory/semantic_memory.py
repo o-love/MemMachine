@@ -13,12 +13,11 @@ from asyncio import Task
 from typing import Any
 
 import numpy as np
-from pydantic import BaseModel, InstanceOf, validate_call
+from pydantic import BaseModel, InstanceOf
 
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.episode_store.episode_storage import EpisodeStorage
-from memmachine.main.filter_parser import And as FilterAnd
-from memmachine.main.filter_parser import Filter, FilterExpr
+from memmachine.common.filter.filter_parser import FilterExpr
 
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
@@ -84,7 +83,6 @@ class SemanticService:
         self._is_shutting_down = True
         await self._ingestion_task
 
-    @validate_call
     async def search(
         self,
         set_ids: list[SetIdT],
@@ -108,7 +106,6 @@ class SemanticService:
             load_citations=load_citations,
         )
 
-    @validate_call
     async def add_messages(self, set_id: SetIdT, history_ids: list[EpisodeIdT]) -> None:
         res = await asyncio.gather(
             *[
@@ -123,7 +120,6 @@ class SemanticService:
 
         _consolidate_errors_and_raise(res, "Failed to add messages to set")
 
-    @validate_call
     async def add_message_to_sets(
         self,
         history_id: EpisodeIdT,
@@ -142,14 +138,12 @@ class SemanticService:
 
         _consolidate_errors_and_raise(res, "Failed to add message to sets")
 
-    @validate_call
     async def number_of_uningested(self, set_ids: list[SetIdT]) -> int:
         return await self._semantic_storage.get_history_messages_count(
             set_ids=set_ids,
             is_ingested=False,
         )
 
-    @validate_call
     async def add_new_feature(
         self,
         *,
@@ -179,7 +173,6 @@ class SemanticService:
 
         return f_id
 
-    @validate_call
     async def get_feature(
         self,
         feature_id: FeatureIdT,
@@ -190,7 +183,6 @@ class SemanticService:
             load_citations=load_citations,
         )
 
-    @validate_call
     async def get_set_features(
         self,
         *,
@@ -204,7 +196,6 @@ class SemanticService:
             load_citations=with_citations,
         )
 
-    @validate_call
     async def update_feature(
         self,
         feature_id: FeatureIdT,
@@ -243,11 +234,9 @@ class SemanticService:
             embedding=np.array(embedding),
         )
 
-    @validate_call
     async def delete_features(self, feature_ids: list[FeatureIdT]) -> None:
         await self._semantic_storage.delete_features(feature_ids)
 
-    @validate_call
     async def delete_feature_set(
         self,
         *,

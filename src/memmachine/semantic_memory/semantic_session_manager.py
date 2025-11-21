@@ -1,12 +1,11 @@
 """Manage semantic memory sessions and associated lifecycle hooks."""
 
 import asyncio
-from typing import Any
 
 from pydantic import InstanceOf
 
+from memmachine.common.filter.filter_parser import FilterExpr
 from memmachine.episode_store.episode_model import EpisodeIdT
-from memmachine.main.filter_parser import And, Comparison, Filter, FilterExpr
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.semantic_session_resource import (
@@ -169,10 +168,10 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        property_filter: Filter | None = None,
+        property_filter: FilterExpr | None = None,
     ) -> None:
         set_ids = self._get_set_ids(session_data, memory_type)
-        filter_expr = self._merge_filters(set_ids, property_filter.expr if property_filter else None)
+        filter_expr = self._merge_filters(set_ids, property_filter)
 
         await self._semantic_service.delete_feature_set(
             filter_expr=filter_expr,

@@ -13,7 +13,7 @@ from memmachine.common.session_manager.session_data_manager import SessionDataMa
 from memmachine.episode_store.episode_model import Episode
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.episodic_memory_manager import EpisodicMemoryManager
-from memmachine.main.filter_parser import parse_filter
+from memmachine.common.filter.filter_parser import parse_filter
 from memmachine.semantic_memory.semantic_session_resource import (
     IsolationType,
 )

@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from memmachine.episode_store.episode_model import EpisodeIdT
-from memmachine.main.filter_parser import FilterExpr, parse_filter
+from memmachine.common.filter.filter_parser import FilterExpr, parse_filter
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorage
 

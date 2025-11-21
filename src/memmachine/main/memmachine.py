@@ -16,11 +16,8 @@ from memmachine.common.resource_manager.resource_manager import ResourceManagerI
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
 from memmachine.episode_store.episode_model import EpisodeEntry, Episode, EpisodeIdT
 from memmachine.episodic_memory import EpisodicMemory
-from memmachine.main.filter_parser import Filter
+from memmachine.common.filter.filter_parser import Filter
 from memmachine.semantic_memory.semantic_model import SemanticFeature, FeatureIdT
-from memmachine.semantic_memory.semantic_session_resource import (
-    SessionData as SemanticSessionData,
-)
 
 logger = logging.getLogger(__name__)
 

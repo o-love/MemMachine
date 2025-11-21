@@ -8,7 +8,7 @@ import numpy as np
 from pydantic import InstanceOf
 
 from memmachine.episode_store.episode_storage import EpisodeIdT
-from memmachine.main.filter_parser import FilterExpr
+from memmachine.common.filter.filter_parser import FilterExpr
 from memmachine.semantic_memory.semantic_model import (
     FeatureIdT,
     SemanticFeature,
@@ -110,8 +110,6 @@ class SemanticStorage(ABC):
         self,
         *,
         filter_expr: FilterExpr | None = None,
-        limit: int | None = None,
-        vector_search_opts: VectorSearchOpts | None = None,
     ) -> None:
         """Delete features matching the given filters."""
         raise NotImplementedError
