@@ -7,15 +7,18 @@ from typing import NamedTuple, Protocol
 from memmachine.common.data_types import FilterablePropertyValue
 
 
+class FilterParseError(ValueError):
+    """Raised when the textual filter specification is invalid."""
+
+
 class FilterExpr(Protocol):
     """Marker protocol for filter expression nodes."""
-
 
 
 @dataclass(frozen=True)
 class Comparison(FilterExpr):
     field: str
-    op: str  # "=", "in"
+    op: str  # "=", "in", "is_null", "is_not_null"
     value: FilterablePropertyValue | list[FilterablePropertyValue]
 
 
@@ -31,52 +34,15 @@ class Or(FilterExpr):
     right: FilterExpr
 
 
-@dataclass(frozen=True)
-class Filter:
-    """Container for a parsed filter expression."""
-
-    expr: FilterExpr | None
-
-    @property
-    def session_data_filter(self) -> dict[str, FilterablePropertyValue] | None:
-        """Return a mapping accepted by existing session store filters."""
-
-        return self._as_simple_equality_mapping()
-
-    @property
-    def episodic_filter(self) -> dict[str, FilterablePropertyValue] | None:
-        """Return a mapping accepted by episodic memory filters."""
-
-        return self._as_simple_equality_mapping()
-
-    def _as_simple_equality_mapping(
-        self,
-    ) -> dict[str, FilterablePropertyValue] | None:
-        if self.expr is None:
-            return None
-
-        comparisons = _flatten_conjunction(self.expr)
-        if not comparisons:
-            return None
-
-        legacy: dict[str, FilterablePropertyValue] = {}
-        for comp in comparisons:
-            if comp.op != "=":
-                raise ValueError(
-                    "Legacy property filters only support '=' comparisons",
-                )
-            value = comp.value
-            if isinstance(value, list):
-                raise ValueError(
-                    "Legacy property filters do not support 'IN' values",
-                )
-            legacy[comp.field] = value
-        return legacy
-
-
 class Token(NamedTuple):
     type: str
     value: str
+
+
+_OP_PRECEDENCE = {
+    "OR": 1,
+    "AND": 2,
+}
 
 
 _TOKEN_SPEC = [
@@ -102,7 +68,7 @@ def _tokenize(s: str) -> list[Token]:
             continue
         if kind == "IDENT":
             upper = value.upper()
-            if upper in ("AND", "OR", "IN"):
+            if upper in ("AND", "OR", "IN", "IS", "NOT"):
                 tokens.append(Token(upper, upper))
             else:
                 tokens.append(Token("IDENT", value))
@@ -131,35 +97,42 @@ class _Parser:
         if not tok or tok.type not in types:
             expected = " or ".join(types)
             actual = tok.type if tok else "EOF"
-            raise ValueError(f"Expected {expected}, got {actual}")
+            raise FilterParseError(f"Expected {expected}, got {actual}")
         self.pos += 1
         return tok
 
     def parse(self) -> FilterExpr | None:
         if not self.tokens:
             return None
-        expr = self._parse_or()
+        expr = self._parse_expression()
         if self._peek() is not None:
-            raise ValueError(f"Unexpected token: {self._peek()}")
+            raise FilterParseError(f"Unexpected token: {self._peek()}")
         return expr
 
-    def _parse_or(self) -> FilterExpr:
-        expr = self._parse_and()
-        while self._accept("OR"):
-            right = self._parse_and()
-            expr = Or(left=expr, right=right)
-        return expr
-
-    def _parse_and(self) -> FilterExpr:
+    def _parse_expression(self, min_prec: int = 1) -> FilterExpr:
         expr = self._parse_primary()
-        while self._accept("AND"):
-            right = self._parse_primary()
-            expr = And(left=expr, right=right)
+
+        while True:
+            tok = self._peek()
+            if not tok or tok.type not in _OP_PRECEDENCE:
+                break
+
+            prec = _OP_PRECEDENCE[tok.type]
+            if prec < min_prec:
+                break
+
+            self.pos += 1
+            rhs = self._parse_expression(prec + 1)
+            if tok.type == "AND":
+                expr = And(left=expr, right=rhs)
+            else:
+                expr = Or(left=expr, right=rhs)
+
         return expr
 
     def _parse_primary(self) -> FilterExpr:
         if self._accept("LPAREN"):
-            expr = self._parse_or()
+            expr = self._parse_expression()
             self._expect("RPAREN")
             return expr
         return self._parse_comparison()
@@ -182,7 +155,17 @@ class _Parser:
             self._expect("RPAREN")
             return Comparison(field=field, op="in", value=values)
 
-        raise ValueError(f"Expected '=' or IN after field {field}")
+        if self._accept("IS"):
+            negate = self._accept("NOT") is not None
+            null_tok = self._expect("IDENT")
+            if null_tok.value.upper() != "NULL":
+                raise FilterParseError(
+                    "Expected NULL after IS/IS NOT. NOT doesn't support other operations as of now",
+                )
+            op = "is_not_null" if negate else "is_null"
+            return Comparison(field=field, op=op, value=None)
+
+        raise FilterParseError(f"Expected '=' or IN after field {field}")
 
     def _parse_value(self) -> FilterablePropertyValue:
         tok = self._expect("IDENT")
@@ -206,17 +189,41 @@ def _looks_like_float(value: str) -> bool:
     return bool(left) and bool(right) and left.isdigit() and right.isdigit()
 
 
-def parse_filter(spec: str | None) -> Filter:
+def parse_filter(spec: str | None) -> FilterExpr | None:
     """Parse the given textual filter specification."""
-
     if spec is None:
-        return Filter(expr=None)
+        return None
     spec = spec.strip()
     if not spec:
-        return Filter(expr=None)
+        return None
     tokens = _tokenize(spec)
-    expr = _Parser(tokens).parse()
-    return Filter(expr=expr)
+    return _Parser(tokens).parse()
+
+
+def to_property_filter(
+    expr: FilterExpr | None,
+) -> dict[str, FilterablePropertyValue] | None:
+    """Convert a filter expression into a legacy equality mapping."""
+    if expr is None:
+        return None
+
+    comparisons = _flatten_conjunction(expr)
+    if not comparisons:
+        return None
+
+    property_filter: dict[str, FilterablePropertyValue] = {}
+    for comp in comparisons:
+        if comp.op != "=":
+            raise ValueError(
+                "Legacy property filters only support '=' comparisons",
+            )
+        value = comp.value
+        if isinstance(value, list):
+            raise ValueError(
+                "Legacy property filters do not support 'IN' values",
+            )
+        property_filter[comp.field] = value
+    return property_filter
 
 
 def _flatten_conjunction(expr: FilterExpr) -> list[Comparison]:

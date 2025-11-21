@@ -4,14 +4,14 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
-from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.common.filter.filter_parser import FilterExpr, parse_filter
+from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import SemanticStorage
 
 
 def _expr(spec: str | None) -> FilterExpr | None:
-    return parse_filter(spec).expr if spec else None
+    return parse_filter(spec) if spec else None
 
 
 @pytest.mark.asyncio
@@ -101,9 +101,7 @@ async def test_delete_feature_set_by_set_id(
     assert set_b == expected["user2"]
 
     # When we delete the first set
-    await semantic_storage.delete_feature_set(
-        filter_expr=_expr("set_id IN (user1)")
-    )
+    await semantic_storage.delete_feature_set(filter_expr=_expr("set_id IN (user1)"))
 
     # Then the first set should be empty
     res_delete_a = await semantic_storage.get_feature_set(
@@ -480,6 +478,48 @@ async def test_complex_feature_lifecycle(semantic_storage: SemanticStorage):
         await semantic_storage.get_feature_set(filter_expr=_expr("set_id IN (user)"))
         == []
     )
+
+
+@pytest.mark.asyncio
+async def test_filter_by_metadata_nullity(semantic_storage: SemanticStorage):
+    embed = np.array([1.0], dtype=float)
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="note",
+        value="first",
+        tag="misc",
+        metadata={"details": "present"},
+        embedding=embed,
+    )
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="note",
+        value="second",
+        tag="misc",
+        metadata={"details": None},
+        embedding=embed,
+    )
+    await semantic_storage.add_feature(
+        set_id="user",
+        category_name="default",
+        feature="note",
+        value="third",
+        tag="misc",
+        metadata=None,
+        embedding=embed,
+    )
+
+    null_results = await semantic_storage.get_feature_set(
+        filter_expr=_expr("metadata.details IS NULL"),
+    )
+    assert {feature.value for feature in null_results} == {"second", "third"}
+
+    not_null_results = await semantic_storage.get_feature_set(
+        filter_expr=_expr("metadata.details IS NOT NULL"),
+    )
+    assert [feature.value for feature in not_null_results] == ["first"]
 
 
 @pytest.mark.asyncio

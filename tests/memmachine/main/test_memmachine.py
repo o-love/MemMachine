@@ -26,7 +26,8 @@ def patched_resource_manager(monkeypatch):
 
     fake_manager = MagicMock()
     monkeypatch.setattr(
-        "memmachine.main.memmachine.ResourceManagerImpl", MagicMock(return_value=fake_manager)
+        "memmachine.main.memmachine.ResourceManagerImpl",
+        MagicMock(return_value=fake_manager),
     )
     return fake_manager
 
@@ -42,7 +43,9 @@ class DummySessionData:
         return self._session_key
 
 
-def test_with_default_episodic_memory_conf_uses_fallbacks(minimal_conf, patched_resource_manager):
+def test_with_default_episodic_memory_conf_uses_fallbacks(
+    minimal_conf, patched_resource_manager
+):
     """Verify default episodic memory configuration uses sensible fallbacks."""
 
     memmachine = MemMachine(minimal_conf)
@@ -56,16 +59,24 @@ def test_with_default_episodic_memory_conf_uses_fallbacks(minimal_conf, patched_
     assert conf.long_term_memory.reranker == "default"
     assert conf.long_term_memory.vector_graph_store == "default_store"
     assert conf.short_term_memory.llm_model == "gpt-4.1"
-    assert "You are a helpful assistant." in conf.short_term_memory.summary_prompt_system
-    assert "Based on the following episodes" in conf.short_term_memory.summary_prompt_user
+    assert (
+        "You are a helpful assistant." in conf.short_term_memory.summary_prompt_system
+    )
+    assert (
+        "Based on the following episodes" in conf.short_term_memory.summary_prompt_user
+    )
 
 
 @pytest.mark.asyncio
-async def test_create_session_passes_generated_config(monkeypatch, minimal_conf, patched_resource_manager):
+async def test_create_session_passes_generated_config(
+    monkeypatch, minimal_conf, patched_resource_manager
+):
     """Ensure ``create_session`` builds an episodic config and sends it to the manager."""
 
     session_manager = AsyncMock()
-    patched_resource_manager.get_session_data_manager = AsyncMock(return_value=session_manager)
+    patched_resource_manager.get_session_data_manager = AsyncMock(
+        return_value=session_manager
+    )
 
     memmachine = MemMachine(minimal_conf)
 
@@ -87,7 +98,9 @@ async def test_create_session_passes_generated_config(monkeypatch, minimal_conf,
 
 
 @pytest.mark.asyncio
-async def test_query_search_runs_targeted_memory_tasks(monkeypatch, minimal_conf, patched_resource_manager):
+async def test_query_search_runs_targeted_memory_tasks(
+    monkeypatch, minimal_conf, patched_resource_manager
+):
     """``query_search`` should dispatch queries to both episodic and semantic memory."""
 
     dummy_session = DummySessionData("s1")

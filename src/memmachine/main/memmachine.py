@@ -1,10 +1,11 @@
 import asyncio
 import logging
 from asyncio import Task
+from collections.abc import Coroutine
 from enum import Enum
-from typing import Final, Protocol, Coroutine, Any
+from typing import Any, Final, Protocol
 
-from pydantic import InstanceOf, BaseModel
+from pydantic import BaseModel, InstanceOf
 
 from memmachine.common.configuration import Configuration
 from memmachine.common.configuration.episodic_config import (
@@ -12,12 +13,16 @@ from memmachine.common.configuration.episodic_config import (
     LongTermMemoryConf,
     ShortTermMemoryConf,
 )
+from memmachine.common.filter.filter_parser import (
+    FilterExpr,
+    parse_filter,
+    to_property_filter,
+)
 from memmachine.common.resource_manager.resource_manager import ResourceManagerImpl
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
-from memmachine.episode_store.episode_model import EpisodeEntry, Episode, EpisodeIdT
+from memmachine.episode_store.episode_model import Episode, EpisodeEntry, EpisodeIdT
 from memmachine.episodic_memory import EpisodicMemory
-from memmachine.common.filter.filter_parser import Filter
-from memmachine.semantic_memory.semantic_model import SemanticFeature, FeatureIdT
+from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +139,6 @@ class MemMachine:
         reranker_name: str | None = None,
     ):
         """Create a new session."""
-
         episodic_memory_conf = self._with_default_episodic_memory_conf(
             embedder_name=embedder_name,
             reranker_name=reranker_name,
@@ -158,11 +162,11 @@ class MemMachine:
 
     async def search_sessions(
         self,
-        search_filter: Filter | None = None,
+        search_filter: FilterExpr | None = None,
     ) -> list[str]:
         session_data_manager = await self._resources.get_session_data_manager()
         return await session_data_manager.get_sessions(
-            filters=search_filter.session_data_filter
+            filters=to_property_filter(search_filter)
         )
 
     async def add_episodes(
@@ -213,7 +217,7 @@ class MemMachine:
         session_data: InstanceOf[SessionData],
         query: str,
         limit: int | None = None,
-        search_filter: Filter | None = None,
+        search_filter: str | None = None,
     ) -> EpisodicMemory.QueryResponse | None:
         episodic_memory_manager = await self._resources.get_episodic_memory_manager()
 
@@ -223,7 +227,7 @@ class MemMachine:
             response = await episodic_session.query_memory(
                 query=query,
                 limit=limit,
-                property_filter=search_filter.episodic_filter,
+                property_filter=to_property_filter(search_filter),
             )
 
         return response
@@ -234,8 +238,9 @@ class MemMachine:
         *,
         target_memories: list[MemoryType] = ALL_MEMORY_TYPES,
         query: str,
-        limit: int | None = None,  # TODO: Define if limit is per memory or is global limit
-        search_filter: Filter | None = None,
+        limit: int
+        | None = None,  # TODO: Define if limit is per memory or is global limit
+        search_filter: str | None = None,
     ) -> SearchResponse:
         episodic_task: Task | None = None
         semantic_task: Task | None = None
@@ -252,7 +257,14 @@ class MemMachine:
 
         if MemoryType.Semantic in target_memories:
             semantic_session = await self._resources.get_semantic_session_manager()
-            semantic_task = asyncio.create_task(semantic_session.search())
+            semantic_task = asyncio.create_task(
+                semantic_session.search(
+                    message=query,
+                    session_data=session_data,
+                    limit=limit,
+                    search_filter=search_filter,
+                )
+            )
 
         return MemMachine.SearchResponse(
             episodic_memory=await episodic_task if episodic_task else None,
@@ -264,12 +276,14 @@ class MemMachine:
         semantic_memory: list[SemanticFeature] | None = None
 
     async def list_search(
-            self,
-            session_data: InstanceOf[SessionData],
-            *,
-            target_memories: list[MemoryType] = ALL_MEMORY_TYPES,
-            search_filter: Filter | None = None,
+        self,
+        session_data: InstanceOf[SessionData],
+        *,
+        target_memories: list[MemoryType] = ALL_MEMORY_TYPES,
+        search_filter: str | None = None,
     ) -> ListResults:
+        search_filter_expr = parse_filter(search_filter) if search_filter else None
+
         episodic_task: Task | None = None
         semantic_task: Task | None = None
 
@@ -279,7 +293,7 @@ class MemMachine:
                 episode_storage.get_episode_messages(
                     session_data=session_data,
                     limit=None,
-                    search_filter=search_filter,
+                    search_filter=to_property_filter(search_filter_expr),
                 )
             )
 
@@ -287,7 +301,7 @@ class MemMachine:
             semantic_session = await self._resources.get_semantic_session_manager()
             semantic_task = await semantic_session.get_set_features(
                 session_data=session_data,
-                search_filter=search_filter,
+                search_filter=search_filter_expr,
             )
 
         return MemMachine.ListResults(
@@ -330,7 +344,7 @@ class MemMachine:
         *,
         session_data: InstanceOf[SessionData],
         target_memories: list[MemoryType] = ALL_MEMORY_TYPES,
-        delete_filter: Filter,
+        delete_filter: str | None = None,
     ):
         tasks: list[Coroutine[Any, Any, Any]] = []
 

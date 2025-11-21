@@ -218,7 +218,10 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
             result = await session.execute(select_stmt)
             persisted_episodes = result.scalars().all()
 
-        episodes_by_id = {episode_row.id: episode_row.to_typed_model() for episode_row in persisted_episodes}
+        episodes_by_id = {
+            episode_row.id: episode_row.to_typed_model()
+            for episode_row in persisted_episodes
+        }
         return [episodes_by_id[episode_id] for episode_id in int_episode_ids]
 
     @validate_call

@@ -8,25 +8,23 @@ from alembic import command
 from alembic.config import Config
 from pgvector.sqlalchemy import Vector
 from pydantic import InstanceOf, TypeAdapter
-from collections import Counter
-
 from sqlalchemy import (
     Boolean,
     Column,
+    ColumnElement,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
     Table,
-    delete,
     and_,
-    or_,
+    delete,
     insert,
+    or_,
     select,
     text,
     update,
-
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Connection
@@ -34,17 +32,24 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, aliased, mapped_column
 from sqlalchemy.sql import Delete, Select, func
 
+from memmachine.common.data_types import FilterablePropertyValue
+from memmachine.common.filter.filter_parser import (
+    And as FilterAnd,
+)
+from memmachine.common.filter.filter_parser import (
+    Comparison as FilterComparison,
+)
+from memmachine.common.filter.filter_parser import (
+    FilterExpr,
+)
+from memmachine.common.filter.filter_parser import (
+    Or as FilterOr,
+)
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature, SetIdT
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
     SemanticStorage,
-)
-from memmachine.common.filter.filter_parser import (
-    And as FilterAnd,
-    Or as FilterOr,
-    Comparison as FilterComparison,
-    FilterExpr,
 )
 
 StmtT = TypeVar("StmtT", Select[Any], Delete)
@@ -341,9 +346,6 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
         *,
         filter_expr: FilterExpr | None = None,
     ) -> None:
-        if vector_search_opts is not None:
-            raise ValueError("Vector search options are not supported for deletion")
-
         async with self._create_session() as session:
             stmt = delete(Feature)
             stmt = self._apply_feature_filter(
@@ -528,43 +530,66 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
 
         return stmt
 
+    def _compile_feature_comparison_expr(
+            self,
+            expr: FilterComparison,
+            table: type[Feature],
+    ) -> ColumnElement[Any] | bool:
+        column, is_metadata = self._resolve_feature_field(table, expr.field)
+
+        if column is None:
+            raise ValueError(f"Unsupported feature filter field: {expr.field}")
+
+        if expr.op == "=":
+            value = expr.value
+            if isinstance(value, list):
+                raise ValueError("'=' comparison cannot accept list values")
+            if is_metadata:
+                value = self._normalize_metadata_value(value)
+                return column == value
+            return column == value
+
+        if expr.op == "in":
+            if not isinstance(expr.value, list):
+                raise ValueError("IN comparison requires a list of values")
+
+            values = expr.value
+            if is_metadata:
+                values = [self._normalize_metadata_value(v) for v in values]
+            return column.in_(values)
+
+        if expr.op == "is_null":
+            return column.is_(None)
+
+        if expr.op == "is_not_null":
+            return column.is_not(None)
+
+        raise ValueError(f"Unsupported operator: {expr.op}")
+
     def _compile_feature_filter_expr(
         self,
         expr: FilterExpr,
         table: type[Feature],
-    ) -> Any:
+    ) -> ColumnElement[Any] | bool:
         if isinstance(expr, FilterComparison):
-            column, is_metadata = self._resolve_feature_field(table, expr.field)
-            if column is None:
-                raise ValueError(f"Unsupported feature filter field: {expr.field}")
-            if expr.op == "=":
-                value = expr.value
-                if isinstance(value, list):
-                    raise ValueError("'=' comparison cannot accept list values")
-                if is_metadata:
-                    value = self._normalize_metadata_value(value)
-                    return column == value
-                return column == value
-            if expr.op == "in":
-                if not isinstance(expr.value, list):
-                    raise ValueError("IN comparison requires a list of values")
-                values = expr.value
-                if is_metadata:
-                    values = [self._normalize_metadata_value(v) for v in values]
-                return column.in_(values)
-            raise ValueError(f"Unsupported operator: {expr.op}")
+            return self._compile_feature_comparison_expr(expr, table)
+
         if isinstance(expr, FilterAnd):
             left = self._compile_feature_filter_expr(expr.left, table)
             right = self._compile_feature_filter_expr(expr.right, table)
+
             return and_(left, right)
+
         if isinstance(expr, FilterOr):
             left = self._compile_feature_filter_expr(expr.left, table)
             right = self._compile_feature_filter_expr(expr.right, table)
+
             return or_(left, right)
+
         raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
 
     @staticmethod
-    def _normalize_metadata_value(value: Any) -> str:
+    def _normalize_metadata_value(value: FilterablePropertyValue | list[FilterablePropertyValue]) -> str:
         if isinstance(value, bool):
             return "true" if value else "false"
         return "" if value is None else str(value)

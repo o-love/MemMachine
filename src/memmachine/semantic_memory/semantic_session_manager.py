@@ -60,10 +60,10 @@ class SemanticSessionManager:
         min_distance: float | None = None,
         limit: int | None = None,
         load_citations: bool = False,
-        property_filter: Filter | None = None,
+        search_filter: FilterExpr | None = None,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
-        filter_expr = self._merge_filters(set_ids, property_filter.expr if property_filter else None)
+        filter_expr = self._merge_filters(set_ids, search_filter)
 
         return await self._semantic_service.search(
             set_ids=set_ids,
@@ -150,12 +150,12 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        property_filter: Filter | None = None,
+        search_filter: FilterExpr | None = None,
         limit: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
-        filter_expr = self._merge_filters(set_ids, property_filter.expr if property_filter else None)
+        filter_expr = self._merge_filters(set_ids, search_filter)
 
         return await self._semantic_service.get_set_features(
             filter_expr=filter_expr,

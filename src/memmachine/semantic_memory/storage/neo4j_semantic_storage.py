@@ -13,14 +13,20 @@ from neo4j import AsyncDriver
 from neo4j.graph import Node as Neo4jNode
 from pydantic import InstanceOf
 
-from memmachine.episode_store.episode_model import EpisodeIdT
-from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.common.filter.filter_parser import (
     And as FilterAnd,
-    Or as FilterOr,
+)
+from memmachine.common.filter.filter_parser import (
     Comparison as FilterComparison,
+)
+from memmachine.common.filter.filter_parser import (
     FilterExpr,
 )
+from memmachine.common.filter.filter_parser import (
+    Or as FilterOr,
+)
+from memmachine.episode_store.episode_model import EpisodeIdT
+from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
     SemanticStorage,
@@ -764,7 +770,9 @@ class Neo4jSemanticStorage(SemanticStorage):
             return None
         if isinstance(expr, FilterAnd):
             left_vals = self._collect_field_values(expr.left, target_field=target_field)
-            right_vals = self._collect_field_values(expr.right, target_field=target_field)
+            right_vals = self._collect_field_values(
+                expr.right, target_field=target_field
+            )
             if left_vals is None:
                 return right_vals
             if right_vals is None:
@@ -782,17 +790,24 @@ class Neo4jSemanticStorage(SemanticStorage):
     ) -> tuple[str, dict[str, Any]]:
         if isinstance(expr, FilterComparison):
             field_ref = self._resolve_field_reference(alias, expr.field)
-            param_name = self._next_filter_param()
             if expr.op == "=":
                 if isinstance(expr.value, list):
                     raise ValueError("'=' comparison cannot accept list values")
+                param_name = self._next_filter_param()
                 condition = f"{field_ref} = ${param_name}"
                 params = {param_name: expr.value}
             elif expr.op == "in":
                 if not isinstance(expr.value, list):
                     raise ValueError("IN comparison requires a list of values")
+                param_name = self._next_filter_param()
                 condition = f"{field_ref} IN ${param_name}"
                 params = {param_name: expr.value}
+            elif expr.op == "is_null":
+                condition = f"{field_ref} IS NULL"
+                params = {}
+            elif expr.op == "is_not_null":
+                condition = f"{field_ref} IS NOT NULL"
+                params = {}
             else:
                 raise ValueError(f"Unsupported operator: {expr.op}")
             return condition, params

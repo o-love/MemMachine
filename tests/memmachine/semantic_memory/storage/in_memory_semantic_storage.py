@@ -10,6 +10,18 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
+from memmachine.common.filter.filter_parser import (
+    And as FilterAnd,
+)
+from memmachine.common.filter.filter_parser import (
+    Comparison as FilterComparison,
+)
+from memmachine.common.filter.filter_parser import (
+    FilterExpr,
+)
+from memmachine.common.filter.filter_parser import (
+    Or as FilterOr,
+)
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
@@ -161,14 +173,16 @@ class InMemorySemanticStorage(SemanticStorage):
     async def get_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
+        filter_expr: FilterExpr | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
+        # Legacy filter knobs retained for compatibility with older tests.
+        set_ids: list[str] | None = None,
+        category_names: list[str] | None = None,
+        feature_names: list[str] | None = None,
+        tags: list[str] | None = None,
     ) -> list[SemanticFeature]:
         async with self._lock:
             entries = self._filter_features(
@@ -176,6 +190,7 @@ class InMemorySemanticStorage(SemanticStorage):
                 type_names=category_names,
                 feature_names=feature_names,
                 tags=tags,
+                filter_expr=filter_expr,
                 k=limit,
                 vector_search_opts=vector_search_opts,
                 tag_threshold=tag_threshold,
@@ -188,6 +203,7 @@ class InMemorySemanticStorage(SemanticStorage):
     async def delete_feature_set(
         self,
         *,
+        filter_expr: FilterExpr | None = None,
         set_ids: list[str] | None = None,
         category_names: list[str] | None = None,
         feature_names: list[str] | None = None,
@@ -202,6 +218,7 @@ class InMemorySemanticStorage(SemanticStorage):
                 type_names=category_names,
                 feature_names=feature_names,
                 tags=tags,
+                filter_expr=filter_expr,
                 k=limit,
                 vector_search_opts=vector_search_opts,
                 tag_threshold=thresh,
@@ -435,6 +452,7 @@ class InMemorySemanticStorage(SemanticStorage):
         type_names: list[str] | None,
         feature_names: list[str] | None,
         tags: list[str] | None,
+        filter_expr: FilterExpr | None,
         k: int | None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None,
         tag_threshold: int | None,
@@ -447,6 +465,7 @@ class InMemorySemanticStorage(SemanticStorage):
             feature_names=feature_names,
             tags=tags,
         )
+        entries = self._apply_filter_expression(entries, filter_expr)
         entries = self._apply_vector_filter(entries, vector_search_opts)
 
         if k is not None:
@@ -483,6 +502,108 @@ class InMemorySemanticStorage(SemanticStorage):
             ]
 
         return filtered_entries
+
+    def _apply_filter_expression(
+        self,
+        entries: list[_FeatureEntry],
+        filter_expr: FilterExpr | None,
+    ) -> list[_FeatureEntry]:
+        if filter_expr is None:
+            return entries
+        return [
+            entry for entry in entries if self._evaluate_filter_expr(entry, filter_expr)
+        ]
+
+    def _evaluate_filter_expr(
+        self,
+        entry: _FeatureEntry,
+        expr: FilterExpr,
+    ) -> bool:
+        if isinstance(expr, FilterComparison):
+            return self._evaluate_comparison(entry, expr)
+        if isinstance(expr, FilterAnd):
+            return self._evaluate_filter_expr(
+                entry, expr.left
+            ) and self._evaluate_filter_expr(
+                entry,
+                expr.right,
+            )
+        if isinstance(expr, FilterOr):
+            return self._evaluate_filter_expr(
+                entry, expr.left
+            ) or self._evaluate_filter_expr(
+                entry,
+                expr.right,
+            )
+        raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
+
+    def _evaluate_comparison(
+        self,
+        entry: _FeatureEntry,
+        comparison: FilterComparison,
+    ) -> bool:
+        value, is_metadata = self._resolve_entry_field(entry, comparison.field)
+        if comparison.op == "=":
+            if isinstance(comparison.value, list):
+                raise ValueError("'=' comparison cannot accept list values")
+            expected = comparison.value
+            if is_metadata and expected is not None:
+                expected = self._normalize_metadata_value(expected)
+            if is_metadata and value is not None:
+                value = self._normalize_metadata_value(value)
+            return value == expected
+        if comparison.op == "in":
+            if not isinstance(comparison.value, list):
+                raise ValueError("IN comparison requires a list of values")
+            candidates = comparison.value
+            if is_metadata:
+                candidates = [
+                    self._normalize_metadata_value(v) if v is not None else None
+                    for v in candidates
+                ]
+                if value is not None:
+                    value = self._normalize_metadata_value(value)
+            return value in candidates
+        if comparison.op == "is_null":
+            return value is None
+        if comparison.op == "is_not_null":
+            return value is not None
+        raise ValueError(f"Unsupported operator: {comparison.op}")
+
+    def _resolve_entry_field(
+        self,
+        entry: _FeatureEntry,
+        field: str,
+    ) -> tuple[Any, bool]:
+        field_mapping: dict[str, Any] = {
+            "set_id": entry.set_id,
+            "semantic_category_id": entry.semantic_type_id,
+            "category_name": entry.semantic_type_id,
+            "tag_id": entry.tag,
+            "tag": entry.tag,
+            "feature": entry.feature,
+            "feature_name": entry.feature,
+            "value": entry.value,
+            "created_at": entry.created_at,
+            "updated_at": entry.updated_at,
+        }
+        if field in field_mapping:
+            return field_mapping[field], False
+
+        if field.startswith("m.") or field.startswith("metadata."):
+            key = field.split(".", 1)[1]
+            metadata = entry.metadata or {}
+            return metadata.get(key), True
+
+        raise ValueError(f"Unsupported feature filter field: {field}")
+
+    @staticmethod
+    def _normalize_metadata_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if value is None:
+            return ""
+        return str(value)
 
     def _apply_vector_filter(
         self,

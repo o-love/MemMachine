@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
 from memmachine.common.configuration import Configuration
+from memmachine.common.filter.filter_parser import parse_filter, to_property_filter
 from memmachine.common.resource_manager.semantic_manager import SemanticResourceManager
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
 from memmachine.episode_store.episode_model import Episode
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.episodic_memory_manager import EpisodicMemoryManager
-from memmachine.common.filter.filter_parser import parse_filter
 from memmachine.semantic_memory.semantic_session_resource import (
     IsolationType,
 )
@@ -293,11 +293,12 @@ async def search_memories(
     session_key = f"{spec.org_id}/{spec.project_id}"
     ret = SearchResult(status=0, content={"episodic_memory": [], "semantic_memory": []})
     property_filter = parse_filter(spec.filter)
+    episodic_filter = to_property_filter(property_filter)
     if MemoryType.EPISODIC in spec.types:
         episodic_result = await episodic_memory.query_memory(
             query=spec.query,
             limit=spec.top_k,
-            property_filter=property_filter,
+            property_filter=episodic_filter,
         )
         ret.content["episodic_memory"] = episodic_result
     if MemoryType.SEMANTIC in spec.types:
@@ -311,7 +312,7 @@ async def search_memories(
             session_data=semantic_session,
             memory_type=[IsolationType.SESSION],
             limit=spec.top_k,
-            property_filter=property_filter,
+            search_filter=property_filter,
         )
     return ret
 
@@ -328,11 +329,12 @@ async def list_memories(
     session_key = f"{spec.org_id}/{spec.project_id}"
     ret = SearchResult(status=0, content={"episodic_memory": [], "semantic_memory": []})
     property_filter = parse_filter(spec.filter)
+    episodic_filter = to_property_filter(property_filter)
     if spec.type == MemoryType.EPISODIC:
         episodic_result = await episodic_memory.query_memory(
             query="",
             limit=10000,
-            property_filter=property_filter,
+            property_filter=episodic_filter,
         )
         ret.content["episodic_memory"] = episodic_result
     if spec.type == MemoryType.SEMANTIC:
@@ -346,7 +348,7 @@ async def list_memories(
             session_data=semantic_session,
             memory_type=[IsolationType.SESSION],
             limit=10000,
-            property_filter=property_filter,
+            search_filter=property_filter,
         )
     return ret
 
@@ -357,9 +359,10 @@ async def delete_memories(
     episodic_memory: Annotated[EpisodicMemory, Depends(get_episodic_memory)],
 ) -> None:
     """Delete memories in a project."""
+    expr = parse_filter(spec.filter)
     short_term, long_term, _ = await episodic_memory.query_memory(
         query="",
-        property_filter=parse_filter(spec.filter),
+        property_filter=to_property_filter(expr),
     )
     await episodic_memory.delete_episodes(
         uids=[ep.uid for ep in short_term + long_term if ep.uid is not None]
