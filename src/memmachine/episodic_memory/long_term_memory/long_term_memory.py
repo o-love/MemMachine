@@ -210,10 +210,6 @@ class LongTermMemory:
                 "int",
                 declarative_memory_episode.filterable_properties.get("sequence_num", 0),
             ),
-            session_key=cast(
-                "str",
-                declarative_memory_episode.filterable_properties.get("session_key", ""),
-            ),
             episode_type=EpisodeType(
                 cast(
                     "str",

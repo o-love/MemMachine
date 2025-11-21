@@ -18,10 +18,13 @@ from sqlalchemy import (
     String,
     Table,
     delete,
+    and_,
+    or_,
     insert,
     select,
     text,
     update,
+
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Connection
@@ -34,6 +37,12 @@ from memmachine.semantic_memory.semantic_model import SemanticFeature, SetIdT
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
     SemanticStorage,
+)
+from memmachine.main.filter_parser import (
+    And as FilterAnd,
+    Or as FilterOr,
+    Comparison as FilterComparison,
+    FilterExpr,
 )
 
 StmtT = TypeVar("StmtT", Select[Any], Delete)
@@ -290,26 +299,19 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
     async def get_feature_set(
         self,
         *,
-        set_ids: list[SetIdT] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
+        filter_expr: FilterExpr | None = None,
     ) -> list[SemanticFeature]:
         stmt = select(Feature)
 
         stmt = self._apply_feature_filter(
             stmt,
-            set_ids=set_ids,
-            category_names=category_names,
-            tags=tags,
-            feature_names=feature_names,
-            thresh=tag_threshold,
             k=limit,
             vector_search_opts=vector_search_opts,
+            filter_expr=filter_expr,
         )
 
         async with self._create_session() as session:
@@ -321,6 +323,11 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
                     session,
                     [f.id for f in features if f.id is not None],
                 )
+        if tag_threshold is not None and tag_threshold > 0 and features:
+            from collections import Counter
+
+            counts = Counter(f.tag_id for f in features)
+            features = [f for f in features if counts[f.tag_id] >= tag_threshold]
 
         return [f.to_typed_model(citations=citations_map.get(f.id)) for f in features]
 
@@ -337,25 +344,17 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
     async def delete_feature_set(
         self,
         *,
-        set_ids: list[SetIdT] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
-        thresh: int | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
+        filter_expr: FilterExpr | None = None,
     ) -> None:
         stmt = delete(Feature)
 
         stmt = self._apply_feature_filter(
             stmt,
-            set_ids=set_ids,
-            category_names=category_names,
-            tags=tags,
-            feature_names=feature_names,
-            thresh=thresh,
             k=limit,
             vector_search_opts=vector_search_opts,
+            filter_expr=filter_expr,
         )
 
         async with self._create_session() as session:
@@ -526,52 +525,87 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
         self,
         stmt: StmtT,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
-        thresh: int | None = None,
         k: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
+        filter_expr: FilterExpr | None = None,
     ) -> StmtT:
-        _StmtT = TypeVar("_StmtT", Select[Any], Delete)
+        stmt = self._apply_feature_select_filter(
+            stmt,
+            k=k,
+            vector_search_opts=vector_search_opts,
+        )
 
-        def _apply_feature_id_filter(
-            _stmt: _StmtT,
-        ) -> _StmtT:
-            if set_ids is not None and len(set_ids) > 0:
-                _stmt = _stmt.where(Feature.set_id.in_(set_ids))
-
-            if category_names is not None and len(category_names) > 0:
-                _stmt = _stmt.where(Feature.semantic_category_id.in_(category_names))
-
-            if tags is not None and len(tags) > 0:
-                _stmt = _stmt.where(Feature.tag_id.in_(tags))
-
-            if feature_names is not None and len(feature_names) > 0:
-                _stmt = _stmt.where(Feature.feature.in_(feature_names))
-
-            _stmt = self._apply_feature_select_filter(
-                _stmt,
-                k=k,
-                vector_search_opts=vector_search_opts,
-            )
-
-            return _stmt
-
-        stmt = _apply_feature_id_filter(stmt)
-
-        if thresh is not None:
-            subquery_stmt = self._get_tags_with_more_than_k_features(thresh)
-            subquery = _apply_feature_id_filter(subquery_stmt)
-
-            stmt = stmt.where(Feature.tag_id.in_(subquery))
+        if filter_expr is not None:
+            clause = self._compile_feature_filter_expr(filter_expr, Feature)
+            stmt = stmt.where(clause)
 
         return stmt
 
+    def _compile_feature_filter_expr(
+        self,
+        expr: FilterExpr,
+        table: type[Feature],
+    ) -> Any:
+        if isinstance(expr, FilterComparison):
+            column, is_metadata = self._resolve_feature_field(table, expr.field)
+            if column is None:
+                raise ValueError(f"Unsupported feature filter field: {expr.field}")
+            if expr.op == "=":
+                value = expr.value
+                if isinstance(value, list):
+                    raise ValueError("'=' comparison cannot accept list values")
+                if is_metadata:
+                    value = self._normalize_metadata_value(value)
+                    return column == value
+                return column == value
+            if expr.op == "in":
+                if not isinstance(expr.value, list):
+                    raise ValueError("IN comparison requires a list of values")
+                values = expr.value
+                if is_metadata:
+                    values = [self._normalize_metadata_value(v) for v in values]
+                return column.in_(values)
+            raise ValueError(f"Unsupported operator: {expr.op}")
+        if isinstance(expr, FilterAnd):
+            left = self._compile_feature_filter_expr(expr.left, table)
+            right = self._compile_feature_filter_expr(expr.right, table)
+            return and_(left, right)
+        if isinstance(expr, FilterOr):
+            left = self._compile_feature_filter_expr(expr.left, table)
+            right = self._compile_feature_filter_expr(expr.right, table)
+            return or_(left, right)
+        raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
+
     @staticmethod
-    def _get_tags_with_more_than_k_features(k: int) -> Select[Any]:
-        return select(Feature.tag_id).group_by(Feature.tag_id).having(func.count() >= k)
+    def _normalize_metadata_value(value: Any) -> str:
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        return "" if value is None else str(value)
+
+    @staticmethod
+    def _resolve_feature_field(
+        table: type[Feature],
+        field: str,
+    ) -> tuple[Any, bool] | tuple[None, bool]:
+        normalized = field
+        field_mapping = {
+            "set_id": table.set_id,
+            "semantic_category_id": table.semantic_category_id,
+            "category_name": table.semantic_category_id,
+            "tag_id": table.tag_id,
+            "tag": table.tag_id,
+            "feature": table.feature,
+            "feature_name": table.feature,
+            "value": table.value,
+            "created_at": table.created_at,
+            "updated_at": table.updated_at,
+        }
+        if normalized in field_mapping:
+            return field_mapping[normalized], False
+        if normalized.startswith("m.") or normalized.startswith("metadata."):
+            key = normalized.split(".", 1)[1]
+            return table.json_metadata[key].astext, True
+        return None, False
 
     async def _load_feature_citations(
         self,

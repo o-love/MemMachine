@@ -1,6 +1,9 @@
 """Session data manager abstraction."""
 
 from abc import ABC, abstractmethod
+from typing import Any
+
+from pydantic import BaseModel
 
 from memmachine.common.configuration.episodic_config import EpisodicMemoryConf
 
@@ -40,11 +43,17 @@ class SessionDataManager(ABC):
         """Delete a session entry from the database."""
         raise NotImplementedError
 
+    class SessionInfo(BaseModel):
+        configuration: dict[str, Any]
+        description: str
+        user_metadata: dict[str, Any]
+        episode_memory_conf: EpisodicMemoryConf
+
     @abstractmethod
     async def get_session_info(
         self,
         session_key: str,
-    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
+    ) -> SessionInfo | None:
         """Get configuration, description, metadata, and params for a session."""
         raise NotImplementedError
 

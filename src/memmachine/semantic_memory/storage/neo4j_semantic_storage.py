@@ -15,6 +15,12 @@ from pydantic import InstanceOf, validate_call
 
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
+from memmachine.main.filter_parser import (
+    And as FilterAnd,
+    Or as FilterOr,
+    Comparison as FilterComparison,
+    FilterExpr,
+)
 from memmachine.semantic_memory.storage.storage_base import (
     FeatureIdT,
     SemanticStorage,
@@ -94,6 +100,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         self.backend_name = "neo4j"
         self._vector_index_by_set: dict[str, int] = {}
         self._set_embedding_dimensions: dict[str, int] = {}
+        self._filter_param_counter = 0
 
     async def startup(self) -> None:
         await self._driver.execute_query(
@@ -358,30 +365,21 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def get_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
+        filter_expr: FilterExpr | None = None,
     ) -> list[SemanticFeature]:
         if vector_search_opts is not None:
             entries = await self._vector_search_entries(
-                set_ids=set_ids,
-                category_names=category_names,
-                feature_names=feature_names,
-                tags=tags,
                 limit=limit,
                 vector_search_opts=vector_search_opts,
+                filter_expr=filter_expr,
             )
         else:
             entries = await self._load_feature_entries(
-                set_ids=set_ids,
-                category_names=category_names,
-                feature_names=feature_names,
-                tags=tags,
+                filter_expr=filter_expr,
             )
             entries.sort(key=lambda e: (e.created_at_ts, str(e.feature_id)))
             if limit is not None:
@@ -401,22 +399,16 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def delete_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
         thresh: int | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
+        filter_expr: FilterExpr | None = None,
     ) -> None:
         entries = await self.get_feature_set(
-            set_ids=set_ids,
-            category_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
             limit=limit,
             vector_search_opts=vector_search_opts,
             tag_threshold=thresh,
+            filter_expr=filter_expr,
             load_citations=False,
         )
         await self.delete_features(
@@ -562,18 +554,12 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def _load_feature_entries(
         self,
         *,
-        set_ids: list[str] | None,
-        category_names: list[str] | None,
-        feature_names: list[str] | None,
-        tags: list[str] | None,
+        filter_expr: FilterExpr | None,
     ) -> list[_FeatureEntry]:
         query = ["MATCH (f:Feature)"]
         conditions, params = self._build_filter_conditions(
             alias="f",
-            set_ids=set_ids,
-            category_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
+            filter_expr=filter_expr,
         )
         if conditions:
             query.append("WHERE " + " AND ".join(conditions))
@@ -630,12 +616,9 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def _vector_search_entries(
         self,
         *,
-        set_ids: list[str] | None,
-        category_names: list[str] | None,
-        feature_names: list[str] | None,
-        tags: list[str] | None,
         limit: int | None,
         vector_search_opts: SemanticStorage.VectorSearchOpts,
+        filter_expr: FilterExpr | None,
     ) -> list[_FeatureEntry]:
         embedding_array = np.array(vector_search_opts.query_embedding, dtype=float)
         embedding = [float(x) for x in embedding_array.tolist()]
@@ -643,10 +626,7 @@ class Neo4jSemanticStorage(SemanticStorage):
 
         conditions, filter_params = self._build_filter_conditions(
             alias="f",
-            set_ids=set_ids,
-            category_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
+            filter_expr=filter_expr,
         )
 
         params_base = self._vector_query_params(
@@ -659,7 +639,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         query_text = self._vector_query_text(conditions)
 
         combined: list[tuple[float, _FeatureEntry]] = []
-        for set_id in self._matching_set_ids(set_ids, embedding_dims):
+        for set_id in self._matching_set_ids(filter_expr, embedding_dims):
             index_name = await self._ensure_vector_index(set_id, embedding_dims)
             combined.extend(
                 await self._query_vector_index(query_text, index_name, params_base),
@@ -704,9 +684,10 @@ class Neo4jSemanticStorage(SemanticStorage):
 
     def _matching_set_ids(
         self,
-        requested_set_ids: list[str] | None,
+        filter_expr: FilterExpr | None,
         expected_dims: int,
     ) -> list[str]:
+        requested_set_ids = self._extract_set_ids(filter_expr)
         candidate_ids = self._deduplicated_set_ids(requested_set_ids)
         return [
             set_id
@@ -745,26 +726,101 @@ class Neo4jSemanticStorage(SemanticStorage):
         self,
         *,
         alias: str,
-        set_ids: list[str] | None,
-        category_names: list[str] | None,
-        feature_names: list[str] | None,
-        tags: list[str] | None,
+        filter_expr: FilterExpr | None = None,
     ) -> tuple[list[str], dict[str, Any]]:
         conditions: list[str] = []
         params: dict[str, Any] = {}
-        if set_ids is not None:
-            conditions.append(f"{alias}.set_id IN $set_ids")
-            params["set_ids"] = set_ids
-        if category_names is not None:
-            conditions.append(f"{alias}.category_name IN $category_names")
-            params["category_names"] = category_names
-        if feature_names is not None:
-            conditions.append(f"{alias}.feature IN $feature_names")
-            params["feature_names"] = feature_names
-        if tags is not None:
-            conditions.append(f"{alias}.tag IN $tags")
-            params["tags"] = tags
+        if filter_expr is not None:
+            expr_condition, expr_params = self._render_filter_expr(alias, filter_expr)
+            if expr_condition:
+                conditions.append(expr_condition)
+                params.update(expr_params)
         return conditions, params
+
+    def _extract_set_ids(self, expr: FilterExpr | None) -> list[str] | None:
+        if expr is None:
+            return None
+
+        values = self._collect_field_values(expr, target_field="set_id")
+        if values is None:
+            return None
+        return [str(v) for v in values]
+
+    def _collect_field_values(
+        self,
+        expr: FilterExpr,
+        *,
+        target_field: str,
+    ) -> set[str] | None:
+        if isinstance(expr, FilterComparison):
+            if expr.field != target_field:
+                return None
+            if expr.op == "=":
+                if isinstance(expr.value, list):
+                    raise ValueError("'=' comparison cannot accept list values")
+                return {str(expr.value)}
+            if expr.op == "in":
+                if not isinstance(expr.value, list):
+                    raise ValueError("IN comparison requires list values")
+                return {str(v) for v in expr.value}
+            return None
+        if isinstance(expr, FilterAnd):
+            left_vals = self._collect_field_values(expr.left, target_field=target_field)
+            right_vals = self._collect_field_values(expr.right, target_field=target_field)
+            if left_vals is None:
+                return right_vals
+            if right_vals is None:
+                return left_vals
+            return left_vals & right_vals
+        if isinstance(expr, FilterOr):
+            # Ambiguous which branch applies; fall back to no restriction
+            return None
+        return None
+
+    def _render_filter_expr(
+        self,
+        alias: str,
+        expr: FilterExpr,
+    ) -> tuple[str, dict[str, Any]]:
+        if isinstance(expr, FilterComparison):
+            field_ref = self._resolve_field_reference(alias, expr.field)
+            param_name = self._next_filter_param()
+            if expr.op == "=":
+                if isinstance(expr.value, list):
+                    raise ValueError("'=' comparison cannot accept list values")
+                condition = f"{field_ref} = ${param_name}"
+                params = {param_name: expr.value}
+            elif expr.op == "in":
+                if not isinstance(expr.value, list):
+                    raise ValueError("IN comparison requires a list of values")
+                condition = f"{field_ref} IN ${param_name}"
+                params = {param_name: expr.value}
+            else:
+                raise ValueError(f"Unsupported operator: {expr.op}")
+            return condition, params
+        if isinstance(expr, FilterAnd):
+            left_cond, left_params = self._render_filter_expr(alias, expr.left)
+            right_cond, right_params = self._render_filter_expr(alias, expr.right)
+            condition = f"({left_cond}) AND ({right_cond})"
+            left_params.update(right_params)
+            return condition, left_params
+        if isinstance(expr, FilterOr):
+            left_cond, left_params = self._render_filter_expr(alias, expr.left)
+            right_cond, right_params = self._render_filter_expr(alias, expr.right)
+            condition = f"({left_cond}) OR ({right_cond})"
+            left_params.update(right_params)
+            return condition, left_params
+        raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
+
+    def _resolve_field_reference(self, alias: str, field: str) -> str:
+        if field.startswith("m.") or field.startswith("metadata."):
+            key = field.split(".", 1)[1]
+            return f"{alias}.metadata.{key}"
+        return f"{alias}.{field}"
+
+    def _next_filter_param(self) -> str:
+        self._filter_param_counter += 1
+        return f"filter_param_{self._filter_param_counter}"
 
     async def _hydrate_vector_index_state(self) -> None:
         self._vector_index_by_set.clear()

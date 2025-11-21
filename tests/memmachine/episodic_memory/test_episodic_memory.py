@@ -173,7 +173,7 @@ async def test_delete_episodes(
     """Test deleting episodes by UID."""
     uid1, uid2 = str(uuid4()), str(uuid4())
     await episodic_memory.delete_episodes([uid1, uid2])
-    mock_short_term_memory.delete_episode.assert_has_awaits([call(uid1), call(uid2)])
+    mock_short_term_memory.delete_episodes.assert_has_awaits([call(uid1), call(uid2)])
     mock_long_term_memory.delete_episodes.assert_awaited_once_with([uid1, uid2])
 
 

@@ -17,6 +17,8 @@ from pydantic import BaseModel, InstanceOf, validate_call
 
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.episode_store.episode_storage import EpisodeStorage
+from memmachine.main.filter_parser import And as FilterAnd
+from memmachine.main.filter_parser import Filter, FilterExpr
 
 from .semantic_ingestion import IngestionService
 from .semantic_model import FeatureIdT, ResourceRetriever, SemanticFeature, SetIdT
@@ -88,26 +90,21 @@ class SemanticService:
         set_ids: list[SetIdT],
         query: str,
         *,
-        min_distance: float = 0.7,
-        category_names: list[str] | None = None,
-        tag_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
+        min_distance: float | None = None,
         limit: int | None = 30,
         load_citations: bool = False,
+        filter_expr: FilterExpr | None = None,
     ) -> list[SemanticFeature]:
         resources = self._resource_retriever.get_resources(set_ids[0])
         query_embedding = (await resources.embedder.search_embed([query]))[0]
 
         return await self._semantic_storage.get_feature_set(
-            set_ids=set_ids,
+            filter_expr=filter_expr,
+            limit=limit,
             vector_search_opts=SemanticStorage.VectorSearchOpts(
                 query_embedding=np.array(query_embedding),
                 min_distance=min_distance,
             ),
-            category_names=category_names,
-            tags=tag_names,
-            feature_names=feature_names,
-            limit=limit,
             load_citations=load_citations,
         )
 
@@ -193,28 +190,18 @@ class SemanticService:
             load_citations=load_citations,
         )
 
-    class FeatureSearchOpts(BaseModel):
-        """Filters controlling which features are read or deleted from storage."""
-
-        set_ids: list[str] | None = None
-        category_names: list[str] | None = None
-        feature_names: list[str] | None = None
-        tags: list[str] | None = None
-        limit: int = 100
-        with_citations: bool = False
-
     @validate_call
     async def get_set_features(
         self,
-        opts: FeatureSearchOpts,
+        *,
+        filter_expr: FilterExpr | None = None,
+        limit: int | None = None,
+        with_citations: bool = False,
     ) -> list[SemanticFeature]:
         return await self._semantic_storage.get_feature_set(
-            set_ids=opts.set_ids,
-            category_names=opts.category_names,
-            feature_names=opts.feature_names,
-            tags=opts.tags,
-            limit=opts.limit,
-            load_citations=opts.with_citations,
+            filter_expr=filter_expr,
+            limit=limit,
+            load_citations=with_citations,
         )
 
     @validate_call
@@ -261,12 +248,13 @@ class SemanticService:
         await self._semantic_storage.delete_features(feature_ids)
 
     @validate_call
-    async def delete_feature_set(self, opts: FeatureSearchOpts) -> None:
+    async def delete_feature_set(
+        self,
+        *,
+        filter_expr: FilterExpr | None = None,
+    ) -> None:
         await self._semantic_storage.delete_feature_set(
-            set_ids=opts.set_ids,
-            category_names=opts.category_names,
-            feature_names=opts.feature_names,
-            tags=opts.tags,
+            filter_expr=filter_expr,
         )
 
     async def _background_ingestion_task(self) -> None:

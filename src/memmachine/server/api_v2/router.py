@@ -8,20 +8,15 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
 from memmachine.common.configuration import Configuration
-from memmachine.common.configuration.episodic_config import (
-    EpisodicMemoryConf,
-    LongTermMemoryConf,
-    ShortTermMemoryConf,
-)
 from memmachine.common.resource_manager.semantic_manager import SemanticResourceManager
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
 from memmachine.episode_store.episode_model import Episode
 from memmachine.episodic_memory.episodic_memory import EpisodicMemory
 from memmachine.episodic_memory.episodic_memory_manager import EpisodicMemoryManager
+from memmachine.main.filter_parser import parse_filter
 from memmachine.semantic_memory.semantic_session_resource import (
     IsolationType,
 )
-from memmachine.server.api_v2.filter_parser import parse_filter
 from memmachine.server.api_v2.spec import (
     AddMemoriesSpec,
     CreateProjectSpec,
@@ -102,68 +97,6 @@ async def _session_exists(
     except Exception:
         return False
     return True
-
-
-async def _create_new_session(
-    conf: Configuration,
-    session_manager: SessionDataManager,
-    session_key: str,
-    description: str,
-    embedder: str,
-    reranker: str,
-) -> None:
-    """Create a new session."""
-    # Get default prompts from config, with fallbacks
-    short_term = conf.episodic_memory.short_term_memory
-    summary_prompt_system = (
-        short_term.summary_prompt_system
-        if short_term and short_term.summary_prompt_system
-        else "You are a helpful assistant."
-    )
-    summary_prompt_user = (
-        short_term.summary_prompt_user
-        if short_term and short_term.summary_prompt_user
-        else "Based on the following episodes: {episodes}, and the previous summary: {summary}, please update the summary. Keep it under {max_length} characters."
-    )
-
-    # Get default embedder and reranker from config
-    long_term = conf.episodic_memory.long_term_memory
-    if embedder == "default" and long_term and long_term.embedder:
-        embedder = long_term.embedder
-    if reranker == "default" and long_term and long_term.reranker:
-        reranker = long_term.reranker
-    await session_manager.create_new_session(
-        session_key=session_key,
-        configuration={},
-        param=EpisodicMemoryConf(
-            session_key=session_key,
-            long_term_memory=LongTermMemoryConf(
-                session_id=session_key,
-                vector_graph_store=(
-                    long_term.vector_graph_store
-                    if long_term and long_term.vector_graph_store
-                    else "default_store"
-                ),
-                embedder=embedder,
-                reranker=reranker,
-            ),
-            short_term_memory=ShortTermMemoryConf(
-                session_key=session_key,
-                llm_model=(
-                    short_term.llm_model
-                    if short_term and short_term.llm_model
-                    else "gpt-4.1"
-                ),
-                summary_prompt_system=summary_prompt_system,
-                summary_prompt_user=summary_prompt_user,
-            ),
-            long_term_memory_enabled=True,
-            short_term_memory_enabled=True,
-            enabled=True,
-        ),
-        description=description,
-        metadata={},
-    )
 
 
 async def _create_session_if_not_exists(
@@ -359,11 +292,12 @@ async def search_memories(
     """Search memories in a project."""
     session_key = f"{spec.org_id}/{spec.project_id}"
     ret = SearchResult(status=0, content={"episodic_memory": [], "semantic_memory": []})
+    property_filter = parse_filter(spec.filter)
     if MemoryType.EPISODIC in spec.types:
         episodic_result = await episodic_memory.query_memory(
             query=spec.query,
             limit=spec.top_k,
-            property_filter=parse_filter(spec.filter),
+            property_filter=property_filter,
         )
         ret.content["episodic_memory"] = episodic_result
     if MemoryType.SEMANTIC in spec.types:
@@ -377,6 +311,7 @@ async def search_memories(
             session_data=semantic_session,
             memory_type=[IsolationType.SESSION],
             limit=spec.top_k,
+            property_filter=property_filter,
         )
     return ret
 
@@ -392,11 +327,12 @@ async def list_memories(
     """List memories in a project."""
     session_key = f"{spec.org_id}/{spec.project_id}"
     ret = SearchResult(status=0, content={"episodic_memory": [], "semantic_memory": []})
+    property_filter = parse_filter(spec.filter)
     if spec.type == MemoryType.EPISODIC:
         episodic_result = await episodic_memory.query_memory(
             query="",
             limit=10000,
-            property_filter=parse_filter(spec.filter),
+            property_filter=property_filter,
         )
         ret.content["episodic_memory"] = episodic_result
     if spec.type == MemoryType.SEMANTIC:
@@ -410,6 +346,7 @@ async def list_memories(
             session_data=semantic_session,
             memory_type=[IsolationType.SESSION],
             limit=10000,
+            property_filter=property_filter,
         )
     return ret
 
