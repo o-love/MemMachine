@@ -1,25 +1,15 @@
 """API v2 router for MemMachine project and memory management endpoints."""
 
-from collections.abc import AsyncIterator
 from typing import Annotated
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
 from memmachine import MemMachine
-from memmachine.common.configuration import Configuration
-from memmachine.common.filter.filter_parser import parse_filter, to_property_filter
-from memmachine.common.resource_manager.semantic_manager import SemanticResourceManager
 from memmachine.common.session_manager.session_data_manager import SessionDataManager
-from memmachine.episode_store.episode_model import Episode, EpisodeEntry
-from memmachine.episodic_memory.episodic_memory import EpisodicMemory
-from memmachine.episodic_memory.episodic_memory_manager import EpisodicMemoryManager
+from memmachine.episode_store.episode_model import EpisodeEntry
 from memmachine.main.memmachine import ALL_MEMORY_TYPES
 from memmachine.main.memmachine import MemoryType as MemoryTypeE
-from memmachine.semantic_memory.semantic_session_resource import (
-    IsolationType,
-)
 from memmachine.server.api_v2.spec import (
     AddMemoriesSpec,
     CreateProjectSpec,
@@ -162,10 +152,11 @@ async def delete_project(
     session_key = f"{spec.org_id}/{spec.project_id}"
     await memmachine.delete_session(session_key=session_key)
 
+
 async def _add_messages_to(
-        target_memories: list[MemoryTypeE],
-        spec: AddMemoriesSpec,
-        memmachine: MemMachine,
+    target_memories: list[MemoryTypeE],
+    spec: AddMemoriesSpec,
+    memmachine: MemMachine,
 ) -> None:
     session_key = f"{spec.org_id}/{spec.project_id}"
 
@@ -188,6 +179,7 @@ async def _add_messages_to(
         target_memories=target_memories,
     )
 
+
 @router.post("/memories")
 async def add_memories(
     spec: AddMemoriesSpec,
@@ -195,9 +187,7 @@ async def add_memories(
 ) -> None:
     """Add memories to a project."""
     await _add_messages_to(
-        target_memories=ALL_MEMORY_TYPES,
-        spec=spec,
-        memmachine=memmachine
+        target_memories=ALL_MEMORY_TYPES, spec=spec, memmachine=memmachine
     )
 
 
@@ -208,9 +198,7 @@ async def add_episodic_memories(
 ) -> None:
     """Add episodic memories to a project."""
     await _add_messages_to(
-        target_memories=[MemoryTypeE.Episodic],
-        spec=spec,
-        memmachine=memmachine
+        target_memories=[MemoryTypeE.Episodic], spec=spec, memmachine=memmachine
     )
 
 
@@ -221,15 +209,14 @@ async def add_semantic_memories(
 ) -> None:
     """Add semantic memories to a project."""
     await _add_messages_to(
-        target_memories=[MemoryTypeE.Semantic],
-        spec=spec,
-        memmachine=memmachine
+        target_memories=[MemoryTypeE.Semantic], spec=spec, memmachine=memmachine
     )
 
+
 async def _search_target_memories(
-        target_memories: list[MemoryType],
-        spec: SearchMemoriesSpec,
-        memmachine: MemMachine,
+    target_memories: list[MemoryType],
+    spec: SearchMemoriesSpec,
+    memmachine: MemMachine,
 ) -> SearchResult:
     session_key = f"{spec.org_id}/{spec.project_id}"
 
@@ -240,11 +227,17 @@ async def _search_target_memories(
         search_filter=spec.filter,
         limit=spec.top_k,
     )
-    return SearchResult(status=0, content=
-    {
-        "episodic_memory": results.episodic_memory.model_dump() if results.episodic_memory else [],
-        "semantic_memory": results.semantic_memory if results.semantic_memory else [],
-    })
+    return SearchResult(
+        status=0,
+        content={
+            "episodic_memory": results.episodic_memory.model_dump()
+            if results.episodic_memory
+            else [],
+            "semantic_memory": results.semantic_memory
+            if results.semantic_memory
+            else [],
+        },
+    )
 
 
 @router.post("/memories/search")
@@ -254,15 +247,14 @@ async def search_memories(
 ) -> SearchResult:
     """Search memories in a project."""
     return await _search_target_memories(
-        target_memories=ALL_MEMORY_TYPES,
-        spec=spec,
-        memmachine=memmachine
+        target_memories=ALL_MEMORY_TYPES, spec=spec, memmachine=memmachine
     )
 
+
 async def _list_target_memories(
-        target_memories: list[MemoryTypeE],
-        spec: ListMemoriesSpec,
-        memmachine: MemMachine,
+    target_memories: list[MemoryTypeE],
+    spec: ListMemoriesSpec,
+    memmachine: MemMachine,
 ) -> SearchResult:
     session_key = f"{spec.org_id}/{spec.project_id}"
 
@@ -273,10 +265,18 @@ async def _list_target_memories(
         limit=spec.limit,
     )
 
-    return SearchResult(status=0, content={
-        "episodic_memory": results.episodic_memory if results.episodic_memory else [],
-        "semantic_memory": results.semantic_memory if results.semantic_memory else [],
-    })
+    return SearchResult(
+        status=0,
+        content={
+            "episodic_memory": results.episodic_memory
+            if results.episodic_memory
+            else [],
+            "semantic_memory": results.semantic_memory
+            if results.semantic_memory
+            else [],
+        },
+    )
+
 
 @router.post("/memories/list")
 async def list_memories(
@@ -292,9 +292,7 @@ async def list_memories(
         raise ValueError(f"Invalid memory type: {spec.type}")
 
     return await _list_target_memories(
-        target_memories=target_memories,
-        spec=spec,
-        memmachine=memmachine
+        target_memories=target_memories, spec=spec, memmachine=memmachine
     )
 
 
@@ -330,7 +328,6 @@ async def delete_semantic_memory(
 ) -> None:
     """Delete semantic memories in a project."""
     await memmachine.delete_features(
-        session_data=TODO,
         feature_ids=[spec.semantic_id],
     )
 

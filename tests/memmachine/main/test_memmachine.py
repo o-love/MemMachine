@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -65,7 +65,7 @@ def _make_episode(uid: str, session_key: str) -> Episode:
         uid=uid,
         content="content",
         session_key=session_key,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         producer_id="user",
         producer_role="assistant",
     )
@@ -94,7 +94,9 @@ def test_with_default_episodic_memory_conf_uses_fallbacks(
     assert conf.short_term_memory.summary_prompt_system.startswith(
         "You are a helpful assistant."
     )
-    assert "Based on the following episodes" in conf.short_term_memory.summary_prompt_user
+    assert (
+        "Based on the following episodes" in conf.short_term_memory.summary_prompt_user
+    )
 
 
 def test_with_default_episodic_memory_conf_requires_embedder(
