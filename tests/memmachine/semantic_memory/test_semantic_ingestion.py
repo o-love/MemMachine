@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
+from memmachine.common.filter.filter_parser import parse_filter
+from memmachine.episode_store.episode_model import EpisodeEntry, EpisodeIdT
 from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_ingestion import IngestionService
 from memmachine.semantic_memory.semantic_llm import (
@@ -39,7 +41,6 @@ def semantic_prompt() -> SemanticPrompt:
 def semantic_category(semantic_prompt: SemanticPrompt) -> SemanticCategory:
     return SemanticCategory(
         name="Profile",
-        tags={"food"},
         prompt=semantic_prompt,
     )
 
@@ -54,13 +55,19 @@ def llm_model(mock_llm_model):
     return mock_llm_model
 
 
-async def add_history(history_storage: EpisodeStorage, content: str):
-    return await history_storage.add_episode(
+async def add_history(history_storage: EpisodeStorage, content: str) -> EpisodeIdT:
+    episode = EpisodeEntry(
         content=content,
-        session_key="session_id",
         producer_id="profile_id",
         producer_role="dev",
     )
+    ret_episode = await history_storage.add_episodes(
+        session_key="session_id",
+        episodes=[episode],
+    )
+
+    assert len(ret_episode) == 1
+    return ret_episode[0].uid
 
 
 @pytest.fixture
@@ -105,7 +112,12 @@ async def test_process_single_set_returns_when_no_messages(
     await ingestion_service._process_single_set("user-123")
 
     assert resource_retriever.seen_ids == ["user-123"]
-    assert await semantic_storage.get_feature_set(set_ids=["user-123"]) == []
+    assert (
+        await semantic_storage.get_feature_set(
+            filter_expr=parse_filter("set_id IN ('user-123')")
+        )
+        == []
+    )
     assert (
         await semantic_storage.get_history_messages(
             set_ids=["user-123"],
@@ -159,9 +171,11 @@ async def test_process_single_set_applies_commands(
     await ingestion_service._process_single_set("user-123")
 
     llm_feature_update_mock.assert_awaited_once()
+    filter_str = (
+        f"set_id IN ('user-123') AND category_name IN ('{semantic_category.name}')"
+    )
     features = await semantic_storage.get_feature_set(
-        set_ids=["user-123"],
-        category_names=[semantic_category.name],
+        filter_expr=parse_filter(filter_str),
         load_citations=True,
     )
     assert len(features) == 1
@@ -172,9 +186,9 @@ async def test_process_single_set_applies_commands(
     assert feature.metadata.citations is not None
     assert list(feature.metadata.citations) == [message_id]
 
+    filter_str = "set_id IN ('user-123') AND feature_name IN ('favorite_motorcycle')"
     remaining = await semantic_storage.get_feature_set(
-        set_ids=["user-123"],
-        feature_names=["favorite_motorcycle"],
+        filter_expr=parse_filter(filter_str),
     )
     assert remaining == []
 
@@ -273,9 +287,11 @@ async def test_deduplicate_features_merges_and_relabels(
     await semantic_storage.add_citations(keep_feature_id, [keep_history])
     await semantic_storage.add_citations(drop_feature_id, [drop_history])
 
+    filter_str = (
+        f"set_id IN ('user-789') AND category_name IN ('{semantic_category.name}')"
+    )
     memories = await semantic_storage.get_feature_set(
-        set_ids=["user-789"],
-        category_names=[semantic_category.name],
+        filter_expr=parse_filter(filter_str),
         load_citations=True,
     )
 
@@ -294,27 +310,6 @@ async def test_deduplicate_features_merges_and_relabels(
         "memmachine.semantic_memory.semantic_ingestion.llm_consolidate_features",
         llm_consolidate_mock,
     )
-
-    # original_add_citations = storage.add_citations
-    #
-    # async def _normalized_add_citations(
-    #     feature_id: int,
-    #     history_items: Iterable[HistoryMessage | int],
-    # ):
-    #     normalized: list[int] = []
-    #     for item in history_items:
-    #         if isinstance(item, HistoryMessage):
-    #             if item.metadata.id is not None:
-    #                 normalized.append(item)
-    #         else:
-    #             normalized.append(int(item))
-    #     await original_add_citations(feature_id, normalized)
-    #
-    # monkeypatch.setattr(
-    #     ingestion_service._semantic_storage,
-    #     "add_citations",
-    #     _normalized_add_citations,
-    # )
 
     await ingestion_service._deduplicate_features(
         set_id="user-789",
@@ -335,8 +330,7 @@ async def test_deduplicate_features_merges_and_relabels(
     assert kept_feature.value == "original pizza"
 
     all_features = await semantic_storage.get_feature_set(
-        set_ids=["user-789"],
-        category_names=[semantic_category.name],
+        filter_expr=parse_filter(filter_str),
         load_citations=True,
     )
     consolidated = next(

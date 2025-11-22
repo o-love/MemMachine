@@ -5,6 +5,7 @@ import pytest_asyncio
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.common.filter.filter_parser import parse_filter
 from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
@@ -150,7 +151,7 @@ async def test_add_new_feature_stores_entry(
 
     # When retrieving the stored features
     features = await semantic_service.get_set_features(
-        SemanticService.FeatureSearchOpts(set_ids=["user-123"]),
+        filter_expr=parse_filter("set_id IN ('user-123')"),
     )
 
     # Then the feature is persisted with embeddings recorded
@@ -186,10 +187,7 @@ async def test_get_set_features_filters_by_tag(
 
     # When filtering on a specific tag
     filtered = await semantic_service.get_set_features(
-        SemanticService.FeatureSearchOpts(
-            set_ids=["user-42"],
-            tags=["writing_style"],
-        ),
+        filter_expr=parse_filter("set_id IN ('user-42') AND tag IN ('writing_style')"),
     )
 
     # Then only matching features are returned
@@ -274,16 +272,21 @@ async def test_delete_feature_set_applies_filters(
     )
 
     # When deleting by tag filter
+    filter_str = "set_id in ('user-88') AND tag in ('writing_style')"
+    filter_expr = parse_filter(filter_str)
+    assert filter_expr is not None
+
     await semantic_service.delete_feature_set(
-        SemanticService.FeatureSearchOpts(
-            set_ids=["user-88"],
-            tags=["writing_style"],
-        ),
+        filter_expr=filter_expr,
     )
 
     # Then only the non-matching feature remains
+    filter_str = "set_id in ('user-88')"
+    filter_expr = parse_filter(filter_str)
+    assert filter_expr is not None
+
     remaining = await semantic_service.get_set_features(
-        SemanticService.FeatureSearchOpts(set_ids=["user-88"]),
+        filter_expr=filter_expr,
     )
     assert len(remaining) == 1
     assert remaining[0].feature_name == "favorite_color"
@@ -362,6 +365,7 @@ async def test_search_returns_matching_features(
     results = await semantic_service.search(
         set_ids=["user-search"],
         query="Why does alpha prefer quiet chats?",
+        min_distance=0.5,
     )
 
     # Then only the matching feature is returned using the query embedding

@@ -19,7 +19,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Coroutine, Iterable, Mapping
-from typing import cast
+from typing import Protocol, cast
 
 from pydantic import BaseModel, Field, InstanceOf, model_validator
 
@@ -32,6 +32,12 @@ from memmachine.episodic_memory.short_term_memory.short_term_memory import (
 )
 
 logger = logging.getLogger(__name__)
+
+PropertyFilterT = Mapping[str, FilterablePropertyValue | None] | None
+
+
+class EpisodicFilter(Protocol):
+    """Callable protocol representing an episode filter predicate."""
 
 
 class EpisodicMemoryParams(BaseModel):
@@ -268,12 +274,19 @@ class EpisodicMemory:
             tasks.append(self._long_term_memory.delete_matching_episodes())
         await asyncio.gather(*tasks)
 
+    class QueryResponse(BaseModel):
+        """Aggregated search results from both long- and short-term memory."""
+
+        long_term_memory: list[Episode]
+        short_term_memory: list[Episode]
+        episode_summary: list[str]
+
     async def query_memory(
         self,
         query: str,
         limit: int | None = None,
-        property_filter: Mapping[str, FilterablePropertyValue | None] | None = None,
-    ) -> tuple[list[Episode], list[Episode], list[str]]:
+        property_filter: PropertyFilterT | None = None,
+    ) -> QueryResponse | None:
         """
         Retrieve relevant context for a given query from all memory stores.
 
@@ -295,7 +308,7 @@ class EpisodicMemory:
 
         """
         if not self._enabled:
-            return [], [], []
+            return None
         start_time = time.monotonic_ns()
         search_limit = limit if limit is not None else 20
         if property_filter is None:
@@ -344,13 +357,18 @@ class EpisodicMemory:
         delta = (end_time - start_time) / 1000000
         self._query_latency_summary.observe(delta)
         self._query_counter.increment()
-        return short_episode, unique_long_episodes, [short_summary]
+
+        return EpisodicMemory.QueryResponse(
+            short_term_memory=short_episode,
+            long_term_memory=unique_long_episodes,
+            episode_summary=[short_summary],
+        )
 
     async def formalize_query_with_context(
         self,
         query: str,
         limit: int | None = None,
-        property_filter: Mapping[str, FilterablePropertyValue | None] | None = None,
+        property_filter: PropertyFilterT | None = None,
     ) -> str:
         """
         Construct a finalized query string that includes context from memory.
@@ -367,19 +385,27 @@ class EpisodicMemory:
             A new query string enriched with context.
 
         """
-        short_memory, long_memory, summary = await self.query_memory(
+        query_result = await self.query_memory(
             query,
             limit,
             property_filter,
         )
-        episodes = sorted(short_memory + long_memory, key=lambda x: x.created_at)
+        if query_result is None:
+            logger.warning("Query result is None in formalize_query_with_context")
+            return query
+
+        episodes = sorted(
+            query_result.short_term_memory + query_result.long_term_memory,
+            key=lambda x: x.created_at,
+        )
 
         finalized_query = ""
         # Add summary if it exists
-        if summary and len(summary) > 0:
+        if query_result.episode_summary and len(query_result.episode_summary) > 0:
             total_summary = ""
-            for summ in summary:
-                if not summary:
+            for summ in query_result.episode_summary:
+                if not query_result.episode_summary:
+                    # TODO from @o-love: Can someone validate this if.
                     continue
                 total_summary = total_summary + summ + "\n"
             total_summary = total_summary.strip()

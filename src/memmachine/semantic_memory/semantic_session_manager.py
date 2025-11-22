@@ -1,8 +1,10 @@
 """Manage semantic memory sessions and associated lifecycle hooks."""
 
 import asyncio
-from typing import Any
 
+from pydantic import InstanceOf
+
+from memmachine.common.filter.filter_parser import And, Comparison, FilterExpr
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeature
@@ -31,7 +33,7 @@ class SemanticSessionManager:
     async def add_message(
         self,
         episode_ids: list[EpisodeIdT],
-        session_data: SessionData,
+        session_data: InstanceOf[SessionData],
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
     ) -> None:
         if len(episode_ids) == 0:
@@ -56,31 +58,20 @@ class SemanticSessionManager:
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
         min_distance: float | None = None,
-        category_names: list[str] | None = None,
-        tag_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
         limit: int | None = None,
         load_citations: bool = False,
+        search_filter: FilterExpr | None = None,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
-
-        optionals_default_args: dict[str, Any] = {
-            "set_ids": set_ids,
-            "query": message,
-            "category_names": category_names,
-            "tag_names": tag_names,
-            "feature_names": feature_names,
-            "load_citations": load_citations,
-        }
-
-        if min_distance is not None:
-            optionals_default_args["min_distance"] = min_distance
-
-        if limit is not None:
-            optionals_default_args["limit"] = limit
+        filter_expr = self._merge_filters(set_ids, search_filter)
 
         return await self._semantic_service.search(
-            **optionals_default_args,
+            set_ids=set_ids,
+            query=message,
+            min_distance=min_distance,
+            limit=limit,
+            load_citations=load_citations,
+            filter_expr=filter_expr,
         )
 
     async def number_of_uningested_messages(
@@ -159,19 +150,17 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        category_names: list[str] | None = None,
-        tag_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
+        search_filter: FilterExpr | None = None,
+        limit: int | None = None,
+        load_citations: bool = False,
     ) -> list[SemanticFeature]:
         set_ids = self._get_set_ids(session_data, memory_type)
+        filter_expr = self._merge_filters(set_ids, search_filter)
 
         return await self._semantic_service.get_set_features(
-            SemanticService.FeatureSearchOpts(
-                set_ids=set_ids,
-                category_names=category_names,
-                feature_names=feature_names,
-                tags=tag_names,
-            ),
+            filter_expr=filter_expr,
+            limit=limit,
+            with_citations=load_citations,
         )
 
     async def delete_feature_set(
@@ -179,23 +168,13 @@ class SemanticSessionManager:
         session_data: SessionData,
         *,
         memory_type: list[IsolationType] = ALL_MEMORY_TYPES,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
+        property_filter: FilterExpr | None = None,
     ) -> None:
         set_ids = self._get_set_ids(session_data, memory_type)
+        filter_expr = self._merge_filters(set_ids, property_filter)
 
-        search_opts: dict[str, Any] = {
-            "set_ids": set_ids,
-            "category_names": category_names,
-            "feature_names": feature_names,
-            "tags": tags,
-        }
-
-        return await self._semantic_service.delete_feature_set(
-            SemanticService.FeatureSearchOpts(
-                **search_opts,
-            ),
+        await self._semantic_service.delete_feature_set(
+            filter_expr=filter_expr,
         )
 
     @staticmethod
@@ -205,18 +184,29 @@ class SemanticSessionManager:
     ) -> list[str]:
         s: list[str] = []
         if IsolationType.SESSION in isolation_level:
-            session_id = session_data.session_id()
+            session_id = session_data.session_id
             if session_id is not None:
                 s.append(session_id)
 
         if IsolationType.USER in isolation_level:
-            user_id = session_data.user_profile_id()
+            user_id = session_data.user_profile_id
             if user_id is not None:
                 s.append(user_id)
 
         if IsolationType.ROLE in isolation_level:
-            role_id = session_data.role_profile_id()
+            role_id = session_data.role_profile_id
             if role_id is not None:
                 s.append(role_id)
 
         return s
+
+    @staticmethod
+    def _merge_filters(
+        set_ids: list[str],
+        property_filter: FilterExpr | None,
+    ) -> FilterExpr | None:
+        expr = property_filter
+        if set_ids:
+            set_expr = Comparison(field="set_id", op="in", value=list(set_ids))
+            expr = set_expr if expr is None else And(left=set_expr, right=expr)
+        return expr

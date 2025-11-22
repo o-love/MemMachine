@@ -152,7 +152,7 @@ class SessionDataManagerSQL(SessionDataManager):
     async def get_session_info(
         self,
         session_key: str,
-    ) -> tuple[dict, str, dict, EpisodicMemoryConf]:
+    ) -> SessionDataManager.SessionInfo | None:
         """Retrieve a session's configuration, metadata, and params."""
         async with self._async_session() as dbsession:
             sessions = await dbsession.execute(
@@ -162,15 +162,16 @@ class SessionDataManagerSQL(SessionDataManager):
             )
             session = sessions.scalars().first()
             if session is None:
-                raise ValueError(f"""Session {session_key} does not exists""")
+                return None
             binary_buffer = io.BytesIO(session.param_data)
             binary_buffer.seek(0)
             param: EpisodicMemoryConf = pickle.load(binary_buffer)
-            return (
-                session.configuration,
-                session.description,
-                session.user_metadata,
-                param,
+
+            return SessionDataManager.SessionInfo(
+                configuration=session.configuration,
+                description=session.description,
+                user_metadata=session.user_metadata,
+                episode_memory_conf=param,
             )
 
     def _json_contains(

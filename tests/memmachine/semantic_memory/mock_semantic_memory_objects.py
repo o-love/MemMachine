@@ -6,6 +6,7 @@ import numpy as np
 
 from memmachine.common.data_types import SimilarityMetric
 from memmachine.common.embedder import Embedder
+from memmachine.common.filter.filter_parser import FilterExpr
 from memmachine.episode_store.episode_model import Episode
 from memmachine.semantic_memory.semantic_model import (
     Resources,
@@ -77,20 +78,14 @@ class MockSemanticStorage(SemanticStorage):
     async def get_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
+        filter_expr: FilterExpr | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
     ) -> list[SemanticFeature]:
         return await self.get_feature_set_mock(
-            set_ids=set_ids,
-            type_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
+            filter_expr=filter_expr,
             k=limit,
             vector_search_opts=vector_search_opts,
             tag_threshold=tag_threshold,
@@ -100,22 +95,10 @@ class MockSemanticStorage(SemanticStorage):
     async def delete_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
-        thresh: int | None = None,
-        limit: int | None = None,
-        vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
+        filter_expr: FilterExpr | None = None,
     ):
         await self.delete_feature_set_mock(
-            set_ids=set_ids,
-            type_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
-            thresh=thresh,
-            k=limit,
-            vector_search_opts=vector_search_opts,
+            filter_expr=filter_expr,
         )
 
     async def add_citations(self, feature_id: int, history_ids: list[int]):

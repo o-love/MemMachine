@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -11,8 +12,21 @@ from typing import Any
 import numpy as np
 from neo4j import AsyncDriver
 from neo4j.graph import Node as Neo4jNode
-from pydantic import InstanceOf, validate_call
+from pydantic import InstanceOf
 
+from memmachine.common.data_types import FilterablePropertyValue
+from memmachine.common.filter.filter_parser import (
+    And as FilterAnd,
+)
+from memmachine.common.filter.filter_parser import (
+    Comparison as FilterComparison,
+)
+from memmachine.common.filter.filter_parser import (
+    FilterExpr,
+)
+from memmachine.common.filter.filter_parser import (
+    Or as FilterOr,
+)
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
@@ -81,6 +95,7 @@ class Neo4jSemanticStorage(SemanticStorage):
     _VECTOR_INDEX_PREFIX = "feature_embedding_index"
     _DEFAULT_VECTOR_QUERY_CANDIDATES = 100
     _SET_LABEL_PREFIX = "FeatureSet_"
+    _METADATA_PROP_PREFIX = "metadata__"
 
     def __init__(
         self,
@@ -94,6 +109,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         self.backend_name = "neo4j"
         self._vector_index_by_set: dict[str, int] = {}
         self._set_embedding_dimensions: dict[str, int] = {}
+        self._filter_param_counter = 0
 
     async def startup(self) -> None:
         await self._driver.execute_query(
@@ -158,6 +174,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         await self._ensure_set_embedding_dimensions(set_id, dimensions)
 
         set_label = self._set_label_for_set(set_id)
+        metadata_json, metadata_props = self._prepare_metadata_storage(metadata)
 
         records, _, _ = await self._driver.execute_query(
             f"""
@@ -169,10 +186,12 @@ class Neo4jSemanticStorage(SemanticStorage):
                 tag: $tag,
                 embedding: $embedding,
                 embedding_dimensions: $dimensions,
+                metadata_json: $metadata_json,
                 citations: [],
                 created_at_ts: $ts,
                 updated_at_ts: $ts
             }})
+            SET f += $metadata_props
             RETURN elementId(f) AS feature_id
             """,
             set_id=set_id,
@@ -182,7 +201,8 @@ class Neo4jSemanticStorage(SemanticStorage):
             tag=tag,
             embedding=[float(x) for x in np.array(embedding, dtype=float).tolist()],
             dimensions=dimensions,
-            metadata=dict(metadata or {}) or None,
+            metadata_json=metadata_json,
+            metadata_props=metadata_props,
             ts=timestamp,
         )
         if not records:
@@ -219,7 +239,7 @@ class Neo4jSemanticStorage(SemanticStorage):
 
         await self._ensure_set_embedding_dimensions(target_set_id, target_dimensions)
 
-        assignments, params = self._build_update_assignments(
+        assignments, params, metadata_props = self._build_update_assignments(
             feature_id=feature_id,
             set_id=set_id,
             category_name=category_name,
@@ -236,6 +256,14 @@ class Neo4jSemanticStorage(SemanticStorage):
         query_parts = ["MATCH (f:Feature)", f"WHERE {self._feature_id_condition()}"]
         query_parts.extend(label_updates)
         query_parts.append(f"SET {set_clause}")
+        if metadata_props is not None:
+            query_parts.append(
+                "WITH f, [key IN keys(f) WHERE key STARTS WITH $metadata_prefix] AS metadata_keys\n"
+                "FOREACH (key IN metadata_keys | SET f[key] = NULL)"
+            )
+            query_parts.append("SET f += $metadata_props")
+            params["metadata_props"] = metadata_props
+            params["metadata_prefix"] = self._METADATA_PROP_PREFIX
         await self._driver.execute_query("\n".join(query_parts), **params)
 
     def _target_dimensions(
@@ -262,7 +290,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         embedding: InstanceOf[np.ndarray] | None,
         metadata: dict[str, Any] | None,
         target_dimensions: int,
-    ) -> tuple[list[str], dict[str, Any]]:
+    ) -> tuple[list[str], dict[str, Any], dict[str, Any] | None]:
         assignments = ["f.updated_at_ts = $updated_at_ts"]
         params: dict[str, Any] = {
             "feature_id": str(feature_id),
@@ -289,14 +317,17 @@ class Neo4jSemanticStorage(SemanticStorage):
             assignments.append("f.embedding = $embedding")
             params["embedding"] = embedding_param
 
+        metadata_props: dict[str, Any] | None = None
         if metadata is not None:
-            assignments.append("f.metadata = $metadata")
-            params["metadata"] = dict(metadata) or None
+            metadata_json, metadata_props = self._prepare_metadata_storage(metadata)
+            assignments.append("f.metadata_json = $metadata_json")
+            params["metadata_json"] = metadata_json
+            params["metadata_props"] = metadata_props
 
         if set_id is not None or embedding is not None:
             assignments.append("f.embedding_dimensions = $embedding_dimensions")
 
-        return assignments, params
+        return assignments, params, metadata_props
 
     @staticmethod
     def _embedding_param(
@@ -322,7 +353,6 @@ class Neo4jSemanticStorage(SemanticStorage):
         updates.append(f"SET f:{new_label}")
         return updates
 
-    @validate_call
     async def get_feature(
         self,
         feature_id: FeatureIdT,
@@ -354,34 +384,24 @@ class Neo4jSemanticStorage(SemanticStorage):
             ids=[str(fid) for fid in feature_ids],
         )
 
-    @validate_call
     async def get_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
         load_citations: bool = False,
+        filter_expr: FilterExpr | None = None,
     ) -> list[SemanticFeature]:
         if vector_search_opts is not None:
             entries = await self._vector_search_entries(
-                set_ids=set_ids,
-                category_names=category_names,
-                feature_names=feature_names,
-                tags=tags,
                 limit=limit,
                 vector_search_opts=vector_search_opts,
+                filter_expr=filter_expr,
             )
         else:
             entries = await self._load_feature_entries(
-                set_ids=set_ids,
-                category_names=category_names,
-                feature_names=feature_names,
-                tags=tags,
+                filter_expr=filter_expr,
             )
             entries.sort(key=lambda e: (e.created_at_ts, str(e.feature_id)))
             if limit is not None:
@@ -401,22 +421,16 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def delete_feature_set(
         self,
         *,
-        set_ids: list[str] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
         thresh: int | None = None,
         limit: int | None = None,
         vector_search_opts: SemanticStorage.VectorSearchOpts | None = None,
+        filter_expr: FilterExpr | None = None,
     ) -> None:
         entries = await self.get_feature_set(
-            set_ids=set_ids,
-            category_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
             limit=limit,
             vector_search_opts=vector_search_opts,
             tag_threshold=thresh,
+            filter_expr=filter_expr,
             load_citations=False,
         )
         await self.delete_features(
@@ -562,18 +576,12 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def _load_feature_entries(
         self,
         *,
-        set_ids: list[str] | None,
-        category_names: list[str] | None,
-        feature_names: list[str] | None,
-        tags: list[str] | None,
+        filter_expr: FilterExpr | None,
     ) -> list[_FeatureEntry]:
         query = ["MATCH (f:Feature)"]
         conditions, params = self._build_filter_conditions(
             alias="f",
-            set_ids=set_ids,
-            category_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
+            filter_expr=filter_expr,
         )
         if conditions:
             query.append("WHERE " + " AND ".join(conditions))
@@ -591,6 +599,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         feature_id = FeatureIdT(str(node_id))
         embedding = np.array(props.get("embedding", []), dtype=float)
         citations = [EpisodeIdT(cid) for cid in props.get("citations", [])]
+        metadata = self._parse_metadata(props)
         return _FeatureEntry(
             feature_id=feature_id,
             set_id=_required_str_prop(props, "set_id"),
@@ -599,11 +608,61 @@ class Neo4jSemanticStorage(SemanticStorage):
             feature_name=_required_str_prop(props, "feature"),
             value=_required_str_prop(props, "value"),
             embedding=embedding,
-            metadata=props.get("metadata") or None,
+            metadata=metadata,
             citations=citations,
             created_at_ts=float(props.get("created_at_ts", 0.0)),
             updated_at_ts=float(props.get("updated_at_ts", 0.0)),
         )
+
+    @staticmethod
+    def _parse_metadata(props: Mapping[str, Any]) -> dict[str, Any] | None:
+        metadata_json = props.get("metadata_json")
+        if isinstance(metadata_json, str) and metadata_json:
+            try:
+                return json.loads(metadata_json)
+            except json.JSONDecodeError:
+                return None
+        legacy = props.get("metadata")
+        if isinstance(legacy, Mapping):
+            return dict(legacy)
+        return None
+
+    def _metadata_property_name(self, key: str) -> str:
+        sanitized = _sanitize_identifier(key)
+        return f"{self._METADATA_PROP_PREFIX}{sanitized}"
+
+    def _prepare_metadata_storage(
+        self,
+        metadata: dict[str, Any] | None,
+    ) -> tuple[str | None, dict[str, Any]]:
+        if metadata is None:
+            return None, {}
+        metadata_json = json.dumps(metadata)
+        metadata_props: dict[str, Any] = {}
+        for raw_key, raw_value in metadata.items():
+            if raw_value is None:
+                continue
+            prop_name = self._metadata_property_name(raw_key)
+            metadata_props[prop_name] = self._normalize_metadata_property_value(
+                raw_value,
+            )
+        return metadata_json, metadata_props
+
+    @staticmethod
+    def _normalize_metadata_property_value(
+        value: FilterablePropertyValue,
+    ) -> bool | int | float | str:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return value
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, str):
+            return value
+        raise TypeError(f"Unsupported metadata value type: {type(value)!r}")
 
     def _entry_to_model(
         self,
@@ -630,12 +689,9 @@ class Neo4jSemanticStorage(SemanticStorage):
     async def _vector_search_entries(
         self,
         *,
-        set_ids: list[str] | None,
-        category_names: list[str] | None,
-        feature_names: list[str] | None,
-        tags: list[str] | None,
         limit: int | None,
         vector_search_opts: SemanticStorage.VectorSearchOpts,
+        filter_expr: FilterExpr | None,
     ) -> list[_FeatureEntry]:
         embedding_array = np.array(vector_search_opts.query_embedding, dtype=float)
         embedding = [float(x) for x in embedding_array.tolist()]
@@ -643,10 +699,7 @@ class Neo4jSemanticStorage(SemanticStorage):
 
         conditions, filter_params = self._build_filter_conditions(
             alias="f",
-            set_ids=set_ids,
-            category_names=category_names,
-            feature_names=feature_names,
-            tags=tags,
+            filter_expr=filter_expr,
         )
 
         params_base = self._vector_query_params(
@@ -659,7 +712,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         query_text = self._vector_query_text(conditions)
 
         combined: list[tuple[float, _FeatureEntry]] = []
-        for set_id in self._matching_set_ids(set_ids, embedding_dims):
+        for set_id in self._matching_set_ids(filter_expr, embedding_dims):
             index_name = await self._ensure_vector_index(set_id, embedding_dims)
             combined.extend(
                 await self._query_vector_index(query_text, index_name, params_base),
@@ -704,9 +757,10 @@ class Neo4jSemanticStorage(SemanticStorage):
 
     def _matching_set_ids(
         self,
-        requested_set_ids: list[str] | None,
+        filter_expr: FilterExpr | None,
         expected_dims: int,
     ) -> list[str]:
+        requested_set_ids = self._extract_set_ids(filter_expr)
         candidate_ids = self._deduplicated_set_ids(requested_set_ids)
         return [
             set_id
@@ -745,26 +799,118 @@ class Neo4jSemanticStorage(SemanticStorage):
         self,
         *,
         alias: str,
-        set_ids: list[str] | None,
-        category_names: list[str] | None,
-        feature_names: list[str] | None,
-        tags: list[str] | None,
+        filter_expr: FilterExpr | None = None,
     ) -> tuple[list[str], dict[str, Any]]:
         conditions: list[str] = []
         params: dict[str, Any] = {}
-        if set_ids is not None:
-            conditions.append(f"{alias}.set_id IN $set_ids")
-            params["set_ids"] = set_ids
-        if category_names is not None:
-            conditions.append(f"{alias}.category_name IN $category_names")
-            params["category_names"] = category_names
-        if feature_names is not None:
-            conditions.append(f"{alias}.feature IN $feature_names")
-            params["feature_names"] = feature_names
-        if tags is not None:
-            conditions.append(f"{alias}.tag IN $tags")
-            params["tags"] = tags
+        if filter_expr is not None:
+            expr_condition, expr_params = self._render_filter_expr(alias, filter_expr)
+            if expr_condition:
+                conditions.append(expr_condition)
+                params.update(expr_params)
         return conditions, params
+
+    def _extract_set_ids(self, expr: FilterExpr | None) -> list[str] | None:
+        if expr is None:
+            return None
+
+        values = self._collect_field_values(expr, target_field="set_id")
+        if values is None:
+            return None
+        return [str(v) for v in values]
+
+    def _collect_field_values(
+        self,
+        expr: FilterExpr,
+        *,
+        target_field: str,
+    ) -> set[str] | None:
+        if isinstance(expr, FilterComparison):
+            return self._collect_comparison_values(expr, target_field)
+        if isinstance(expr, FilterAnd):
+            return self._merge_and_values(expr, target_field)
+        if isinstance(expr, FilterOr):
+            # Ambiguous which branch applies; fall back to no restriction
+            return None
+        return None
+
+    def _collect_comparison_values(
+        self, expr: FilterComparison, target_field: str
+    ) -> set[str] | None:
+        if expr.field != target_field:
+            return None
+        if expr.op == "=":
+            if isinstance(expr.value, list):
+                raise ValueError("'=' comparison cannot accept list values")
+            return {str(expr.value)}
+        if expr.op == "in":
+            if not isinstance(expr.value, list):
+                raise ValueError("IN comparison requires list values")
+            return {str(v) for v in expr.value}
+        return None
+
+    def _merge_and_values(self, expr: FilterAnd, target_field: str) -> set[str] | None:
+        left_vals = self._collect_field_values(expr.left, target_field=target_field)
+        right_vals = self._collect_field_values(expr.right, target_field=target_field)
+        if left_vals is None:
+            return right_vals
+        if right_vals is None:
+            return left_vals
+        return left_vals & right_vals
+
+    def _render_filter_expr(
+        self,
+        alias: str,
+        expr: FilterExpr,
+    ) -> tuple[str, dict[str, Any]]:
+        if isinstance(expr, FilterComparison):
+            field_ref = self._resolve_field_reference(alias, expr.field)
+            params: dict[str, Any]
+            if expr.op == "=":
+                if isinstance(expr.value, list):
+                    raise ValueError("'=' comparison cannot accept list values")
+                param_name = self._next_filter_param()
+                condition = f"{field_ref} = ${param_name}"
+                params = {param_name: expr.value}
+            elif expr.op == "in":
+                if not isinstance(expr.value, list):
+                    raise ValueError("IN comparison requires a list of values")
+                param_name = self._next_filter_param()
+                condition = f"{field_ref} IN ${param_name}"
+                params = {param_name: expr.value}
+            elif expr.op == "is_null":
+                condition = f"{field_ref} IS NULL"
+                params = {}
+            elif expr.op == "is_not_null":
+                condition = f"{field_ref} IS NOT NULL"
+                params = {}
+            else:
+                raise ValueError(f"Unsupported operator: {expr.op}")
+            return condition, params
+        if isinstance(expr, FilterAnd):
+            left_cond, left_params = self._render_filter_expr(alias, expr.left)
+            right_cond, right_params = self._render_filter_expr(alias, expr.right)
+            condition = f"({left_cond}) AND ({right_cond})"
+            left_params.update(right_params)
+            return condition, left_params
+        if isinstance(expr, FilterOr):
+            left_cond, left_params = self._render_filter_expr(alias, expr.left)
+            right_cond, right_params = self._render_filter_expr(alias, expr.right)
+            condition = f"({left_cond}) OR ({right_cond})"
+            left_params.update(right_params)
+            return condition, left_params
+        raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
+
+    def _resolve_field_reference(self, alias: str, field: str) -> str:
+        if field.startswith(("m.", "metadata.")):
+            key = field.split(".", 1)[1]
+            prop_name = self._metadata_property_name(key)
+            return f"{alias}.{prop_name}"
+        return f"{alias}.{field}"
+
+    def _next_filter_param(self) -> str:
+        self._filter_param_counter += 1
+        return f"filter_param_{self._filter_param_counter}"
 
     async def _hydrate_vector_index_state(self) -> None:
         self._vector_index_by_set.clear()

@@ -4,25 +4,27 @@ from abc import ABC, abstractmethod
 
 from pydantic import AwareDatetime, JsonValue
 
-from memmachine.episode_store.episode_model import Episode, EpisodeIdT, EpisodeType
+from memmachine.episode_store.episode_model import (
+    Episode,
+    EpisodeEntry,
+    EpisodeIdT,
+    EpisodeType,
+)
 
 
 class EpisodeStorage(ABC):
     """Abstract interface for persisting and retrieving episodic history."""
 
     @abstractmethod
-    async def add_episode(
+    async def startup(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def add_episodes(
         self,
-        *,
-        content: str,
         session_key: str,
-        producer_id: str,
-        producer_role: str,
-        produced_for_id: str | None = None,
-        episode_type: EpisodeType | None = None,
-        metadata: dict[str, JsonValue] | None = None,
-        created_at: AwareDatetime | None = None,
-    ) -> EpisodeIdT:
+        episodes: list[EpisodeEntry],
+    ) -> list[Episode]:
         raise NotImplementedError
 
     @abstractmethod
@@ -36,6 +38,7 @@ class EpisodeStorage(ABC):
     async def get_episode_messages(
         self,
         *,
+        limit: int | None = None,
         session_keys: list[str] | None = None,
         producer_ids: list[str] | None = None,
         producer_roles: list[str] | None = None,
@@ -48,9 +51,24 @@ class EpisodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_episode(
+    async def get_episode_messages_count(
         self,
-        history_ids: list[EpisodeIdT],
+        *,
+        session_keys: list[str] | None = None,
+        producer_ids: list[str] | None = None,
+        producer_roles: list[str] | None = None,
+        produced_for_ids: list[str] | None = None,
+        episode_types: list[EpisodeType] | None = None,
+        start_time: AwareDatetime | None = None,
+        end_time: AwareDatetime | None = None,
+        metadata: dict[str, JsonValue] | None = None,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_episodes(
+        self,
+        episode_ids: list[EpisodeIdT],
     ) -> None:
         raise NotImplementedError
 

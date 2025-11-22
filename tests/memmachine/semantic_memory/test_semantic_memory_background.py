@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
+from memmachine.common.filter.filter_parser import parse_filter
 from memmachine.episode_store.episode_storage import EpisodeStorage
 from memmachine.semantic_memory.semantic_memory import SemanticService
 from memmachine.semantic_memory.semantic_model import (
@@ -38,7 +39,6 @@ def semantic_prompt():
 def semantic_type(semantic_prompt: SemanticPrompt) -> SemanticCategory:
     return SemanticCategory(
         name="Profile",
-        tags={"general"},
         prompt=semantic_prompt,
     )
 
@@ -197,9 +197,9 @@ async def test_background_ingestion_processes_messages_on_message_limit(
     )
 
     # Verify features were created
+    filter_str = f"set_id IN ('user-123') AND category_name IN ('{semantic_type.name}')"
     features = await semantic_storage.get_feature_set(
-        set_ids=["user-123"],
-        category_names=[semantic_type.name],
+        filter_expr=parse_filter(filter_str),
     )
 
     await service.stop()
@@ -267,9 +267,11 @@ async def test_consolidation_threshold_not_reached(
     )
 
     # Get initial count
+    filter_str = (
+        f"set_id IN ('user-consolidate') AND category_name IN ('{semantic_type.name}')"
+    )
     features_before = await semantic_storage.get_feature_set(
-        set_ids=["user-consolidate"],
-        category_names=[semantic_type.name],
+        filter_expr=parse_filter(filter_str),
     )
     count_before = len(features_before)
 
@@ -282,8 +284,7 @@ async def test_consolidation_threshold_not_reached(
 
     # Features should not be consolidated
     features_after = await semantic_storage.get_feature_set(
-        set_ids=["user-consolidate"],
-        category_names=[semantic_type.name],
+        filter_expr=parse_filter(filter_str),
     )
 
     # Should have same or more features (no consolidation)
@@ -374,13 +375,13 @@ async def test_multiple_sets_processed_independently(
     )
 
     # Verify both sets were processed independently
+    filter_a = f"set_id IN ('user-a') AND category_name IN ('{semantic_type.name}')"
+    filter_b = f"set_id IN ('user-b') AND category_name IN ('{semantic_type.name}')"
     features_a = await semantic_storage.get_feature_set(
-        set_ids=["user-a"],
-        category_names=[semantic_type.name],
+        filter_expr=parse_filter(filter_a),
     )
     features_b = await semantic_storage.get_feature_set(
-        set_ids=["user-b"],
-        category_names=[semantic_type.name],
+        filter_expr=parse_filter(filter_b),
     )
 
     await service.stop()

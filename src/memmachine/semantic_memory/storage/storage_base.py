@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 from pydantic import InstanceOf
 
+from memmachine.common.filter.filter_parser import FilterExpr
 from memmachine.episode_store.episode_storage import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import (
     FeatureIdT,
@@ -83,16 +84,13 @@ class SemanticStorage(ABC):
         """Parameters controlling vector similarity constraints for retrieval."""
 
         query_embedding: InstanceOf[np.ndarray]
-        min_distance: float | None = 0.7
+        min_distance: float | None = None
 
     @abstractmethod
     async def get_feature_set(
         self,
         *,
-        set_ids: list[SetIdT] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
+        filter_expr: FilterExpr | None = None,
         limit: int | None = None,
         vector_search_opts: VectorSearchOpts | None = None,
         tag_threshold: int | None = None,
@@ -111,13 +109,7 @@ class SemanticStorage(ABC):
     async def delete_feature_set(
         self,
         *,
-        set_ids: list[SetIdT] | None = None,
-        category_names: list[str] | None = None,
-        feature_names: list[str] | None = None,
-        tags: list[str] | None = None,
-        thresh: int | None = None,
-        limit: int | None = None,
-        vector_search_opts: VectorSearchOpts | None = None,
+        filter_expr: FilterExpr | None = None,
     ) -> None:
         """Delete features matching the given filters."""
         raise NotImplementedError
