@@ -93,13 +93,17 @@ class MemMachine:
 
         if embedder_name is None and long_term and long_term.embedder:
             target_embedder = long_term.embedder
+        elif embedder_name is not None:
+            target_embedder = embedder_name
         else:
-            target_embedder = embedder_name or "default"
+            raise RuntimeError("No default embedder is configured.")
 
         if reranker_name is None and long_term and long_term.reranker:
             target_reranker = long_term.reranker
+        elif reranker_name is not None:
+            target_reranker = reranker_name
         else:
-            target_reranker = reranker_name or "default"
+            raise RuntimeError("No default reranker is configured.")
 
         target_vector_store = (
             long_term.vector_graph_store
@@ -159,6 +163,10 @@ class MemMachine:
     ) -> SessionDataManager.SessionInfo | None:
         session_data_manager = await self._resources.get_session_data_manager()
         return await session_data_manager.get_session_info(session_key)
+
+    async def delete_session(self, session_key: str):
+        session_data_manager = await self._resources.get_session_data_manager()
+        await session_data_manager.delete_session(session_key)
 
     async def search_sessions(
         self,
@@ -281,6 +289,7 @@ class MemMachine:
         *,
         target_memories: list[MemoryType] = ALL_MEMORY_TYPES,
         search_filter: str | None = None,
+        limit: int | None = None,
     ) -> ListResults:
         search_filter_expr = parse_filter(search_filter) if search_filter else None
 

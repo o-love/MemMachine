@@ -531,9 +531,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
         return stmt
 
     def _compile_feature_comparison_expr(
-            self,
-            expr: FilterComparison,
-            table: type[Feature],
+        self,
+        expr: FilterComparison,
+        table: type[Feature],
     ) -> ColumnElement[Any] | bool:
         column, is_metadata = self._resolve_feature_field(table, expr.field)
 
@@ -589,7 +589,9 @@ class SqlAlchemyPgVectorSemanticStorage(SemanticStorage):
         raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
 
     @staticmethod
-    def _normalize_metadata_value(value: FilterablePropertyValue | list[FilterablePropertyValue]) -> str:
+    def _normalize_metadata_value(
+        value: FilterablePropertyValue | list[FilterablePropertyValue],
+    ) -> str:
         if isinstance(value, bool):
             return "true" if value else "false"
         return "" if value is None else str(value)

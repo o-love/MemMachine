@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ from memmachine.common.filter.filter_parser import (
 from memmachine.common.filter.filter_parser import (
     Or as FilterOr,
 )
+from memmachine.common.data_types import FilterablePropertyValue
 from memmachine.episode_store.episode_model import EpisodeIdT
 from memmachine.semantic_memory.semantic_model import SemanticFeature
 from memmachine.semantic_memory.storage.storage_base import (
@@ -93,6 +95,7 @@ class Neo4jSemanticStorage(SemanticStorage):
     _VECTOR_INDEX_PREFIX = "feature_embedding_index"
     _DEFAULT_VECTOR_QUERY_CANDIDATES = 100
     _SET_LABEL_PREFIX = "FeatureSet_"
+    _METADATA_PROP_PREFIX = "metadata__"
 
     def __init__(
         self,
@@ -171,6 +174,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         await self._ensure_set_embedding_dimensions(set_id, dimensions)
 
         set_label = self._set_label_for_set(set_id)
+        metadata_json, metadata_props = self._prepare_metadata_storage(metadata)
 
         records, _, _ = await self._driver.execute_query(
             f"""
@@ -182,10 +186,12 @@ class Neo4jSemanticStorage(SemanticStorage):
                 tag: $tag,
                 embedding: $embedding,
                 embedding_dimensions: $dimensions,
+                metadata_json: $metadata_json,
                 citations: [],
                 created_at_ts: $ts,
                 updated_at_ts: $ts
             }})
+            SET f += $metadata_props
             RETURN elementId(f) AS feature_id
             """,
             set_id=set_id,
@@ -195,7 +201,8 @@ class Neo4jSemanticStorage(SemanticStorage):
             tag=tag,
             embedding=[float(x) for x in np.array(embedding, dtype=float).tolist()],
             dimensions=dimensions,
-            metadata=dict(metadata or {}) or None,
+            metadata_json=metadata_json,
+            metadata_props=metadata_props,
             ts=timestamp,
         )
         if not records:
@@ -232,7 +239,7 @@ class Neo4jSemanticStorage(SemanticStorage):
 
         await self._ensure_set_embedding_dimensions(target_set_id, target_dimensions)
 
-        assignments, params = self._build_update_assignments(
+        assignments, params, metadata_props = self._build_update_assignments(
             feature_id=feature_id,
             set_id=set_id,
             category_name=category_name,
@@ -249,6 +256,14 @@ class Neo4jSemanticStorage(SemanticStorage):
         query_parts = ["MATCH (f:Feature)", f"WHERE {self._feature_id_condition()}"]
         query_parts.extend(label_updates)
         query_parts.append(f"SET {set_clause}")
+        if metadata_props is not None:
+            query_parts.append(
+                "WITH f, [key IN keys(f) WHERE key STARTS WITH $metadata_prefix] AS metadata_keys\n"
+                "FOREACH (key IN metadata_keys | SET f[key] = NULL)"
+            )
+            query_parts.append("SET f += $metadata_props")
+            params["metadata_props"] = metadata_props
+            params["metadata_prefix"] = self._METADATA_PROP_PREFIX
         await self._driver.execute_query("\n".join(query_parts), **params)
 
     def _target_dimensions(
@@ -275,7 +290,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         embedding: InstanceOf[np.ndarray] | None,
         metadata: dict[str, Any] | None,
         target_dimensions: int,
-    ) -> tuple[list[str], dict[str, Any]]:
+    ) -> tuple[list[str], dict[str, Any], dict[str, Any] | None]:
         assignments = ["f.updated_at_ts = $updated_at_ts"]
         params: dict[str, Any] = {
             "feature_id": str(feature_id),
@@ -302,14 +317,17 @@ class Neo4jSemanticStorage(SemanticStorage):
             assignments.append("f.embedding = $embedding")
             params["embedding"] = embedding_param
 
+        metadata_props: dict[str, Any] | None = None
         if metadata is not None:
-            assignments.append("f.metadata = $metadata")
-            params["metadata"] = dict(metadata) or None
+            metadata_json, metadata_props = self._prepare_metadata_storage(metadata)
+            assignments.append("f.metadata_json = $metadata_json")
+            params["metadata_json"] = metadata_json
+            params["metadata_props"] = metadata_props
 
         if set_id is not None or embedding is not None:
             assignments.append("f.embedding_dimensions = $embedding_dimensions")
 
-        return assignments, params
+        return assignments, params, metadata_props
 
     @staticmethod
     def _embedding_param(
@@ -581,6 +599,7 @@ class Neo4jSemanticStorage(SemanticStorage):
         feature_id = FeatureIdT(str(node_id))
         embedding = np.array(props.get("embedding", []), dtype=float)
         citations = [EpisodeIdT(cid) for cid in props.get("citations", [])]
+        metadata = self._parse_metadata(props)
         return _FeatureEntry(
             feature_id=feature_id,
             set_id=_required_str_prop(props, "set_id"),
@@ -589,11 +608,61 @@ class Neo4jSemanticStorage(SemanticStorage):
             feature_name=_required_str_prop(props, "feature"),
             value=_required_str_prop(props, "value"),
             embedding=embedding,
-            metadata=props.get("metadata") or None,
+            metadata=metadata,
             citations=citations,
             created_at_ts=float(props.get("created_at_ts", 0.0)),
             updated_at_ts=float(props.get("updated_at_ts", 0.0)),
         )
+
+    @staticmethod
+    def _parse_metadata(props: Mapping[str, Any]) -> dict[str, Any] | None:
+        metadata_json = props.get("metadata_json")
+        if isinstance(metadata_json, str) and metadata_json:
+            try:
+                return json.loads(metadata_json)
+            except json.JSONDecodeError:
+                return None
+        legacy = props.get("metadata")
+        if isinstance(legacy, Mapping):
+            return dict(legacy)
+        return None
+
+    def _metadata_property_name(self, key: str) -> str:
+        sanitized = _sanitize_identifier(key)
+        return f"{self._METADATA_PROP_PREFIX}{sanitized}"
+
+    def _prepare_metadata_storage(
+        self,
+        metadata: dict[str, Any] | None,
+    ) -> tuple[str | None, dict[str, Any]]:
+        if metadata is None:
+            return None, {}
+        metadata_json = json.dumps(metadata)
+        metadata_props: dict[str, Any] = {}
+        for raw_key, raw_value in metadata.items():
+            if raw_value is None:
+                continue
+            prop_name = self._metadata_property_name(raw_key)
+            metadata_props[prop_name] = self._normalize_metadata_property_value(
+                raw_value,
+            )
+        return metadata_json, metadata_props
+
+    @staticmethod
+    def _normalize_metadata_property_value(
+        value: FilterablePropertyValue,
+    ) -> bool | int | float | str:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return value
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, str):
+            return value
+        raise TypeError(f"Unsupported metadata value type: {type(value)!r}")
 
     def _entry_to_model(
         self,
@@ -828,7 +897,8 @@ class Neo4jSemanticStorage(SemanticStorage):
     def _resolve_field_reference(self, alias: str, field: str) -> str:
         if field.startswith("m.") or field.startswith("metadata."):
             key = field.split(".", 1)[1]
-            return f"{alias}.metadata.{key}"
+            prop_name = self._metadata_property_name(key)
+            return f"{alias}.{prop_name}"
         return f"{alias}.{field}"
 
     def _next_filter_param(self) -> str:
