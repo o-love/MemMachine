@@ -164,7 +164,7 @@ class ResourceManagerImpl:
             semantic_conf=self._conf.semantic_memory,
             prompt_conf=self._conf.prompt,
             resource_manager=self,
-            episode_storage=self.episode_storage,
+            episode_storage=self.get_episode_storage(),
         )
         return self._semantic_manager
 

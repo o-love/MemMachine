@@ -27,10 +27,6 @@ from memmachine.semantic_memory.semantic_model import FeatureIdT, SemanticFeatur
 logger = logging.getLogger(__name__)
 
 
-# class SessionData(Protocol, SemanticSessionData):
-#     @property
-#     def session_key(self) -> str:
-#         raise NotImplementedError
 class SessionData(Protocol):
     @property
     def session_key(self) -> str:

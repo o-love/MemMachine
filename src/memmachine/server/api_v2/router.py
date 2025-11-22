@@ -71,7 +71,6 @@ async def _session_exists(
 #             embedder="default",
 #             reranker="default",
 #         )
-#
 
 
 @router.post("/projects")
