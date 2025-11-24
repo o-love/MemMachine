@@ -7,7 +7,7 @@ from collections.abc import Coroutine
 from enum import Enum
 from typing import Any, Final, Protocol, cast
 
-from pydantic import BaseModel, InstanceOf, JsonValue
+from pydantic import BaseModel, InstanceOf
 
 from memmachine.common.configuration import Configuration
 from memmachine.common.configuration.episodic_config import (
@@ -16,8 +16,18 @@ from memmachine.common.configuration.episodic_config import (
     ShortTermMemoryConf,
 )
 from memmachine.common.filter.filter_parser import (
+    And as FilterAnd,
+)
+from memmachine.common.filter.filter_parser import (
+    Comparison as FilterComparison,
+)
+from memmachine.common.filter.filter_parser import (
     FilterExpr,
+)
+from memmachine.common.filter.filter_parser import (
     parse_filter,
+)
+from memmachine.common.filter.filter_parser import (
     to_property_filter,
 )
 from memmachine.common.resource_manager.resource_manager import ResourceManagerImpl
@@ -316,15 +326,14 @@ class MemMachine:
 
         if MemoryType.Episodic in target_memories:
             episode_storage = await self._resources.get_episode_storage()
-            # TODO: modify episode store filter
+            episodic_filter = self._merge_episode_filter(
+                session_data.session_key,
+                search_filter_expr,
+            )
             episodic_task = asyncio.create_task(
                 episode_storage.get_episode_messages(
                     limit=limit,
-                    session_keys=[session_data.session_key],
-                    metadata=cast(
-                        dict[str, JsonValue] | None,
-                        to_property_filter(search_filter_expr),
-                    ),
+                    filter_expr=episodic_filter,
                 )
             )
 
@@ -345,6 +354,20 @@ class MemMachine:
             episodic_memory=episodic_result,
             semantic_memory=semantic_result,
         )
+
+    @staticmethod
+    def _merge_episode_filter(
+        session_key: str,
+        filter_expr: FilterExpr | None,
+    ) -> FilterExpr:
+        session_clause = FilterComparison(
+            field="session_key",
+            op="=",
+            value=session_key,
+        )
+        if filter_expr is None:
+            return session_clause
+        return FilterAnd(left=session_clause, right=filter_expr)
 
     async def delete_episodes(
         self,

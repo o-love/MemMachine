@@ -12,10 +12,12 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    and_,
     cast,
     delete,
     func,
     insert,
+    or_,
     select,
 )
 from sqlalchemy import (
@@ -27,6 +29,18 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import ColumnElement
 
+from memmachine.common.filter.filter_parser import (
+    And as FilterAnd,
+)
+from memmachine.common.filter.filter_parser import (
+    Comparison as FilterComparison,
+)
+from memmachine.common.filter.filter_parser import (
+    FilterExpr,
+)
+from memmachine.common.filter.filter_parser import (
+    Or as FilterOr,
+)
 from memmachine.episode_store.episode_model import (
     Episode as EpisodeE,
 )
@@ -244,83 +258,240 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         self,
         stmt: StmtT,
         *,
-        session_keys: list[str] | None = None,
-        producer_ids: list[str] | None = None,
-        producer_roles: list[str] | None = None,
-        produced_for_ids: list[str] | None = None,
-        episode_types: list[EpisodeType] | None = None,
+        filter_expr: FilterExpr | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, JsonValue] | None = None,
     ) -> StmtT:
         filters: list[ColumnElement[bool]] = []
 
-        filter_definitions: list[
-            tuple[list[str] | None, Callable[[list[str]], ColumnElement[bool]]]
-        ] = [
-            (session_keys, Episode.session_key.in_),
-            (producer_ids, Episode.producer_id.in_),
-            (producer_roles, Episode.producer_role.in_),
-            (produced_for_ids, Episode.produced_for_id.in_),
-        ]
-
-        for values, builder in filter_definitions:
-            if values is not None:
-                filters.append(builder(values))
-
-        if episode_types is not None:
-            filters.append(Episode.episode_type.in_(episode_types))
+        if filter_expr is not None:
+            filters.append(self._build_filter_clause(filter_expr))
         if start_time is not None:
             filters.append(Episode.created_at >= start_time)
         if end_time is not None:
             filters.append(Episode.created_at <= end_time)
-
-        metadata_filter = self._build_metadata_filter(metadata)
-        if metadata_filter is not None:
-            filters.append(metadata_filter)
 
         if filters:
             stmt = stmt.where(*filters)
 
         return stmt
 
-    def _build_metadata_filter(
-        self, metadata: dict[str, JsonValue] | None
-    ) -> ColumnElement[bool] | None:
-        if metadata is None:
-            return None
+    def _build_filter_clause(self, expr: FilterExpr) -> ColumnElement[bool]:
+        if isinstance(expr, FilterComparison):
+            return self._build_comparison_clause(expr)
+        if isinstance(expr, FilterAnd):
+            return and_(
+                self._build_filter_clause(expr.left),
+                self._build_filter_clause(expr.right),
+            )
+        if isinstance(expr, FilterOr):
+            return or_(
+                self._build_filter_clause(expr.left),
+                self._build_filter_clause(expr.right),
+            )
+        raise TypeError(f"Unsupported filter expression type: {type(expr)!r}")
 
-        metadata_str = {key: str(metadata[key]) for key in metadata}
+    def _build_comparison_clause(
+        self,
+        comparison: FilterComparison,
+    ) -> ColumnElement[bool]:
+        field = comparison.field
+        if field.startswith(("metadata.", "m.")):
+            key = field.split(".", 1)[1]
+            return self._build_metadata_comparison(key, comparison)
+
+        column, converter = self._resolve_basic_field(field)
+        return self._build_basic_comparison(column, converter, comparison)
+
+    def _build_basic_comparison(
+        self,
+        column: ColumnElement[Any],
+        converter: Callable[[Any], Any] | None,
+        comparison: FilterComparison,
+    ) -> ColumnElement[bool]:
+        op = comparison.op
+        if op == "=":
+            value = self._normalize_value(comparison.value, converter)
+            if value is None:
+                return column.is_(None)
+            return column == value
+        if op == "in":
+            if not isinstance(comparison.value, list):
+                raise TypeError("IN comparison requires a list of values")
+            values = [
+                self._normalize_value(value, converter)
+                for value in comparison.value
+            ]
+            null_selected = any(value is None for value in values)
+            non_null_values = [value for value in values if value is not None]
+            clauses: list[ColumnElement[bool]] = []
+            if non_null_values:
+                clauses.append(column.in_(non_null_values))
+            if null_selected:
+                clauses.append(column.is_(None))
+            if not clauses:
+                return column.is_(None)  # pragma: no cover
+            if len(clauses) == 1:
+                return clauses[0]
+            return or_(*clauses)
+        if op == "is_null":
+            return column.is_(None)
+        if op == "is_not_null":
+            return column.is_not(None)
+        raise ValueError(f"Unsupported operator for field '{comparison.field}': {op}")
+
+    def _build_metadata_comparison(
+        self,
+        key: str,
+        comparison: FilterComparison,
+    ) -> ColumnElement[bool]:
+        op = comparison.op
+        if op == "=":
+            return self._metadata_equality_clause(key, [comparison.value])
+        if op == "in":
+            if not isinstance(comparison.value, list):
+                raise TypeError("IN comparison requires a list of values")
+            return self._metadata_equality_clause(key, comparison.value)
+        if op == "is_null":
+            value_expr = self._metadata_value_expr(key)
+            return value_expr.is_(None)
+        if op == "is_not_null":
+            value_expr = self._metadata_value_expr(key)
+            return value_expr.is_not(None)
+        raise ValueError(f"Unsupported operator for metadata field '{key}': {op}")
+
+    def _metadata_equality_clause(
+        self,
+        key: str,
+        raw_values: list[Any],
+    ) -> ColumnElement[bool]:
+        clauses: list[ColumnElement[bool]] = []
+        for raw_value in raw_values:
+            if raw_value is None:
+                clauses.append(self._metadata_value_expr(key).is_(None))
+                continue
+            contains_clause = self._metadata_contains_clause(key, raw_value)
+            clauses.append(contains_clause)
+        if not clauses:
+            return self._metadata_value_expr(key).is_(None)
+        if len(clauses) == 1:
+            return clauses[0]
+        return or_(*clauses)
+
+    def _metadata_contains_clause(
+        self,
+        key: str,
+        raw_value: Any,
+    ) -> ColumnElement[bool]:
+        value = self._normalize_metadata_value(raw_value)
+        metadata_dict = self._build_metadata_dict(key, value)
         if self._engine.dialect.name == "postgresql":
-            return cast(Episode.json_metadata, JSONB).contains(metadata)
-        return Episode.json_metadata.contains(metadata_str)
+            return cast(Episode.json_metadata, JSONB).contains(metadata_dict)
+        return Episode.json_metadata.contains(metadata_dict)
 
-    @validate_call
+    def _metadata_value_expr(self, key: str) -> ColumnElement[Any]:
+        path = key.split(".")
+        if self._engine.dialect.name == "postgresql":
+            expr: ColumnElement[Any] = cast(Episode.json_metadata, JSONB)
+            for part in path:
+                expr = expr[part]
+            return expr.astext
+        json_path = "$." + ".".join(path)
+        return func.json_extract(Episode.json_metadata, json_path)
+
+    @staticmethod
+    def _build_metadata_dict(key: str, value: Any) -> dict[str, Any]:
+        parts = key.split(".")
+        current: dict[str, Any] = {}
+        root = current
+        for part in parts[:-1]:
+            next_level: dict[str, Any] = {}
+            current[part] = next_level
+            current = next_level
+        current[parts[-1]] = value
+        return root
+
+    def _resolve_basic_field(
+        self,
+        field: str,
+    ) -> tuple[ColumnElement[Any], Callable[[Any], Any] | None]:
+        mapping: dict[str, tuple[ColumnElement[Any], Callable[[Any], Any] | None]] = {
+            "session_key": (Episode.session_key, self._coerce_str),
+            "session": (Episode.session_key, self._coerce_str),
+            "producer_id": (Episode.producer_id, self._coerce_str),
+            "producer_role": (Episode.producer_role, self._coerce_str),
+            "role": (Episode.producer_role, self._coerce_str),
+            "produced_for_id": (Episode.produced_for_id, self._coerce_str),
+            "episode_type": (Episode.episode_type, self._normalize_episode_type),
+            "type": (Episode.episode_type, self._normalize_episode_type),
+            "id": (Episode.id, self._normalize_episode_id),
+            "uid": (Episode.id, self._normalize_episode_id),
+            "episode_id": (Episode.id, self._normalize_episode_id),
+        }
+        if field not in mapping:
+            raise ValueError(f"Unsupported episode filter field: {field}")
+        return mapping[field]
+
+    @staticmethod
+    def _coerce_str(value: Any) -> str | None:
+        if value is None:
+            return None
+        return str(value)
+
+    @staticmethod
+    def _normalize_value(
+        value: Any,
+        converter: Callable[[Any], Any] | None,
+    ) -> Any:
+        if value is None:
+            return None
+        if converter is None:
+            return value
+        return converter(value)
+
+    def _normalize_metadata_value(self, value: Any) -> Any:
+        if value is None:
+            return None
+        if self._engine.dialect.name == "postgresql":
+            return value
+        return str(value)
+
+    @staticmethod
+    def _normalize_episode_type(value: Any) -> EpisodeType:
+        if isinstance(value, EpisodeType):
+            return value
+        if isinstance(value, str):
+            name = value.upper()
+            if name in EpisodeType.__members__:
+                return EpisodeType[name]
+            try:
+                return EpisodeType(value.lower())
+            except ValueError as exc:  # pragma: no cover - defensive
+                raise ValueError(f"Unknown episode type: {value}") from exc
+        raise TypeError("Episode type filters must be strings or EpisodeType values")
+
+    @staticmethod
+    def _normalize_episode_id(value: Any) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
+            raise ValueError("Episode id filters must be numeric") from exc
+
     async def get_episode_messages(
         self,
         *,
         limit: int | None = None,
-        session_keys: list[str] | None = None,
-        producer_ids: list[str] | None = None,
-        producer_roles: list[str] | None = None,
-        produced_for_ids: list[str] | None = None,
-        episode_types: list[EpisodeType] | None = None,
+        filter_expr: FilterExpr | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, JsonValue] | None = None,
     ) -> list[EpisodeE]:
         stmt = select(Episode)
 
         stmt = self._apply_episode_filter(
             stmt,
-            session_keys=session_keys,
-            producer_ids=producer_ids,
-            producer_roles=producer_roles,
-            produced_for_ids=produced_for_ids,
-            episode_types=episode_types,
+            filter_expr=filter_expr,
             start_time=start_time,
             end_time=end_time,
-            metadata=metadata,
         )
 
         if limit is not None:
@@ -332,31 +503,20 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
 
         return [h.to_typed_model() for h in episode_messages]
 
-    @validate_call
     async def get_episode_messages_count(
         self,
         *,
-        session_keys: list[str] | None = None,
-        producer_ids: list[str] | None = None,
-        producer_roles: list[str] | None = None,
-        produced_for_ids: list[str] | None = None,
-        episode_types: list[EpisodeType] | None = None,
+        filter_expr: FilterExpr | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, JsonValue] | None = None,
     ) -> int:
         stmt = select(func.count(Episode.id))
 
         stmt = self._apply_episode_filter(
             stmt,
-            session_keys=session_keys,
-            producer_ids=producer_ids,
-            producer_roles=producer_roles,
-            produced_for_ids=produced_for_ids,
-            episode_types=episode_types,
+            filter_expr=filter_expr,
             start_time=start_time,
             end_time=end_time,
-            metadata=metadata,
         )
 
         async with self._create_session() as session:
@@ -375,31 +535,20 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
             await session.execute(stmt)
             await session.commit()
 
-    @validate_call
     async def delete_episode_messages(
         self,
         *,
-        session_keys: list[str] | None = None,
-        producer_ids: list[str] | None = None,
-        producer_roles: list[str] | None = None,
-        produced_for_ids: list[str] | None = None,
-        episode_types: list[EpisodeType] | None = None,
+        filter_expr: FilterExpr | None = None,
         start_time: AwareDatetime | None = None,
         end_time: AwareDatetime | None = None,
-        metadata: dict[str, JsonValue] | None = None,
     ) -> None:
         stmt = delete(Episode)
 
         stmt = self._apply_episode_filter(
             stmt,
-            session_keys=session_keys,
-            producer_ids=producer_ids,
-            producer_roles=producer_roles,
-            produced_for_ids=produced_for_ids,
-            episode_types=episode_types,
+            filter_expr=filter_expr,
             start_time=start_time,
             end_time=end_time,
-            metadata=metadata,
         )
 
         async with self._create_session() as session:

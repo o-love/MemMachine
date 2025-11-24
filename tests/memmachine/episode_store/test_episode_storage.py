@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import pytest_asyncio
 
+from memmachine.common.filter.filter_parser import FilterExpr, parse_filter
 from memmachine.episode_store.episode_model import (
     EpisodeEntry,
     EpisodeIdT,
@@ -18,6 +19,12 @@ DEFAULT_HISTORY_ARGS = {
     "producer_id": "producer-default",
     "producer_role": "user",
 }
+
+
+def _expr(spec: str) -> FilterExpr:
+    expression = parse_filter(spec)
+    assert expression is not None
+    return expression
 
 
 async def create_history_entry(
@@ -163,22 +170,22 @@ async def test_history_identity_filters(episode_storage: EpisodeStorage):
 
     try:
         by_session = await episode_storage.get_episode_messages(
-            session_keys=["session-assistant"],
+            filter_expr=_expr("session_key = 'session-assistant'"),
         )
         assert [m.uid for m in by_session] == [assistant_message]
 
         by_producer_id = await episode_storage.get_episode_messages(
-            producer_ids=["system-id"],
+            filter_expr=_expr("producer_id = 'system-id'"),
         )
         assert [m.uid for m in by_producer_id] == [system_message]
 
         by_producer_role = await episode_storage.get_episode_messages(
-            producer_roles=["user"],
+            filter_expr=_expr("producer_role = 'user'"),
         )
         assert [m.uid for m in by_producer_role] == [user_message]
 
         by_produced_for = await episode_storage.get_episode_messages(
-            produced_for_ids=["user-id"],
+            filter_expr=_expr("produced_for_id = 'user-id'"),
         )
         assert [m.uid for m in by_produced_for] == [assistant_message]
 
@@ -241,7 +248,9 @@ async def test_history_metadata_filter(episode_storage: EpisodeStorage):
         metadata={"scope": "b"},
     )
 
-    results = await episode_storage.get_episode_messages(metadata={"scope": "b"})
+    results = await episode_storage.get_episode_messages(
+        filter_expr=_expr("metadata.scope = 'b'")
+    )
     assert [entry.uid for entry in results] == [second]
 
     await episode_storage.delete_episodes([first, second])
@@ -290,7 +299,9 @@ async def test_delete_history_messages_with_identity_filters(
         producer_role="assistant",
     )
 
-    await episode_storage.delete_episode_messages(producer_roles=["assistant"])
+    await episode_storage.delete_episode_messages(
+        filter_expr=_expr("producer_role = 'assistant'")
+    )
 
     remaining = await episode_storage.get_episode_messages()
     assert [entry.uid for entry in remaining] == [keep_history]
@@ -342,12 +353,12 @@ async def test_number_no_filter_returns_all(episode_storage: EpisodeStorage):
     await create_history_entry(episode_storage, session_key="second", content="second")
 
     first_count = await episode_storage.get_episode_messages_count(
-        session_keys=["first"]
+        filter_expr=_expr("session_key = 'first'")
     )
     assert first_count == 1
 
     second_count = await episode_storage.get_episode_messages_count(
-        session_keys=["second"]
+        filter_expr=_expr("session_key = 'second'")
     )
     assert second_count == 1
 
