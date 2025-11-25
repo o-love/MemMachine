@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from memmachine import MemMachine
-from memmachine.common.errors import ConfigurationError, InvalidArgumentError
+from memmachine.common.errors import ConfigurationError, InvalidArgumentError, ResourceNotFoundError
 from memmachine.main.memmachine import ALL_MEMORY_TYPES, MemoryType
 from memmachine.server.api_v2.service import (
     _add_messages_to,
@@ -253,6 +253,8 @@ async def delete_episodic_memory(
         raise HTTPException(
             status_code=422, detail="invalid argument: " + str(e)
         ) from e
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=500, detail="Unable to delete episodic memory, " + str(e)
@@ -273,6 +275,8 @@ async def delete_semantic_memory(
         raise HTTPException(
             status_code=422, detail="invalid argument: " + str(e)
         ) from e
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=500, detail="Unable to delete episodic memory, " + str(e)

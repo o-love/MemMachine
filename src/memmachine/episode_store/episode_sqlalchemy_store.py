@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import UTC
 from typing import Any, overload
 
+from memmachine.common.errors import ResourceNotFoundError
 from pydantic import (
     AwareDatetime,
     JsonValue,
@@ -192,7 +193,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         try:
             int_episode_id = int(episode_id)
         except (TypeError, ValueError) as e:
-            raise ValueError("Invalid episode ID") from e
+            raise ResourceNotFoundError("Invalid episode ID") from e
 
         stmt = (
             select(Episode)
@@ -395,7 +396,7 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
         try:
             int_episode_ids = TypeAdapter(list[int]).validate_python(episode_ids)
         except ValidationError as e:
-            raise ValueError("Invalid episode IDs") from e
+            raise ResourceNotFoundError("Invalid episode IDs") from e
 
         stmt = delete(Episode).where(Episode.id.in_(int_episode_ids))
 

@@ -8,8 +8,10 @@ class MemMachineError(RuntimeError):
 class InvalidArgumentError(MemMachineError):
     """Error for invalid arguments."""
 
+class ResourceNotFoundError(InvalidArgumentError):
+    """Error when a specified resource is not found."""
 
-class RerankerNotFoundError(InvalidArgumentError):
+class RerankerNotFoundError(ResourceNotFoundError):
     """Error when a specified reranker is not found."""
 
     def __init__(self, reranker_name: str) -> None:
@@ -20,7 +22,7 @@ class RerankerNotFoundError(InvalidArgumentError):
         )
 
 
-class EmbedderNotFoundError(InvalidArgumentError):
+class EmbedderNotFoundError(ResourceNotFoundError):
     """Error when a specified embedder is not found."""
 
     def __init__(self, embedder_name: str) -> None:
