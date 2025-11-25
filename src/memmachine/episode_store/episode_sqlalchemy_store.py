@@ -4,7 +4,6 @@ from collections.abc import Callable
 from datetime import UTC
 from typing import Any, overload
 
-from memmachine.common.errors import ResourceNotFoundError
 from pydantic import (
     AwareDatetime,
     JsonValue,
@@ -34,6 +33,7 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import ColumnElement
 
+from memmachine.common.errors import ResourceNotFoundError
 from memmachine.episode_store.episode_model import (
     Episode as EpisodeE,
 )

@@ -8,8 +8,10 @@ class MemMachineError(RuntimeError):
 class InvalidArgumentError(MemMachineError):
     """Error for invalid arguments."""
 
+
 class ResourceNotFoundError(InvalidArgumentError):
     """Error when a specified resource is not found."""
+
 
 class RerankerNotFoundError(ResourceNotFoundError):
     """Error when a specified reranker is not found."""

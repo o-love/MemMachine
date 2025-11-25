@@ -6,7 +6,6 @@ from typing import Any, overload
 import numpy as np
 from alembic import command
 from alembic.config import Config
-from memmachine.common.errors import ResourceNotFoundError
 from pgvector.sqlalchemy import Vector
 from pydantic import InstanceOf, TypeAdapter, ValidationError
 from sqlalchemy import (
@@ -34,6 +33,7 @@ from sqlalchemy.orm import DeclarativeBase, aliased, mapped_column
 from sqlalchemy.sql import Delete, Select, func
 
 from memmachine.common.data_types import FilterablePropertyValue
+from memmachine.common.errors import ResourceNotFoundError
 from memmachine.common.filter.filter_parser import (
     And as FilterAnd,
 )

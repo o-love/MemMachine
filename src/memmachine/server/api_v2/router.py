@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from memmachine import MemMachine
-from memmachine.common.errors import ConfigurationError, InvalidArgumentError, ResourceNotFoundError
+from memmachine.common.errors import (
+    ConfigurationError,
+    InvalidArgumentError,
+    ResourceNotFoundError,
+)
 from memmachine.main.memmachine import ALL_MEMORY_TYPES, MemoryType
 from memmachine.server.api_v2.service import (
     _add_messages_to,
