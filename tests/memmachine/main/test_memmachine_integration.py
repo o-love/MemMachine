@@ -48,6 +48,10 @@ def session_data():
     )
 
 
+@pytest.fixture
+def llm_model(real_llm_model):
+    return real_llm_model
+
 @pytest.fixture(scope="session")
 def long_mem_data():
     data_path = Path("tests/data/longmemeval_snippet.json")
@@ -68,87 +72,6 @@ def long_mem_conversations(long_mem_data):
 @pytest.fixture(scope="session", autouse=True)
 def session_setup():
     setup_nltk()
-
-
-@pytest_asyncio.fixture
-async def memmachine_config(openai_integration_config, pg_server, neo4j_container):
-    neo4j_uri = urlparse(neo4j_container["uri"])
-
-    resources_config = {
-        "embedders": {
-            "openai_embedder": {
-                "provider": "openai",
-                "config": {
-                    "model": openai_integration_config["embedding_model"],
-                    "api_key": openai_integration_config["api_key"],
-                    "dimensions": 1536,
-                },
-            }
-        },
-        "language_models": {
-            "openai_model": {
-                "provider": "openai-responses",
-                "config": {
-                    "model": openai_integration_config["llm_model"],
-                    "api_key": openai_integration_config["api_key"],
-                },
-            }
-        },
-        "rerankers": {
-            "identity_reranker": {
-                "provider": "identity",
-            },
-        },
-        "databases": {
-            "pg_store": {
-                "provider": "postgres",
-                "config": {
-                    "host": pg_server["host"],
-                    "port": pg_server["port"],
-                    "user": pg_server["user"],
-                    "password": pg_server["password"],
-                    "db_name": pg_server["database"],
-                },
-            },
-            "neo4j_store": {
-                "provider": "neo4j",
-                "config": {
-                    "host": neo4j_uri.hostname,
-                    "port": neo4j_uri.port,
-                    "user": neo4j_container["username"],
-                    "password": neo4j_container["password"],
-                },
-            },
-        },
-    }
-
-    episodic_conf = EpisodicMemoryConfPartial(
-        long_term_memory=LongTermMemoryConfPartial(
-            vector_graph_store="neo4j_store",
-            embedder="openai_embedder",
-            reranker="identity_reranker",
-        ),
-        short_term_memory=ShortTermMemoryConfPartial(
-            llm_model="openai_model",
-        ),
-    )
-
-    conf = Configuration(
-        episodic_memory=episodic_conf,
-        semantic_memory=SemanticMemoryConf(
-            database="pg_store",
-            llm_model="openai_model",
-            embedding_model="openai_embedder",
-        ),
-        logging=LogConf(),
-        prompt=PromptConf(),
-        session_manager=SessionManagerConf(database="pg_store"),
-        resources=ResourcesConf(**resources_config),
-        episode_store=EpisodeStoreConf(database="pg_store"),
-    )
-
-    return conf
-
 
 class TestMemMachineLongMemEval:
     @staticmethod
