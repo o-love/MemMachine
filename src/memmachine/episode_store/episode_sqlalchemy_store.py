@@ -4,7 +4,13 @@ from collections.abc import Callable
 from datetime import UTC
 from typing import Any, overload
 
-from pydantic import AwareDatetime, JsonValue, validate_call
+from pydantic import (
+    AwareDatetime,
+    JsonValue,
+    TypeAdapter,
+    ValidationError,
+    validate_call,
+)
 from sqlalchemy import (
     JSON,
     DateTime,
@@ -183,9 +189,14 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
 
     @validate_call
     async def get_episode(self, episode_id: EpisodeIdT) -> EpisodeE | None:
+        try:
+            int_episode_id = int(episode_id)
+        except (TypeError, ValueError) as e:
+            raise ValueError("Invalid episode ID") from e
+
         stmt = (
             select(Episode)
-            .where(Episode.id == int(episode_id))
+            .where(Episode.id == int_episode_id)
             .order_by(Episode.created_at.asc())
         )
 
@@ -381,7 +392,10 @@ class SqlAlchemyEpisodeStore(EpisodeStorage):
 
     @validate_call
     async def delete_episodes(self, episode_ids: list[EpisodeIdT]) -> None:
-        int_episode_ids = [int(h_id) for h_id in episode_ids]
+        try:
+            int_episode_ids = TypeAdapter(list[int]).validate_python(episode_ids)
+        except ValidationError as e:
+            raise ValueError("Invalid episode IDs") from e
 
         stmt = delete(Episode).where(Episode.id.in_(int_episode_ids))
 

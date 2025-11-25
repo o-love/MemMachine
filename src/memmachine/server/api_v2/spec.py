@@ -135,7 +135,7 @@ class DeleteEpisodicMemorySpec(BaseModel):
 
     org_id: SafeIdWithDefault
     project_id: SafeIdWithDefault
-    episodic_id: IntCompatibleId
+    episodic_id: SafeId
 
 
 class DeleteSemanticMemorySpec(BaseModel):
@@ -143,7 +143,7 @@ class DeleteSemanticMemorySpec(BaseModel):
 
     org_id: SafeIdWithDefault
     project_id: SafeIdWithDefault
-    semantic_id: IntCompatibleId
+    semantic_id: SafeId
 
 
 class SearchResult(BaseModel):
