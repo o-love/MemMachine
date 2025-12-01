@@ -182,11 +182,6 @@ color = "auto"
 sort = "desc"
 exclude = []
 
-[[tool.uv.sources.asyncpg]]
-git = "https://github.com/MagicStack/asyncpg.git"
-rev = "9e42642b9110d206706697921b6e697a0972649d"
-marker = "sys_platform == 'win32' and python_version == '3.14'"
-
 [tool.coverage.run]
 source = [
   "src/memmachine",
